@@ -65,7 +65,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v89';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v90';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -116,7 +116,7 @@ function redoAll(){const h=fut.pop();if(!h)return msg('Nothing to redo.');hist.p
 function histRestore(j){if(typeof fc!=='undefined'&&fc){clearInterval(fcT);fc=null}S=JSON.parse(j);lastJ=j;histAt=0;undoSnap=null;$('undoNP').hidden=true;try{localStorage.setItem(KEY,j)}catch(e){}save();histSave();render();if($('depv').style.display!=='none')depthRender()}
 function undoRow(){return `<div class="row"><button id="undoLast" class="sec" style="flex:2;min-height:48px" onclick="undoAll()"${hist.length?'':' disabled'}>↶ Undo${hist.length?' '+esc(hist[hist.length-1].lab)+' ('+hist.length+')':''}</button><button class="sec" style="flex:1;min-height:48px" onclick="redoAll()"${fut.length?'':' disabled'}>Redo ↷</button></div>`}
 function save(){const j=JSON.stringify(S);histNote(j);let ok=false;try{localStorage.setItem(KEY,j);ok=true}catch(e){}
- mirror(j);$('save').textContent=(PROF?'['+PROF+' profile] ':'')+(ok?'Saved on this phone '+ft(Date.now())+' · '+(S.piles.length+1)+' piles':'Not saved to main storage. Backup copy only: export now')}
+ mirror(j);$('save').textContent=(PROF?'['+PROF+' profile] ':'')+(ok?'Saved on this phone '+ft(Date.now())+' · '+(S.piles.length+1)+' piles · v'+APPV.replace(/\D/g,''):'Not saved to main storage. Backup copy only: export now')}
 let mirT;function mirror(j){clearTimeout(mirT);mirT=setTimeout(()=>{try{pdb().then(db=>{const tx=db.transaction('s','readwrite');tx.objectStore('s').put({t:Date.now(),j},'state'+(PROF?':'+PROF:''))})}catch(e){}},300)}
 let undoSnap=null,undoT;function showUndoPile(){const u=$('undoNP');u.hidden=false;clearTimeout(undoT);undoT=setTimeout(()=>{u.hidden=true;undoSnap=null},20000)}
 let msgT;function msg(t){const m=$('msg');m.textContent=t;m.hidden=false;clearTimeout(msgT);msgT=setTimeout(()=>m.hidden=true,6000)}

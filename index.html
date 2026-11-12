@@ -678,8 +678,8 @@ function tick(){const now=Date.now();let worst=null;
  for(const t of S.trucks){if(t.emptied)continue;const co=cutoff(t);if(!co)continue;const r=co-now;if(r<=600000&&(!worst||r<worst.r))worst={t,r,co}}
  const a=$('alert');if(!worst){a.style.display='none';return}
  a.style.display='block';
- if(worst.r<=0)a.textContent='▲ Truck '+(worst.t.num||'?')+' — Cutoff reached ('+ft(worst.co)+')';
- else{const m=Math.floor(worst.r/60000),s=Math.floor(worst.r/1000)%60;a.textContent='▲ Truck '+(worst.t.num||'?')+' — '+m+':'+String(s).padStart(2,'0')+' left · cutoff '+ft(worst.co)}
+ if(worst.r<=0)a.textContent='▲ Truck '+tname(worst.t)+' — Cutoff reached ('+ft(worst.co)+')';
+ else{const m=Math.floor(worst.r/60000),s=Math.floor(worst.r/1000)%60;a.textContent='▲ Truck '+tname(worst.t)+' — '+m+':'+String(s).padStart(2,'0')+' left · cutoff '+ft(worst.co)}
  if(!S.warned[worst.t.id]){S.warned[worst.t.id]=1;vib();save()}}
 setInterval(tick,1000);
 // If main storage came back empty but the backup copy has records, restore them

@@ -628,5 +628,8 @@ async function preload(){const PK='groutTracker.preloaded';let done=[];try{done=
 try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
 try{navigator.wakeLock&&navigator.wakeLock.request('screen').catch(()=>{})}catch(e){}
 </script>
-<script>if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));</script>
+<script>if('serviceWorker' in navigator){const had=!!navigator.serviceWorker.controller;let reloaded=false;
+ // a new version took over: reload once so it shows now (not on the next open)
+ navigator.serviceWorker.addEventListener('controllerchange',()=>{if(had&&!reloaded){reloaded=true;location.reload()}});
+ addEventListener('load',()=>navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(reg=>{reg.update();document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')reg.update()})}).catch(()=>{}))}</script>
 </body></html>

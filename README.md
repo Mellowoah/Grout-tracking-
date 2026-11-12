@@ -15,7 +15,7 @@ Open it once with signal; after that it works with no connection. After an updat
 2. **Drill finish**: drill start (−3 min) and grout start fill in if missed.
 3. **Truck arrival**: load defaults to 9 yd³; **Scan ticket** reads truck I.D., load, batch time, ticket #, mix.
 4. **Grout start**: starts pumping and hooks up a truck (carried-over first).
-5. **+1** each stroke, **Mark depth** at each mark. Header shows yd³ and ~strokes left on the feeding truck.
+5. Strokes come from the physical counter: at each mark type the **counter reading** and tap **Mark depth**. Each band shows strokes and yd³ (× 0.86 ft³). Header shows yd³ and ~strokes left on the feeding truck.
 6. **QC test**: grout temp and flow-cone stopwatch. **Sample taken** logs the sample.
 7. **Grout return**, then **Grout finish** (stops pumping; reinforce start = grout finish, finish +15 min if missed).
 8. **Closeout**: contractor count / agreed total. This always overrides my count for yardage.

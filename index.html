@@ -43,16 +43,17 @@ table{width:100%;border-collapse:collapse;font-size:14px}td,th{padding:4px;borde
 #msg{background:var(--acc);color:var(--accink);padding:8px 10px;font-weight:700;border-radius:6px;margin-top:6px}
 .trayw{color:#ffd100;font-weight:700;font-size:14px;margin-top:4px}
 label small{display:block;color:var(--mut)}
+#ctr::placeholder{font:600 18px Barlow,system-ui,sans-serif}
 </style>
 </head><body>
 
 <div id="alert"></div>
 <header><div class="stat" id="stat"></div><div id="save">Loading…</div><div id="msg" hidden></div><button id="undoNP" class="sec" hidden style="width:100%;margin-top:6px;min-height:44px" onclick="A.undoPile()">Undo new pile</button></header>
 <main id="app"></main>
-<div id="tray"><div class="top"><div><small>Pile <span id="tp"></span> · strokes</small><div class="num" id="cnt">0</div></div>
-<div class="row" style="flex-wrap:nowrap"><button class="sec" id="undo" style="font-size:15px;padding:6px 8px;white-space:nowrap">Undo</button><button class="sec" id="npTray" style="font-size:15px;padding:6px 8px;white-space:nowrap" onclick="A.newPile()" aria-label="Finish pile and start next">Next pile ▸</button><button class="sec" style="padding:6px 10px" id="fold" aria-label="Fold counter">▾</button></div></div>
+<div id="tray"><div class="top"><div><small>Pile <span id="tp"></span> · counter</small><div class="num" id="cnt">0</div></div>
+<div class="row" style="flex-wrap:nowrap"><button class="sec" id="npTray" style="font-size:15px;padding:6px 8px;white-space:nowrap" onclick="A.newPile()" aria-label="Finish pile and start next">Next pile ▸</button><button class="sec" style="padding:6px 10px" id="fold" aria-label="Fold counter">▾</button></div></div>
 <div id="tnone" class="trayw" hidden>No truck feeding: these strokes won't count toward any truck</div>
-<div id="trayBody"><div style="margin-top:6px">Next mark <b class="num" id="tnext" style="font-size:28px"></b> · <small id="tint"></small></div><div class="row" style="flex-wrap:nowrap;margin-top:6px"><button id="plus" style="flex:2;width:auto;margin-top:0">+1</button><button id="tmark" style="flex:1;min-height:96px" onclick="A.mark()">Mark depth</button></div></div></div>
+<div id="trayBody"><div style="margin-top:6px">Next mark <b class="num" id="tnext" style="font-size:28px"></b> · <small id="tint"></small></div><div class="row" style="flex-wrap:nowrap;margin-top:6px"><input id="ctr" type="number" inputmode="numeric" placeholder="Counter reading" style="flex:2;min-height:80px;font:800 34px 'Barlow Condensed',system-ui,sans-serif;text-align:center" onchange="A.setCounter(this.value)" onkeydown="if(event.key==='Enter'){A.ctrMark()}"><button id="tmark" style="flex:1;min-height:80px" onclick="A.ctrMark()">Mark depth</button></div></div></div>
 <input type="file" id="camIn" accept="image/*" hidden><input type="file" id="formIn" accept="image/*" hidden><input type="file" id="impIn" accept=".json,application/json" hidden>
 <div id="scanv" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:31;overflow:auto;padding:calc(16px + env(safe-area-inset-top,0px)) 12px 24px"></div>
 <div id="formv" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:30;overflow:auto;padding:calc(16px + env(safe-area-inset-top,0px)) 8px 24px"></div>
@@ -186,7 +187,7 @@ function intervals(p=S.pile){const L=Number(p.len)||0;let rows=[],prev={d:L,s:0,
   prev={d:e.depth,s:e.strokes,good:e.depth,after:false}}
  return rows}
 
-function tray(){const m=nextMark();$('tnext').textContent=m===undefined?'done':m+' ft';const last=pev('depth_mark').filter(e=>!e.missing).pop();$('tint').textContent='Since last mark: '+(S.strokes-(last?last.strokes:0))+' strokes';$('tnone').hidden=!!tk(S.active)}
+function tray(){const m=nextMark();$('tnext').textContent=m===undefined?'done':m+' ft';const last=pev('depth_mark').filter(e=>!e.missing).pop();{const sl=S.strokes-(last?last.strokes:0);$('tint').textContent='Since last mark: '+sl+' strokes'+(calYd()>0?' · '+r1(sl*calYd())+' yd³':'')}$('tnone').hidden=!!tk(S.active)}
 let rT;function soon(){clearTimeout(rT);rT=setTimeout(render,400)}
 function stroke(d){if(d<0&&S.strokes===0)return;S.strokes+=d;if(!tk(S.active))S.orphan=Math.max(0,S.orphan+d);if(d>0)vib();$('cnt').textContent=S.strokes;tray();save();if(d>0)autoHandoff();soon()}
 // When the feeding truck's load (minus the sample allowance) is used up by strokes, stamp it empty and move to the next queued truck
@@ -196,8 +197,6 @@ function autoHandoff(){const t=tk(S.active);if(!t||t.pend||t.noPend||!(calYd()>0
  t.pend={t:Date.now(),pk:S.pile.key,strokes:S.strokes};log('truck_maybe_empty',{truck:t.id});const nx=S.trucks.find(x=>!x.fed&&!x.emptied);
  if(nx){A.sw(nx.id);msg('Strokes say truck '+tname(t)+' is used up. Now counting on truck '+tname(nx)+'. Truck '+tname(t)+' stays open until you confirm.')}
  else{save();render();msg('Strokes say truck '+tname(t)+' is used up, but no truck is queued. Still counting on '+tname(t)+'.')}vib()}
-$('plus').onclick=e=>{flash(e.target);stroke(1)};
-$('undo').onclick=()=>stroke(-1);
 $('fold').onclick=()=>{$('tray').classList.toggle('min');$('fold').textContent=$('tray').classList.contains('min')?'▴':'▾'};
 
 const armed={};
@@ -210,6 +209,12 @@ const A={
  undoPile(){if(!undoSnap)return;S=JSON.parse(undoSnap);undoSnap=null;$('undoNP').hidden=true;save();render();msg('Back on pile '+S.pile.id+'. Nothing was lost.')},
  pump(){act(()=>{S.pumping=!S.pumping;log(S.pumping?'pump_start':'pump_pause')})},
  arrive(){act(()=>{const t={id:uid(),seq:S.trucks.length?Math.max(...S.trucks.map(x=>x.seq||0))+1:1,num:'',sampleNo:'',qty:S.defLoad?String(S.defLoad):'',batch:'',dispatch:'',arrived:Date.now(),emptied:null,strokes:0,samples:[],waste:'',tests:[],pk0:S.pile.key,ps:{},used:{},carryIn:{},left:''};S.trucks.push(t);log('truck_arrival',{truck:t.id});vib()})},
+ // Strokes come from the physical counter: type the reading; the difference goes to the feeding truck,
+ // split at the point a truck's load runs out so the next truck gets the rest
+ setCounter(v){const n=parseInt(v,10);if(isNaN(n)||n<0)return;let d=n-S.strokes;if(!d)return;if(d<0){stroke(d);return}
+  for(let g=0;d>0&&g<20;g++){const t=tk(S.active);let step=d;if(t&&calYd()>0&&parseFloat(t.qty)>0&&!t.pend&&num(t.used[S.pile.key])===null){const r=calc(t).rem;if(r!==null&&r>0)step=Math.min(d,Math.max(1,Math.ceil(r/calYd()-1e-9)))}
+   stroke(step);d-=step;if(tk(S.active)===t&&d>0){stroke(d);d=0}}const c=$('ctr');if(c){c.value='';c.placeholder='Counter now '+S.strokes}},
+ ctrMark(){const c=$('ctr');if(c&&c.value!=='')A.setCounter(c.value);A.mark()},
  mark(){act(()=>{const d=nextMark();if(d===undefined)return msg('All depth marks for this pile are done.');log('depth_mark',{depth:d,truck:S.active});S.pile.mi++;vib()})},
  miss(){act(()=>{const d=nextMark();if(d===undefined)return;log('depth_mark',{depth:d,missing:true,truck:S.active});S.pile.mi++})},
  ret(){act(()=>{log('grout_return',{depth:null,source:''})})},
@@ -316,7 +321,7 @@ function render(){clearTimeout(rT);
  const L=ledger(),f1=v=>v===null?'<span class=flag>?</span>':r1(v);
  h+=`<div class="card"><b>Pile ${esc(S.pile.id)} yardage (yd³)</b><br>Arrived ${r1(L.arr)} + carried in ${r1(L.cin)} − used ${f1(L.used)} − samples ${r1(L.samp)} − waste ${r1(L.waste)} = <b>left on trucks ${f1(L.left)}</b>${L.used===null?'<div class=flag>Type used yd³ on each truck, or set pump calibration</div>':''}${S.orphan?`<div class=flag>${S.orphan} strokes not on any truck</div>`:''}</div>`;
  const iv=intervals();
- h+=`<h2>Pile ${esc(S.pile.id)} intervals · total ${S.strokes}</h2><div class="wrap"><table><tr><th>Band</th><th>Cum</th><th>Strokes</th><th>Flag</th></tr>${bands().map(b=>{const r=iv.find(r=>r.band===b);return `<tr><td>${b}</td><td>${r?r.cum:''}</td><td>${r&&r.d!=null?r.d:''}</td><td class="flag">${r?esc(r.flag):''}</td></tr>`}).join('')}<tr><td><b>Total</b></td><td></td><td><b>${S.strokes}</b></td><td></td></tr></table></div>`;
+ h+=`<h2>Pile ${esc(S.pile.id)} intervals · total ${S.strokes}</h2><div class="wrap"><table><tr><th>Band</th><th>Counter</th><th>Strokes</th><th>yd³ (×${esc(S.cal)} ${S.calUnit==='ft3'?'ft³':'yd³'})</th><th>Flag</th></tr>${bands().map(b=>{const r=iv.find(r=>r.band===b);return `<tr><td>${b}</td><td>${r?r.cum:''}</td><td>${r&&r.d!=null?r.d:''}</td><td>${r&&r.d!=null&&calYd()>0?r1(r.d*calYd()):''}</td><td class="flag">${r?esc(r.flag):''}</td></tr>`}).join('')}<tr><td><b>Total</b></td><td></td><td><b>${S.strokes}</b></td><td><b>${calYd()>0?r1(S.strokes*calYd()):''}</b></td><td></td></tr></table></div>`;
  const gr=pev('grout_return');
  if(gr.length)h+=`<h2>Grout return</h2>`+gr.map(e=>`<div class="row">${ft(e.t)} · strokes ${e.strokes}<input id="gr-${e.id}" placeholder="Depth ft (fill later)" inputmode="decimal" value="${e.depth??''}" onchange="A.setDepth('${e.id}',this.value)">${e.depth==null?'<span class=flag>missing</span>':''}</div>`).join('');
  h+=`<h2>Closeout</h2><div class="card"><div>My count <b>${S.strokes}</b> · used yd³ figured from <b>${confStrokes(S.pile.key).src} (${confStrokes(S.pile.key).n})</b></div><div class="row"><input id="f-op" placeholder="Contractor count" inputmode="numeric" value="${esc(S.pile.opCount)}" onchange="A.pset('opCount',this.value)"><input id="f-rev" placeholder="Agreed total" inputmode="numeric" value="${esc(S.pile.reviewed)}" onchange="A.pset('reviewed',this.value)"></div><div class="row"><input id="f-note" placeholder="Explanation" value="${esc(S.pile.note)}" onchange="A.pset('note',this.value)"></div>${S.pile.opCount&&Number(S.pile.opCount)!==S.strokes?'<div class=flag>Counts differ by '+(Number(S.pile.opCount)-S.strokes)+'</div>':''}</div>`;

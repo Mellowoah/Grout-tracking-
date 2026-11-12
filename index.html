@@ -104,8 +104,10 @@ function stages(p=S.pile){const st=p.st||{},D=(S.drillMin||0)*60000,R=(S.reinfMi
   set('groutFinish',g('reinfStart')||(g('reinfFinish')&&g('reinfFinish')-R));set('reinfStart',g('groutFinish')||(g('reinfFinish')&&g('reinfFinish')-R));set('reinfFinish',g('reinfStart')&&g('reinfStart')+R)}
  return o}
 const hm=ms=>{if(!ms)return'';const d=new Date(ms);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')};
-// Truck must be used within S.limit minutes of arriving on site
-function cutoff(t){return t.arrived?t.arrived+S.limit*60000:null}
+// Truck must be used within S.limit minutes of its batch time
+function cutoff(t){const b=t.batch||t.dispatch;if(!b)return null;const [h,m]=b.split(':').map(Number);const ref=t.arrived||Date.now();const d=new Date(ref);d.setHours(h,m,0,0);
+ if(d.getTime()>ref+5*60000)d.setDate(d.getDate()-1); // batched before midnight, arrived after
+ return d.getTime()+S.limit*60000}
 function calc(t){const q=parseFloat(t.qty),placed=usedAll(t);
  const s=t.samples.length*S.sampleYd,w=parseFloat(t.waste)||0;
  const rem=(placed!==null&&q>=0)?q-placed-s-w:null;return{placed,s,w,rem,q}}
@@ -210,7 +212,7 @@ function render(){clearTimeout(rT);
   <div class="row"><button style="flex:2" onclick="A.scan('${t.id}')">${t.photo?'Rescan ticket':'Scan ticket'}</button>${t.photo?`<button class="sec" style="flex:1" onclick="viewPhoto('${t.id}')">View ticket</button>`:''}</div>
   ${ci?`<div class="trayw" style="color:var(--mut)">Carried from pile ${esc(pname(ci.from))}: ${ci.yd==null?'?':ci.yd.toFixed(1)} yd³ on board</div>`:''}
   <div class="row"><label style="flex:1;min-width:95px"><small>Batch</small><input id="t-${t.id}-batch" type="time" value="${esc(t.batch)}" onchange="A.setT('${t.id}','batch',this.value)"></label><label style="flex:1;min-width:95px"><small>Arrived</small><input id="t-${t.id}-arr" type="time" value="${hm(t.arrived)}" onchange="A.setTime('${t.id}','arrived',this.value)"></label><label style="flex:1;min-width:95px"><small>Empty</small><input id="t-${t.id}-emp" type="time" value="${hm(t.emptied)}" onchange="A.setTime('${t.id}','emptied',this.value)"></label></div>
-  <div>${t.emptied?'Emptied'+(t.left==='waste'?' · leftover wasted':''):t.fed?(S.active===t.id?'<b>Feeding</b>':'Fed earlier'):'Queued'}${t.left==='carry'&&!t.emptied?' · <b>carry to next pile</b>':''} · cutoff ${co?ft(co):'—'}</div>
+  <div>${t.emptied?'Emptied'+(t.left==='waste'?' · leftover wasted':''):t.fed?(S.active===t.id?'<b>Feeding</b>':'Fed earlier'):'Queued'}${t.left==='carry'&&!t.emptied?' · <b>carry to next pile</b>':''} · cutoff ${co?ft(co):'<span class=flag>enter batch time</span>'}</div>
   <div class="row"><label style="flex:1;min-width:120px"><small>Used on pile ${esc(S.pile.id)} yd³ ${man?'(typed)':autoU?'(from strokes)':''}</small><input id="t-${t.id}-used" inputmode="decimal" placeholder="${autoU||'Enter yd³'}" value="${man?esc(t.used[pk]):''}" onchange="A.setUsed('${t.id}',this.value)"></label><div style="flex:1;min-width:120px"><small style="color:var(--mut)">Strokes this pile</small><div class="num" style="font-size:22px">${strokesOn(t,pk)}</div></div></div>
   <div>Load ${c.q>=0?c.q.toFixed(1):'<span class=flag>?</span>'} − used ${c.placed===null?'<span class=flag>?</span>':c.placed.toFixed(1)} − samples ${c.s.toFixed(1)} − waste ${c.w.toFixed(1)} = <b>left on truck ${c.rem===null?'<span class=flag>?</span>':r1(c.rem)} yd³</b></div>
   ${c.rem!==null&&c.rem>0.05&&t.left!=='waste'?`<div class="row"><button style="flex:1" onclick="A.waste('${t.id}')">Leftover is waste</button>${t.emptied?'':`<button class="sec" style="flex:1" onclick="A.carry('${t.id}')">${t.left==='carry'?'✓ Carrying to next pile':'Carry to next pile'}</button>`}</div>`:''}
@@ -241,7 +243,7 @@ function render(){clearTimeout(rT);
  <div class="row"><input id="s-cal" placeholder="Pump calibration yd³ per stroke (verify)" inputmode="decimal" value="${esc(S.cal)}" onchange="A.cfg('cal',this.value)"></div>
  <div class="row"><input id="s-dm" inputmode="numeric" style="max-width:90px" value="${esc(S.drillMin)}" onchange="A.cfg('drillMin',Number(this.value)||0)"><small>Drill minutes (start before finish, used when a time is missed)</small></div>
  <div class="row"><input id="s-rm" inputmode="numeric" style="max-width:90px" value="${esc(S.reinfMin)}" onchange="A.cfg('reinfMin',Number(this.value)||0)"><small>Reinforce minutes (finish after start, used when a time is missed)</small></div>
- <div class="row"><input id="s-lim" inputmode="numeric" value="${esc(S.limit)}" onchange="A.cfg('limit',Number(this.value)||120)"><small>Cutoff minutes from arrival time. Confirm against your spec.</small></div>
+ <div class="row"><input id="s-lim" inputmode="numeric" value="${esc(S.limit)}" onchange="A.cfg('limit',Number(this.value)||120)"><small>Cutoff minutes from batch time. Confirm against your spec.</small></div>
  <div class="row"><button onclick="showForm()">View form</button><button onclick="exportX()">Export Excel</button><button class="sec" onclick="backup()">Backup JSON</button><button class="sec" id="rs" onclick="A.reset()">Clear all</button></div></div>`;
  $('app').innerHTML=h}
 document.addEventListener('focusout',()=>setTimeout(()=>{if(pend)render()},0));

@@ -27,6 +27,11 @@ Open it once with signal; after that it works with no connection. After an updat
 8. **Closeout**: My count, contractor count / agreed total. If no band strokes are entered, the total is split over the depth bands using today's piles of the same length (else by footage), marked * on the form.
 9. **Next pile ▸**: one tap, never blocked. Open trucks carry their leftover to the next pile. 20 s undo.
 
+## Problems & delays
+- **Problem / delay** (under the pile steps): **Stopped now** for a drill or pump breakdown, waiting on trucks, weather or other, with who caused it. It saves the time, strokes and depth band if grouting was under way, pauses the pump and shows a red **Back running** bar until work starts again. **It already happened** adds a stop and you type the times.
+- Stops list on the pile (edit kind, cause, times, what was done), on the form, in the Excel export (**Problems_delays**) and at End day with total down minutes by cause.
+- **Send a truck back** (wrong mix, past the cutoff, failed QC, not needed): for a truck that hasn't pumped. The load comes off every pile's yardage and the sample count but stays on the day's record (**Sent back today**, Undo). The red cutoff bar is tappable to send that truck back. A truck that already pumped uses **Leftover is waste**.
+
 ## Yardage rules
 - Pump output 0.86 ft³ per stroke (Settings, ft³/yd³ switch).
 - Used per truck per pile = confirmed strokes × pump output (or typed). Left for next = load − sample − used − waste, shown to 0.001; grout carried on to the next pile is taken down by 0.001 (e.g. 2.103 → 2.102), not on the pile where the truck is emptied.

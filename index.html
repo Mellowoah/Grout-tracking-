@@ -283,7 +283,7 @@ function formHTML(pk){
  const carriedTo=t=>{const k=Object.keys(t.carryIn).find(k=>t.carryIn[k].from===P.key);return k?'→ pile '+pname(k):''};
  const used=pileTrucks(P.key),emptyHere=t=>pev(null,P.key).some(e=>e.truck===t.id&&(e.type==='truck_empty'||e.type==='truck_waste'));
  const ts=[...used];while(ts.length<2)ts.push({seq:'',num:'',tests:[],blank:true});
- const CL={y:'#ffe600',g:'#d3d6da',t:'#f2c27a',b:'#a9b9d3'};
+ const CL={y:'#ffe600',g:'#d3d6da',t:'#f2c27a',b:'#a9b9d3',u:'#cfe8d4'};
  const SV=stages(P),anyEst=Object.values(SV).some(x=>x.est);const one=k=>(t,i)=>i||!SV[k]?'':fh(SV[k].t)+(SV[k].est?'*':'');
  const bl=bands(P).slice().reverse(); // shallow to deep: 0–5, 5–10 …
  const dl=b=>b.replace(' ft','').replace('–','-');
@@ -291,6 +291,9 @@ function formHTML(pk){
  ['DRILL START',one('drillStart'),'y'],['DRILL FINISH',one('drillFinish'),'y'],['GROUT / HOLE START',one('groutStart'),'g'],['GROUT / HOLE FINISH',one('groutFinish'),'g'],
  ['GROUT RETURN',(t,i)=>i?'':(gr?(gr.depth!=null?gr.depth:'?'):''),''],['REINFORCE START',one('reinfStart'),'t'],['REINFORCE FINISH',one('reinfFinish'),'t'],
  ['GROUT TEMP',t=>(t.tests&&t.tests[0]||{}).temp,''],['FLOW CONE TIME',t=>(t.tests&&t.tests[0]||{}).flow,''],['SAMPLE #',t=>t.sampleNo,''],
+ ['LOAD YD³',t=>t.blank?'':(t.carryIn&&t.carryIn[P.key]?(t.carryIn[P.key].yd==null?'?':r1(t.carryIn[P.key].yd))+' carried':(t.qty||'')),'u'],
+ ['USED THIS PILE',t=>{if(t.blank)return'';const u=usedOn(t,P.key);return u===null?'?':r1(u)},'u'],
+ ['LEFT FOR NEXT',t=>{if(t.blank)return'';const la=leftAfter(t,P.key);if(la===null)return'?';if(t.wastePk===P.key)return '0 (waste '+r1(parseFloat(t.waste)||0)+')';return emptyHere(t)&&la>0.05?r1(la)+' (emptied)':r1(la)},'u'],
  ['TOTAL STROKES',(t,i)=>{if(i)return'';if(!PS)return'';const s=iv.reduce((a,r)=>a+(r.cnt||0),0);return PS+(iv.length&&s!==PS?' (marks '+s+')':'')},'b'],
  ...bl.map((b,bi)=>['DEPTH '+dl(b),(t,i)=>{if(i)return'';const r=iv.find(r=>r.band===b);return r?(r.flag?'?':r.d):''},bi===bl.length-1?'t':'b'])];
  const cell='border:1px solid #6b7c99;height:34px;padding:2px 6px;font-size:18px';
@@ -301,8 +304,7 @@ function formHTML(pk){
  const box=(r)=>`<table style="background:#fff;color:#0d1b2a;margin-top:12px">`+r.map(([l,v])=>`<tr><td style="${lab('g')};text-align:center;min-width:90px;font-weight:600">${esc(l)}</td><td style="${cell};min-width:100px">${esc(v)}</td></tr>`).join('')+`</table>`;
  h+=`</table></div>`+box([['ARRIVED',L.arr+L.cin?(L.arr+L.cin).toFixed(1):''],['USED',L.used?f2(L.used):''],['ELEV',P.elev],['STATION',P.station]]);
  const comb=iv.filter(r=>r.flag.startsWith('COMBINED')),extra=[];
- for(const t of used){const ci=t.carryIn[P.key];if(ci)extra.push(['Truck '+tname(t)+' carried in from pile '+pname(ci.from),ci.yd==null?'?':r1(ci.yd)])}
- for(const t of used){const u=usedOn(t,P.key),la=leftAfter(t,P.key),wasted=t.wastePk===P.key;extra.push(['Truck '+tname(t)+' used on this pile',u===null?'?':r1(u)]);extra.push(['Truck '+tname(t)+' left'+(wasted?' (wasted)':la!==null&&la>0.05?(emptyHere(t)?' when emptied, not logged as waste':' (carried to next pile)'):''),la===null?'?':r1(la)])}if(L.samp)extra.push(['Samples',L.samp.toFixed(1)]);if(L.waste)extra.push(['Waste',L.waste.toFixed(1)]);
+ if(L.samp)extra.push(['Samples',L.samp.toFixed(1)]);if(L.waste)extra.push(['Waste',L.waste.toFixed(1)]);
  if(L.arr+L.cin)extra.push(['Left on trucks',f2(L.left)]);if(P.wall)extra.push(['Wall',P.wall]);if(P.opCount)extra.push(['My count / contractor',PS+' / '+P.opCount]);
  comb.forEach(r=>extra.push(['Missed mark',r.flag.replace('COMBINED: ','')]));
  if(extra.length)h+=`<p style="color:var(--mut);margin:14px 0 0">Not on the paper sheet:</p>`+box(extra);

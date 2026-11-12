@@ -29,7 +29,7 @@ Open it once with signal; after that it works with no connection. After an updat
 
 ## Pouring view and grout factor
 - **Pouring view** (opens at Grout start) puts the pour on one screen: feeding truck with yd³ / strokes left, **Switch to truck #** / **Truck empty**, the next depth line with the buzz, **Problem / delay** and **Grout finish**.
-- With the pile diameter (Pile details, or Today's piles) each band's grout is compared with the hole's theoretical volume. A band typed / read below the required factor (Settings, default 1.15×, confirm against your spec) buzzes, shows a red **UNDER** alert, and is flagged in strokes by depth, on the form and at End day. Auto-filled bands are shown but not flagged.
+- With the pile diameter (Pile details, or Today's piles) each band's grout is compared with the hole's theoretical volume. A band typed / read below the required factor (Settings, default 1.15×, confirm against your spec) buzzes, shows a red **UNDER** alert, and is flagged in strokes by depth, on the form and at End day. Without a diameter, each band is checked against today's typical strokes per foot (finished piles, else this pile's own read bands) and flagged under 0.80× of it (Settings). Auto-filled bands are shown but not flagged.
 - A counter reading typed at a line also updates the app's stroke count, so truck yardage and hand-off follow along.
 
 ## Depth lines (buzz)

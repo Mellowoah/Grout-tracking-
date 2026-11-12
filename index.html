@@ -62,7 +62,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v84';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v85';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -397,9 +397,9 @@ function render(){clearTimeout(rT);
  h+=`<div class="card"><b>Pile ${esc(S.pile.id)} yardage (yd³)</b><br>Arrived ${r1(L.arr)} + carried in ${r1(L.cin)} − used ${f1(L.used)} − samples ${r1(L.samp)} − waste ${r1(L.waste)} = <b>left on trucks ${f1(L.left)}</b>${L.used===null?'<div class=flag>Type used yd³ on each truck, or set pump calibration</div>':''}${S.orphan?`<div class=flag>${S.orphan} strokes not on any truck</div>`:''}</div>`;
  const iv=intervals(),EBs=estBands(S.pile);
  {const P=S.pile,bi=P.bandIn||{},c=confStrokes(P.key),bs=bandSum(P),QC=bandQC(P),PQ=pileQC(P);
- h+=`<h2>Pile ${esc(P.id)} strokes by depth</h2><div class="card"><small style="color:var(--mut)">Type the strokes for each band when you have them; blanks fill in automatically from the total (red). Yardage uses ${esc(c.src)}${c.n?' ('+c.n+')':''}.</small><table><tr><th>Band</th><th>Strokes</th><th>yd³</th>${QC?'<th>× theo</th>':''}</tr>${bands().map(b=>{const k=dl2(b),r=iv.find(r=>r.band===b),v=bi[k]??(r&&r.d!=null?r.d:''),e=EBs&&EBs[b];
+ h+=`<h2>Pile ${esc(P.id)} strokes by depth</h2><div class="card"><small style="color:var(--mut)">Type the strokes for each band when you have them; blanks fill in automatically from the total (red). Yardage uses ${esc(c.src)}${c.n?' ('+c.n+')':''}.</small><table><tr><th>Band</th><th>Strokes</th><th>yd³</th>${QC?'<th>×</th>':''}</tr>${bands().map(b=>{const k=dl2(b),r=iv.find(r=>r.band===b),v=bi[k]??(r&&r.d!=null?r.d:''),e=EBs&&EBs[b];
   return `<tr><td>${b}</td><td><input id="bd-${k}" type="number" inputmode="numeric" style="max-width:110px;padding:6px;${v===''&&e!=null?'font-style:italic;color:var(--red);border:2px dashed var(--red)':''}" value="${esc(v!==''?v:(e??''))}" onchange="A.setBand('${k}',this.value)">${v===''&&e!=null?' <small style="color:var(--red);font-weight:700">auto</small>':''}</td><td>${v!==''&&calYd()>0?r1(Number(v)*calYd()):e!=null&&calYd()>0?r1(e*calYd()):''}</td>${QC?'<td>'+qcCell(QC.find(q=>q.b===b))+'</td>':''}</tr>`}).join('')}
-  <tr><td><b>Total</b></td><td><b>${bs??'—'}</b>${bs!=null&&c.src!=='my count'&&bs!==c.n?` <small class=flag>${esc(c.src)} ${c.n}</small>`:''}</td><td><b>${c.n&&calYd()>0?r1(c.n*calYd()):''}</b></td>${QC?'<td><b>'+(PQ?fx(PQ.f):'')+'</b></td>':''}</tr></table>${QC?`<small style="color:var(--mut)">× theo = grout placed ÷ hole volume at ${esc(pileDia(P))} in; need ${fx(gF())}.</small>`:''}</div>`}
+  <tr><td><b>Total</b></td><td><b>${bs??'—'}</b>${bs!=null&&c.src!=='my count'&&bs!==c.n?` <small class=flag>${esc(c.src)} ${c.n}</small>`:''}</td><td><b>${c.n&&calYd()>0?r1(c.n*calYd()):''}</b></td>${QC?'<td><b>'+(PQ?fx(PQ.f):'')+'</b></td>':''}</tr></table>${QC?`<small style="color:var(--mut)">× = grout in the band vs ${esc(QC.ref)}; flagged under ${fx(QC.need)}.${QC.mode==='rel'?' Add the pile diameter for the real check against the hole volume.':''}</small>`:''}</div>`}
  const gr=pev('grout_return');
  if(gr.length)h+=`<h2>Grout return</h2>`+gr.map(e=>`<div class="row">${ft(e.t)} · strokes ${e.strokes}<input id="gr-${e.id}" placeholder="Depth ft (fill later)" inputmode="decimal" value="${e.depth??''}" onchange="A.setDepth('${e.id}',this.value)">${e.depth==null?'<span class=flag>missing</span>':''}</div>`).join('');
  h+=`<h2>Closeout</h2><div class="card"><div class="row"><label style="flex:1"><small>My count (total strokes)</small><input id="f-my" type="number" inputmode="numeric" value="${esc(S.pile.myCount??'')}" placeholder="${bandSum(S.pile)!=null?bandSum(S.pile)+' (sum of bands)':''}" onchange="A.pset('myCount',this.value)"></label></div><div>Used yd³ figured from <b>${confStrokes(S.pile.key).src} (${confStrokes(S.pile.key).n})</b>${EBs?` · no depths marked, so strokes are split by the ${esc(EBs._src)} (≈ in the table)`:''}</div><div class="row"><input id="f-op" placeholder="Contractor count" inputmode="numeric" value="${esc(S.pile.opCount)}" onchange="A.pset('opCount',this.value)"><input id="f-rev" placeholder="Agreed total" inputmode="numeric" value="${esc(S.pile.reviewed)}" onchange="A.pset('reviewed',this.value)"></div><div class="row"><input id="f-note" placeholder="Explanation" value="${esc(S.pile.note)}" onchange="A.pset('note',this.value)"></div>${S.pile.opCount&&Number(S.pile.opCount)!==S.strokes?'<div class=flag>Counts differ by '+(Number(S.pile.opCount)-S.strokes)+'</div>':''}</div>`;
@@ -431,6 +431,7 @@ function render(){clearTimeout(rT);
  <div class="row"><input id="s-gm" inputmode="numeric" style="max-width:90px" value="${esc(S.groutMin)}" onchange="A.cfg('groutMin',Number(this.value)||0)"><small>Grout minutes until today's piles show otherwise (today: ${learnMin('groutStart','groutFinish','groutMin')})</small></div>
  <div class="row"><input id="s-rm" inputmode="numeric" style="max-width:90px" value="${esc(S.reinfMin)}" onchange="A.cfg('reinfMin',Number(this.value)||0)"><small>Reinforce minutes until today's piles show otherwise (today: ${learnMin('reinfStart','reinfFinish','reinfMin')})</small></div>
  <div class="row"><input id="s-gf" inputmode="decimal" style="max-width:90px" value="${esc(gF())}" onchange="A.cfg('gFactor',Number(this.value)||1.15)"><small>Minimum grout factor per band (× theoretical volume). Confirm against your spec.</small></div>
+ <div class="row"><input id="s-rel" inputmode="decimal" style="max-width:90px" value="${esc(relMin())}" onchange="A.cfg('relMin',Number(this.value)||0.8)"><small>Without a diameter: flag a band under this share of today's typical strokes per foot</small></div>
  <div class="row"><input id="s-lim" inputmode="numeric" value="${esc(S.limit)}" onchange="A.cfg('limit',Number(this.value)||120)"><small>Cutoff minutes from batch time. Confirm against your spec.</small></div>
  <div class="row"><button onclick="showForm()">View form</button><button onclick="exportX()">Export Excel</button><button class="sec" onclick="backup()">Backup JSON</button><button class="sec" onclick="reportOpen()">Report a problem</button><button class="sec" onclick="pastDaysOpen()">Past days</button><button class="sec" onclick="$('impIn').value='';$('impIn').click()">Import file</button><button class="sec" id="rs" onclick="A.reset()">Clear all</button></div></div>`;
  h=h.slice(0,g4)+sec('settings','Settings & backup',h.slice(g4));
@@ -632,7 +633,7 @@ function depthRender(){const P=S.pile,p=linePredict(P),L=lines(P),done=!p;
  const ua=P.underAlert,oi=openIss();
  $('depv').innerHTML=`<div class="row" style="justify-content:space-between"><b style="font-size:20px">Pouring pile ${esc(P.id||'?')} · pump ${S.pumping?'on':'off'}</b><button class="sec" style="min-height:44px" onclick="depthClose()">Close</button></div>
  ${oi?`<div class="card" style="background:var(--red);color:#fff"><b>Stopped: ${esc(ikName(oi.kind))}</b> since ${ft(oi.start)}<button style="width:100%;margin-top:6px" onclick="issResume();depthRender()">Back running</button></div>`:''}
- ${ua?`<div class="card" style="background:var(--red);color:#fff"><b style="font-size:20px">${esc(ua.b)} under the grout factor</b><div>${fx(ua.f)} placed, ${fx(gF())} required. Tell the operator; check the spec for what's needed (e.g. re-drill below this band).</div><button style="width:100%;margin-top:6px" onclick="delete S.pile.underAlert;save();depthRender()">OK</button></div>`:''}
+ ${ua?`<div class="card" style="background:var(--red);color:#fff"><b style="font-size:20px">${esc(ua.b)} low on grout</b><div>${fx(ua.f)} of ${esc(ua.ref||'hole volume')}, flagged under ${fx(ua.need||gF())}. Tell the operator; check the spec for what's needed (e.g. re-drill below this band).</div><button style="width:100%;margin-top:6px" onclick="delete S.pile.underAlert;save();depthRender()">OK</button></div>`:''}
  ${pourTruckH()}
  ${done?`<div class="card" style="text-align:center"><div style="font:800 40px 'Barlow Condensed',system-ui,sans-serif">All lines done</div></div><button style="width:100%;min-height:80px;font-size:24px" onclick="A.stage('groutFinish');depthClose()">Grout finish · pump off</button>`:`
  <div class="card" style="text-align:center"><small style="color:var(--mut)">Next line</small><div class="num" style="font-size:96px;line-height:1">${p.d} ft</div>
@@ -657,7 +658,7 @@ function linePass(missed){const P=S.pile,d=nextLine(P);if(d==null)return;const e
     let left=(l.c-pc)-fl.reduce((a,b)=>a+b,0);raw.map((x,i)=>[x-fl[i],i]).sort((a,b)=>b[0]-a[0]).slice(0,left).forEach(([,i])=>fl[i]++);
     P.bandAuto=P.bandAuto||{};l.auto=seg.map((b,i)=>{P.bandAuto[dl2(b)]=fl[i];return dl2(b)})}}}log('line',{depth:d,missed:!!missed,reading:l.c});vib();depBuzzed=null;
  if(l.c!=null&&l.c>S.strokes)A.setCounter(String(l.c)); // truck yardage and hand-off follow the counter
- if(l.c!=null){const q=(bandQC(P)||[]).find(q=>q.b===bandOf(P,d));if(q&&q.under){P.underAlert={b:q.b,f:q.f};buzzUnder()}}
+ if(l.c!=null){const q=(bandQC(P)||[]).find(q=>q.b===bandOf(P,d));if(q&&q.under){const Q=bandQC(P);P.underAlert={b:q.b,f:q.f,need:Q.need,ref:Q.ref};buzzUnder()}}
  save();depthRender();if(!nextLine(P))msg('All depth lines done on pile '+(P.id||'?')+'.')}
 function lineUndo(){const P=S.pile,L=lines(P),l=L.pop();if(!l)return;if(l.set&&P.bandIn)delete P.bandIn[dl2(bandOf(P,l.d))];(l.auto||[]).forEach(k=>{if(P.bandAuto)delete P.bandAuto[k]});depBuzzed=null;save();depthRender()}
 // Time each band took (from the line taps), for splitting a total over bands with no reading
@@ -672,14 +673,23 @@ function bandTimes(P,bl){const g=gStart(P),len=Number(P.len)||0,L=lines(P),tAt=d
 const gF=()=>Number(S.gFactor)||1.15;
 const pileDia=P=>parseFloat(P.dia||(planOf(P.id)||{}).dia)||null;
 const bandFt=b=>{const[x,y]=b.replace(' ft','').split('–').map(Number);return Math.abs(y-x)};
-function bandQC(P){const d=pileDia(P),cy=calYd();if(!d||!(cy>0))return null;const bi=P.bandIn||{},iv=intervals(P),EB=estBands(P)||{};
- return bands(P).map(b=>{const th=theoYd(d,bandFt(b)),k=dl2(b),r=iv.find(r=>r.band===b);let n=null,auto=false;
-  if(bi[k]!=null)n=Number(bi[k]);else if(r&&r.d!=null)n=r.d;else if(EB[b]!=null){n=EB[b];auto=true}
-  if(n==null||!th)return{b,th,n:null};const yd=n*cy,f=yd/th;return{b,th,n,yd,f,auto,under:!auto&&f<gF()}})}
-// whole pile: confirmed strokes vs theoretical for the full length
-function pileQC(P){const d=pileDia(P),len=Number(P.len)||0,cs=confStrokes(P.key),c=cs.n,cy=calYd();if(!d||!len||!c||!(cy>0))return null;
- // mid-pour on the line readings: compare with the footage grouted so far, not the whole pile
- const ls=P.lines||[],last=ls[ls.length-1],L=cs.src==='my count'&&num(P.myCount)===null&&last&&last.d>0?len-last.d:len;const th=theoYd(d,L);return{f:c*cy/th,th,yd:c*cy,part:L<len}}
+// Reference when there's no diameter: today's finished piles' strokes per foot, else this pile's own read bands
+const relMin=()=>Number(S.relMin)||0.8;
+function typRate(P,rows){let n=0,f=0;for(const q of S.piles){if(q.key===P.key)continue;const c=confStrokes(q.key).n,L=Number(q.len)||0;if(c>0&&L>0){n+=c;f+=L}}
+ if(f>0)return{r:n/f,own:false};const real=rows.filter(r=>r.n!=null&&!r.auto);if(real.length<2)return null;
+ const a=real.reduce((x,r)=>x+r.n,0),b=real.reduce((x,r)=>x+r.ft,0);return b>0?{r:a/b,own:true}:null}
+// Each band's grout vs the hole (with a diameter) or vs today's typical rate (without one)
+function bandQC(P){const d=pileDia(P),cy=calYd(),bi=P.bandIn||{},iv=intervals(P),EB=estBands(P)||{};
+ const rows=bands(P).map(b=>{const k=dl2(b),r=iv.find(r=>r.band===b);let n=null,auto=false;if(bi[k]!=null)n=Number(bi[k]);else if(r&&r.d!=null)n=r.d;else if(EB[b]!=null){n=EB[b];auto=true}return{b,ft:bandFt(b),n,auto}});
+ const theo=d&&cy>0,T=theo?null:typRate(P,rows);if(!theo&&!T)return null;const need=theo?gF():relMin();
+ const out=rows.map(r=>{const base=theo?theoYd(d,r.ft):T.r*r.ft;if(r.n==null||!base)return{b:r.b,n:null};const yd=cy>0?r.n*cy:null,f=theo?yd/base:r.n/base;
+  return{b:r.b,n:r.n,yd,th:theo?base:(cy>0?base*cy:null),f,auto:r.auto,under:!r.auto&&f<need}});
+ out.mode=theo?'theo':'rel';out.need=need;out.own=T&&T.own;out.ref=theo?'hole volume at '+d+' in':(T.own?"this pile's average":"today's typical")+' ('+T.r.toFixed(1)+' strokes/ft)';return out}
+// whole pile: vs the hole (diameter) or vs today's other piles; mid-pour on line readings only the footage grouted so far
+function pileQC(P){const d=pileDia(P),len=Number(P.len)||0,cs=confStrokes(P.key),c=cs.n,cy=calYd();if(!len||!c)return null;
+ const ls=P.lines||[],last=ls[ls.length-1],L=cs.src==='my count'&&num(P.myCount)===null&&last&&last.d>0?len-last.d:len;
+ if(d&&cy>0){const th=theoYd(d,L);return{f:c*cy/th,th,yd:c*cy,need:gF(),ref:'hole volume'}}
+ const T=typRate(P,[]);if(!T||T.own)return null;return{f:c/(T.r*L),yd:cy>0?c*cy:null,need:relMin(),ref:"today's typical"}}
 const fx=f=>f.toFixed(2)+'×';
 function qcCell(q){if(!q||q.n==null)return'';return `<span style="${q.under?'color:var(--red);font-weight:800':q.auto?'color:var(--red);font-style:italic':''}">${fx(q.f)}${q.under?' UNDER':''}</span>`}
 // ---- Pouring view helpers: the truck feeding the pump and what's waiting
@@ -692,10 +702,10 @@ function pourTruckH(){const at=tk(S.active),wait=S.trucks.filter(t=>!t.emptied&&
   :`<div class="row"><button class="sec" style="flex:1;min-height:48px" onclick="A.arrive();depthRender()">Truck arrived</button></div>`;
  return h+`</div>`}
 function pourQCH(P){const Q=bandQC(P),pq=pileQC(P);
- if(!Q)return `<div class="card"><b>Grout factor check</b><div class="row"><label style="flex:1"><small>Pile diameter (in) to check each band against ${fx(gF())} theoretical</small><input id="pv-dia" inputmode="decimal" value="${esc(P.dia||'')}" onchange="A.pset('dia',this.value);depthRender()"></label></div>${calYd()>0?'':'<div class=flag>Set the pump output per stroke in Settings</div>'}</div>`;
+ if(!Q)return `<div class="card"><b>Grout factor check</b><div class="row"><label style="flex:1"><small>Pile diameter (in) to check each band against ${fx(gF())} the hole volume. Without it, bands are checked against today's typical rate once there's one to go on.</small><input id="pv-dia" inputmode="decimal" value="${esc(P.dia||'')}" onchange="A.pset('dia',this.value);depthRender()"></label></div>${calYd()>0?'':'<div class=flag>Set the pump output per stroke in Settings</div>'}</div>`;
  const done=Q.filter(q=>q.n!=null);
- return `<div class="card"><b>Grout factor</b> <small style="color:var(--mut)">need ${fx(gF())} · ${esc(pileDia(P))} in dia</small>${done.length?`<table>${done.slice().reverse().map(q=>`<tr${q.under?' style="background:rgba(208,0,0,.12)"':''}><td>${esc(q.b)}</td><td${q.auto?' style="color:var(--red);font-style:italic"':''}>${q.n} str${q.auto?' auto':''}</td><td>${r1(q.yd)} / ${r1(q.th)} yd³</td><td>${qcCell(q)}</td></tr>`).join('')}</table>`:'<div style="color:var(--mut)">Shows as lines are passed.</div>'}
- ${pq?`<div style="margin-top:4px">Pile so far: <b style="${pq.f<gF()?'color:var(--red)':''}">${fx(pq.f)}</b> (${r1(pq.yd)} yd³)</div>`:''}<small style="color:var(--mut)">Red auto values are estimates and aren't flagged; type a counter reading at the line to check that band.</small></div>`}
+ return `<div class="card"><b>Grout check</b> <small style="color:var(--mut)">vs ${esc(Q.ref)} · flagged under ${fx(Q.need)}</small>${done.length?`<table>${done.slice().reverse().map(q=>`<tr${q.under?' style="background:rgba(208,0,0,.12)"':''}><td>${esc(q.b)}</td><td${q.auto?' style="color:var(--red);font-style:italic"':''}>${q.n} str${q.auto?' auto':''}</td><td>${q.yd!=null&&q.th!=null?r1(q.yd)+' / '+r1(q.th)+' yd³':''}</td><td>${qcCell(q)}</td></tr>`).join('')}</table>`:'<div style="color:var(--mut)">Shows as lines are passed.</div>'}
+ ${pq?`<div style="margin-top:4px">Pile so far: <b style="${pq.f<pq.need?'color:var(--red)':''}">${fx(pq.f)}</b> of ${esc(pq.ref)}${pq.yd!=null?' ('+r1(pq.yd)+' yd³)':''}</div>`:''}${Q.mode==='rel'?`<div class="row"><label style="flex:1"><small>Pile diameter (in) for the real check against the hole</small><input id="pv-dia2" inputmode="decimal" onchange="A.pset('dia',this.value);depthRender()"></label></div>`:''}<small style="color:var(--mut)">Red auto values are estimates and aren't flagged; type a counter reading at the line to check that band.</small></div>`}
 function pilePick(t){return `<label style="min-width:84px"><small>First pile</small><select id="t-${t.id}-pk" style="font:600 16px Barlow,system-ui,sans-serif;padding:7px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink)" onchange="A.movePile('${t.id}',this.value)">${t.pk0?'':'<option value="" selected>—</option>'}${allPiles().map(p=>`<option value="${p.key}"${p.key===t.pk0?' selected':''}>${esc(p.id||'?')}</option>`).join('')}</select></label>`}
 // Truck times: typed/stamped wins; missing ones estimated from today's average batch→arrival, and empty = grout finish of the pile its grout ran out on
 function lagMs(){const l=S.trucks.filter(t=>t.batch&&t.arrived).map(t=>{const [h,m]=t.batch.split(':').map(Number),d=new Date(t.arrived);d.setHours(h,m,0,0);return t.arrived-d.getTime()}).filter(x=>x>0&&x<4*3600000);return l.length?l.reduce((a,b)=>a+b,0)/l.length:null}
@@ -752,7 +762,7 @@ function formHTML(pk,pair){
  if(L.samp)extra.push(['Samples',r1(L.samp)]);if(L.waste)extra.push(['Waste',r1(L.waste)]);
  if(L.arr+L.cin)extra.push(['Left on trucks',f2(L.left)]);if(P.wall)extra.push(['Wall',P.wall]);if(P.opCount)extra.push(['My count / contractor',(myCount({...P,strokes:PS})||'—')+' / '+P.opCount]);
  comb.forEach(r=>extra.push(['Missed mark',r.flag.replace('COMBINED: ','')]));
- {const Q=bandQC(P),pq=pileQC(P);if(Q)Q.filter(q=>q.n!=null).forEach(q=>extra.push(['Grout factor '+dl(q.b),fx(q.f)+(q.under?' UNDER '+fx(gF()):'')+(q.auto?' *':'')]));if(pq)extra.push(['Grout factor pile',fx(pq.f)+' ('+pileDia(P)+' in, need '+fx(gF())+')'])}
+ {const Q=bandQC(P),pq=pileQC(P);if(Q)Q.filter(q=>q.n!=null).forEach(q=>extra.push(['Grout '+dl(q.b),fx(q.f)+(q.under?' UNDER '+fx(Q.need):'')+(q.auto?' *':'')]));if(Q)extra.push(['Grout check vs',Q.ref+', flagged under '+fx(Q.need)]);if(pq)extra.push(['Grout pile',fx(pq.f)+' of '+pq.ref])}
  ISS().filter(x=>x.pk===P.key).forEach(x=>extra.push(['Stop / delay',issDesc(x)]));S.trucks.filter(t=>t.rejected&&t.rejected.pk===P.key).forEach(t=>extra.push(['Truck sent back',tname(t)+' · '+(t.qty||'?')+' yd³ · '+t.rejected.reason+' · '+hm(t.rejected.t)+(t.rejected.note?' · '+t.rejected.note:'')]));
  if(extra.length)h+=`<p style="color:var(--mut);margin:14px 0 0">Not on the paper sheet:</p>`+box(extra);
  h+=`<p style="color:var(--mut)">${anyEst||EB?'<span style="color:#d00000;font-weight:700">Red *</span> = filled in automatically from today\'s times and your drill / grout / reinforce rules. ':''}Blank means not logged yet. ? means a reading is missing. Use Email or Text above to send it.</p>`;
@@ -1011,7 +1021,7 @@ function diagnose(){const out=[],today=orderKeys();
   if(c.n&&!pileTrucks(p.key).length)out.push('Pile '+(p.id||'?')+' has strokes but no truck');if(L.used!==null&&L.used>L.arr+L.cin+0.05)out.push('Pile '+(p.id||'?')+' used more grout than arrived');
   const bs=bandSum(p);if(bs!=null&&c.n&&Math.abs(bs-c.n)>3)out.push('Pile '+(p.id||'?')+' depth strokes add to '+bs+' but the count is '+c.n);
   if(!p.id)out.push('A pile has no number')}
- for(const p of allPiles()){const Q=bandQC(pileRec(p.key));if(Q)Q.filter(q=>q.under).forEach(q=>out.push('Pile '+(p.id||'?')+': '+q.b+' under the grout factor ('+fx(q.f)+', need '+fx(gF())+')'))}
+ for(const p of allPiles()){const Q=bandQC(pileRec(p.key));if(Q)Q.filter(q=>q.under).forEach(q=>out.push('Pile '+(p.id||'?')+': '+q.b+' low on grout ('+fx(q.f)+' of '+Q.ref+', flagged under '+fx(Q.need)+')'))}
  {const o=openIss();if(o)out.push('Work still marked stopped ('+ikName(o.kind)+' since '+hm(o.start)+')')}ISS().filter(x=>x.phase==='grouting'&&!x.note).forEach(x=>out.push('Pile '+(pname(x.pk)||'?')+': pumping stopped while grouting, no note of what was done'));ISS().filter(x=>x.later&&(!x.start||!x.end)).forEach(x=>out.push('Pile '+(pname(x.pk)||'?')+': a stop is missing its times'));
  const ids=allPiles().map(p=>p.id).filter(Boolean);ids.filter((x,i)=>ids.indexOf(x)!==i).forEach(x=>out.push('Pile number '+x+' is used twice'));
  return [...new Set(out)]}
@@ -1056,7 +1066,7 @@ async function endDayGo(){if(!twoTap('endday','edGo','Tap again: end the day and
  const j=JSON.stringify(S),sm=daySummary(),last=allPiles().slice(-1)[0];
  try{const db=await pdb();await new Promise((res,rej)=>{const tx=db.transaction('s','readwrite');tx.objectStore('s').put({t:Date.now(),date:today(),piles:sm.piles.map(p=>p.id),used:sm.used,j},DAYK+Date.now());tx.oncomplete=res;tx.onerror=()=>rej(tx.error)})}
  catch(e){logErr(e,'end day');scanShow('<div class="card flag">Couldn\'t save the day on this phone, so nothing was cleared. Use Save backup first.</div><button onclick="scanClose()">Close</button>');return}
- const keep={};for(const k of ['cal','calUnit','limit','sampleYd','sampleEvery','defLoad','drillMin','groutMin','reinfMin','hideIntro','aiModel','planDef','gFactor','beep'])if(S[k]!==undefined)keep[k]=S[k];
+ const keep={};for(const k of ['cal','calUnit','limit','sampleYd','sampleEvery','defLoad','drillMin','groutMin','reinfMin','hideIntro','aiModel','planDef','gFactor','beep','relMin'])if(S[k]!==undefined)keep[k]=S[k];
  const planLeft=(S.plan||[]).filter(e=>!pileWorked(e.id));
  const np={...blankPile(),n:0,id:planLeft.length?planLeft[0].id:nextId(last&&last.id),len:last?last.len:23,marks:last?last.marks:[20,15,10,5,0],wall:last?last.wall:'',dayStart:true};
  S={pile:np,strokes:0,segStart:0,pumping:false,active:null,trucks:[],ev:[],piles:[],warned:{},orphan:0,plan:planLeft,...keep};applyPlan(S.pile,true);

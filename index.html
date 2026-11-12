@@ -15,7 +15,9 @@
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0b1118;--ink:#f4f6f8;--mut:#9fb0bf;--line:#2b3946;--card:#16212b;--red:#ff5a5a;color-scheme:dark}}
 :root[data-theme="dark"]{--bg:#0b1118;--ink:#f4f6f8;--mut:#9fb0bf;--line:#2b3946;--card:#16212b;--red:#ff5a5a;color-scheme:dark}
 *{box-sizing:border-box}html,body{margin:0}
-body{background:var(--bg);color:var(--ink);font:500 16px/1.35 Barlow,system-ui,sans-serif;padding-bottom:calc(290px + env(safe-area-inset-bottom,0px))}
+:root{--tray-h:180px}
+html{scroll-padding-top:var(--head-h,140px);scroll-padding-bottom:var(--tray-h)}
+body{background:var(--bg);color:var(--ink);font:500 16px/1.35 Barlow,system-ui,sans-serif;padding-bottom:var(--tray-h)}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--bg);z-index:10}
 .num{font-family:"Barlow Condensed",system-ui,sans-serif;font-weight:800}
 header{position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);z-index:9;padding:8px 12px;border-bottom:2px solid var(--ink)}
@@ -25,20 +27,33 @@ header{position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);z-i
 #save{font-size:13px;color:var(--mut);margin-top:4px}
 main{padding:10px 12px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:8px 0}
-button{font:700 18px Barlow,system-ui,sans-serif;min-height:56px;border:2px solid var(--ink);border-radius:8px;background:var(--acc);color:var(--accink);padding:8px}
+button,input,select,summary{min-height:44px;scroll-margin-bottom:var(--tray-h)}
+button{font:700 18px Barlow,system-ui,sans-serif;min-height:48px;border:2px solid var(--ink);border-radius:8px;background:var(--acc);color:var(--accink);padding:8px 12px}
 button.sec{background:var(--card);color:var(--ink)}button:active{transform:scale(.97);filter:brightness(.9)}
 h2{font:800 22px "Barlow Condensed",system-ui,sans-serif;margin:18px 0 6px}
 .card{background:var(--card);border-radius:8px;padding:10px;margin:8px 0}
 .row{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:4px 0}
-input{font:500 16px Barlow,system-ui,sans-serif;padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);width:100%}
+input,select{font:500 16px Barlow,system-ui,sans-serif;padding:10px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);width:100%}
 .row input{flex:1;min-width:90px}.flag{color:var(--red);font-weight:700}
+.secblock{margin:8px 0;scroll-margin-top:var(--head-h,140px)}
+.secblock.shut .secbody{display:none}
+button.secbar{width:100%;display:flex;align-items:center;gap:8px;text-align:left;background:var(--card);color:var(--ink);border:2px solid var(--line);margin:0;min-height:48px}
+.secblock.now>button.secbar{background:var(--acc);color:var(--accink);border-color:var(--ink)}
+.secbar .seclabel{font:800 18px "Barlow Condensed",system-ui,sans-serif;white-space:nowrap}
+.secbar .secsum{flex:1;min-width:0;font:500 14px Barlow,system-ui,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.secbar .secchev{font-size:22px;line-height:1}
+.secbody{padding:2px 0 6px}
+details.more{margin:8px 0}
+details.more>summary{font:800 18px "Barlow Condensed",system-ui,sans-serif;cursor:pointer;padding:8px 4px}
 table{width:100%;border-collapse:collapse;font-size:14px}td,th{padding:4px;border-bottom:1px solid var(--line);text-align:left}
 .wrap{overflow-x:auto}
-#tray{position:fixed;left:0;right:0;bottom:0;background:var(--tray);color:#fff;border-top:1px solid var(--line);padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));z-index:9}
+#tray{position:fixed;left:0;right:0;bottom:0;background:var(--tray);color:#fff;border-top:1px solid var(--line);padding:8px 12px calc(8px + env(safe-area-inset-bottom,0px));z-index:9}
 #tray.min #trayBody{display:none}
-#tray .top{display:flex;justify-content:space-between;align-items:center}
+#tray .top{display:flex;justify-content:space-between;align-items:center;gap:8px}
 #cnt{font-size:56px;line-height:1}
-#plus{width:100%;min-height:96px;font-size:44px;margin-top:8px}
+#plus{width:100%;min-height:96px;font-size:48px;margin-top:6px}
+#fold{width:100%;min-height:48px;font-size:18px;margin:4px 0}
+#tray .row button{min-height:56px}
 .tl{font-size:14px;border-left:3px solid var(--acc);padding-left:8px;margin:6px 0}
 #msg{background:var(--acc);color:var(--accink);padding:8px 10px;font-weight:700;border-radius:6px;margin-top:6px}
 .trayw{color:#ffd100;font-weight:700;font-size:14px;margin-top:4px}
@@ -50,10 +65,12 @@ label small{display:block;color:var(--mut)}
 <div id="alert"></div>
 <header><button id="allF" style="width:100%;min-height:44px;margin-bottom:6px;font-size:17px" onclick="showForm(allPiles()[0].key)">View all pile forms</button><div class="stat" id="stat"></div><div id="save">Loading…</div><div id="msg" hidden></div><button id="undoNP" class="sec" hidden style="width:100%;margin-top:6px;min-height:44px" onclick="A.undoPile()">Undo new pile</button></header>
 <main id="app"></main>
-<div id="tray"><div class="top"><div><small>Pile <span id="tp"></span> · strokes</small><div class="num" id="cnt">0</div></div>
-<div class="row" style="flex-wrap:nowrap"><button class="sec" id="npTray" style="font-size:15px;padding:6px 8px;white-space:nowrap" onclick="A.newPile()" aria-label="Finish pile and start next">Next pile ▸</button><button class="sec" style="padding:6px 10px" id="fold" aria-label="Fold counter">▾</button></div></div>
+<div id="tray"><div class="top"><div><small>Pile <span id="tp"></span> · live strokes</small><div class="num" id="cnt">0</div></div></div>
+<button class="sec" id="fold" type="button" aria-label="Fold counter">Hide counter</button>
 <div id="tnone" class="trayw" hidden>No truck feeding: these strokes won't count toward any truck</div>
-<div id="trayBody"><div style="margin-top:6px"><small id="tint"></small></div></div></div>
+<div id="trayBody"><button id="plus" type="button" aria-label="Add one stroke">+1</button>
+<div class="row" style="flex-wrap:nowrap"><button class="sec" id="undoStroke" type="button" style="flex:1">Undo</button><button id="tmark" type="button" style="flex:1.3" onclick="A.mark()">Mark depth</button><button class="sec" id="tmiss" type="button" style="flex:1.2" onclick="A.miss()">Missed mark</button></div>
+<small id="tint"></small></div></div>
 <input type="file" id="camIn" accept="image/*" hidden><input type="file" id="formIn" accept="image/*" hidden><input type="file" id="impIn" accept=".json,application/json" hidden>
 <div id="scanv" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:31;overflow:auto;padding:calc(16px + env(safe-area-inset-top,0px)) 12px 24px"></div>
 <div id="formv" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:30;overflow:auto;padding:calc(16px + env(safe-area-inset-top,0px)) 8px 24px"></div>
@@ -107,8 +124,30 @@ function autoSamples(){const out={},every=Number(S.sampleEvery)||0,at=t=>arrOf(t
  const ts=[...S.trucks].sort((a,b)=>(at(a)||Infinity)-(at(b)||Infinity)||(a.seq||0)-(b.seq||0));
  for(const t of ts){const d=day(t),st=cum[d]||0,q=parseFloat(t.qty)||Number(S.defLoad)||0,en=st+q;cum[d]=en;
   let n=0;if(every>0){for(let k=Math.ceil(st/every)*every;k<en;k+=every)n++}else n=1;out[t.id]=n*(S.sampleYd||0)}return out}
-const sy=t=>{const v=num(t.sampleYd);return v!==null?v:(autoSamples()[t.id]||0)};
-const r1=v=>(Math.abs(v)<0.005?0:v).toFixed(3); // yd³ shown to 3 decimals like the field sheet
+// Sample yd³ off a truck. A typed amount wins. Otherwise each logged sample adds the default
+// (1.1), and the day's 50 yd³ schedule still applies when nothing has been logged — so older
+// records keep their sample. "Not taken" with no logged sample takes nothing off the truck.
+function sy(t){const explicit=num(t.sampleYd);if(explicit!==null)return r3(explicit);
+ const each=Number(S.sampleYd)||0,logged=(t.samples||[]).length;
+ if(t.sampleRep&&t.sampleRep.v!=='taken'&&!logged)return 0;
+ const auto=autoSamples()[t.id]||0;if(!logged)return r3(auto);
+ const autoCount=each>0?Math.round(auto/each):0;return r3(Math.max(logged,autoCount)*each)}
+const r3=v=>{const n=Number(v);return isFinite(n)?Math.round(n*1000)/1000:NaN}; // yardage math in thousandths
+const th=v=>Math.round(Number(v)*1000);
+const r1=v=>(Math.abs(v)<0.005?0:v).toFixed(3); // paper form, 3 decimals like the field sheet
+const r2=v=>{const n=Number(v);if(!isFinite(n))return'';const x=Math.round((Math.abs(n)<0.005?0:n)*100)/100;return x.toFixed(2)}; // working screen, 2 decimals
+// Shown equation is built from 2-decimal parts so the line the inspector reads adds up.
+function ydEq(c,id){const cents=v=>Math.round((Number(v)||0)*100),f=n=>(n/100).toFixed(2);
+ const attr=id?` id="${id}" data-left="${c.rem==null?'':c.rem}"`:'';
+ const samp=f(cents(c.s)),waste=f(cents(c.w)),tail=sLeft(c.rem)!==null?' (~'+sLeft(c.rem)+' strokes)':'';
+ if(!(c.q>=0)||c.placed==null)return `<div${attr}>Load ${c.q>=0?f(cents(c.q)):'<span class=flag>?</span>'} − used ${c.placed==null?'<span class=flag>?</span>':f(cents(c.placed))} − sample ${samp} − waste ${waste} = <b>left ${c.rem==null?'<span class=flag>?</span>':r2(c.rem)} yd³</b>${tail}</div>`;
+ const L=cents(c.q)-cents(c.placed)-cents(c.s)-cents(c.w);
+ return `<div${attr}>Load ${f(cents(c.q))} − used ${f(cents(c.placed))} − sample ${samp} − waste ${waste} = <b>left on truck ${f(L)} yd³</b>${tail}</div>`}
+function sampleActionLabel(t){const each=Number(S.sampleYd)||0,logged=(t.samples||[]).length,explicit=num(t.sampleYd);
+ if(explicit!==null)return 'Sample taken (uses the '+r2(explicit)+' yd³ typed below)';
+ const auto=autoSamples()[t.id]||0,autoCount=each>0?Math.round(auto/each):0;
+ if(logged>=autoCount)return 'Sample taken (−'+r2(each)+' yd³)';
+ return 'Sample taken ('+r2(auto||each)+' yd³ already off this truck)'}
 const num=v=>v===undefined||v===null||v===''?null:(parseFloat(v)||0);
 // Used yd³ on one pile: typed amount wins, else strokes × calibration
 // Strokes confirmed with the contractor: agreed total, else contractor count, else my count
@@ -138,18 +177,16 @@ function seqAlloc(pk){const all=feedOrder(pk),c=confStrokes(pk).n,cy=calYd(),out
  // trucks with a typed used amount keep it; the rest of the strokes go to the others
  const ids=all.filter(id=>{const u=num(tk(id).used[pk]);if(u!==null&&cy>0){out[id]=u/cy;rest-=u/cy;return false}return true});rest=rest<0.5?0:rest; // under half a stroke is rounding
  ids.forEach((id,i)=>{const cap=cy>0?onBoard(tk(id),pk)/cy:Infinity,take=i===ids.length-1?rest:Math.min(rest,cap);out[id]=Math.max(0,take);rest-=out[id]});return out}
-function usedOn(t,pk){const m=num(t.used[pk]);if(m!==null)return m;const n=confOn(t,pk);if(!n)return 0;const c=calYd();return c>0?n*c:null}
-// Grout left on a truck at the end of a given pile (piles in the order worked)
-// Field rule: grout a truck carries on to the next pile is rounded to 0.001 and taken down by 0.001
-// (9 − 1.1 − 5.797 = 2.103 → 2.102 carried). Not applied on the pile where the truck is emptied.
+function usedOn(t,pk){const m=num(t.used[pk]);if(m!==null)return r3(m);const n=confOn(t,pk);if(!n)return 0;const c=calYd();return c>0?r3(n*c):null}
+// Grout left on a truck at the end of a given pile (piles in the order worked).
+// Each step is rounded to thousandths so 10 − 83×0.05 − 2.2 − 0.5 is 3.150, not a raw float.
 const emptyOn=(t,k)=>pev(null,k).some(e=>e.truck===t.id&&(e.type==='truck_empty'||e.type==='truck_waste'));
-function leftAfter(t,pk){const order=orderKeys(),idx=order.indexOf(pk),q=parseFloat(t.qty);if(idx<0||!(q>=0))return null;let rem=q-sy(t);
- for(const k of order.slice(0,idx+1)){const x=usedOn(t,k);if(x===null)return null;rem-=x;if(t.wastePk===k)rem-=parseFloat(t.waste)||0;
-  if(x>0&&rem>0.001&&!emptyOn(t,k))rem=Math.round((rem-0.001)*1000)/1000}
- return rem}
+function leftAfter(t,pk){const order=orderKeys(),idx=order.indexOf(pk),q=parseFloat(t.qty);if(idx<0||!(q>=0))return null;let rem=th(q)-th(sy(t));
+ for(const k of order.slice(0,idx+1)){const x=usedOn(t,k);if(x===null)return null;rem-=th(x);if(t.wastePk===k)rem-=th(parseFloat(t.waste)||0)}
+ return rem/1000}
 // a truck is on a pile if something happened to it there (an edit to its details doesn't count)
 const pileTrucks=pk=>S.trucks.filter(t=>pev(null,pk).some(e=>e.truck===t.id&&e.type!=='edit'));
-function usedAll(t){let tot=0;for(const k of orderKeys()){const u=usedOn(t,k);if(u===null)return null;tot+=u}return tot}
+function usedAll(t){let tot=0;for(const k of orderKeys()){const u=usedOn(t,k);if(u===null)return null;tot=r3(tot+u)}return tot}
 const pname=k=>k===S.pile.key?S.pile.id:((S.piles.find(p=>p.key===k)||{}).id||'?');
 // Stage times: anything tapped/typed wins; gaps are filled from the field rules
 // drill start = drill finish − drillMin · grout start = drill finish · reinforce start = grout finish · reinforce finish = reinforce start + reinfMin
@@ -170,8 +207,10 @@ function stages(p=S.pile){const st={...(p.st||{})},seed=Object.keys(st).some(k=>
  return o}
 const hm=ms=>{if(!ms)return'';const d=new Date(ms);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')};
 // Truck must be used within S.limit minutes of its batch time
-function cutoff(t){const b=t.batch||t.dispatch;if(!b)return null;const [h,m]=b.split(':').map(Number);const ref=t.arrived||Date.now();const d=new Date(ref);d.setHours(h,m,0,0);
- if(d.getTime()>ref+5*60000)d.setDate(d.getDate()-1); // batched before midnight, arrived after
+function cutoff(t){const b=t.batch||t.dispatch;if(!b)return null;const [h,m]=b.split(':').map(Number);if(!isFinite(h)||!isFinite(m))return null;const ref=t.arrived||Date.now();const d=new Date(ref);d.setHours(h,m,0,0);
+ // Roll the batch back one day only when its clock time is more than 12h after arrival
+ // (batched before midnight, truck arrived after). A batch 10 minutes after arrival stays today.
+ if(d.getTime()-ref>12*3600000)d.setDate(d.getDate()-1);
  return d.getTime()+S.limit*60000}
 function calc(t){const q=parseFloat(t.qty),placed=usedAll(t);
  const s=sy(t),w=parseFloat(t.waste)||0;
@@ -183,7 +222,7 @@ function ledger(pk=S.pile.key){const sum=f=>S.trucks.reduce((a,t)=>a+f(t),0);let
  const used=sum(t=>{const u=usedOn(t,pk);if(u===null){pend=true;return 0}return u});
  const samp=S.trucks.filter(counts).reduce((a,t)=>a+sy(t),0),waste=sum(t=>t.wastePk===pk?(parseFloat(t.waste)||0):0);
  // left on trucks = what each truck on this pile has left after it (same carry-over rule as the truck rows)
- let left=0,lp=pend;for(const t of S.trucks.filter(t=>counts(t)||t.carryIn[pk])){const la=leftAfter(t,pk);if(la===null){lp=true;break}left+=la}
+ let left=0,lp=pend;for(const t of S.trucks.filter(t=>counts(t)||t.carryIn[pk])){const la=leftAfter(t,pk);if(la===null){lp=true;break}left=r3(left+la)}
  return{arr,cin,used:pend?null:used,samp,waste,left:lp?null:left}}
 function nextMark(){return S.pile.marks[S.pile.mi]}
 function flash(el){el.style.outline='4px solid #fff';setTimeout(()=>el.style.outline='',120)}
@@ -198,7 +237,12 @@ function intervals(p=S.pile){const L=Number(p.len)||0;let rows=[],prev={d:L,s:0,
   prev={d:e.depth,s:e.strokes,good:e.depth,after:false}}
  return rows}
 
-function tray(){const c=confStrokes(S.pile.key);$('cnt').textContent=c.n||0;$('tint').textContent=(c.n?'From '+c.src+(calYd()>0?' · '+r1(c.n*calYd())+' yd³':''):'Enter strokes in the pile table or Closeout');$('tnone').hidden=true}
+function tray(){const m=nextMark();$('cnt').textContent=S.strokes;const tp=$('tp');if(tp)tp.textContent=S.pile.id||'—';
+ const tm=$('tmark'),mi=$('tmiss');if(tm)tm.textContent=m===undefined?'Marks done':'Mark depth '+m+' ft';if(mi)mi.textContent=m===undefined?'Missed mark':'Missed '+m+' ft';
+ const last=pev('depth_mark').filter(e=>!e.missing).pop(),since=S.strokes-(last?last.strokes:0);
+ $('tint').textContent='Since last mark: '+since+' stroke'+(since===1?'':'s')+(calYd()>0?' · '+r2(S.strokes*calYd())+' yd³':'');
+ $('tnone').hidden=!!tk(S.active)||(!S.strokes&&!S.pumping);fitTray()}
+function fitTray(){const t=$('tray');if(!t)return;const px=Math.ceil(t.getBoundingClientRect().height)+'px';document.documentElement.style.setProperty('--tray-h',px);const head=document.querySelector('header');if(head)document.documentElement.style.setProperty('--head-h',Math.ceil(head.getBoundingClientRect().height+8)+'px')}
 let rT;function soon(){clearTimeout(rT);rT=setTimeout(render,400)}
 function stroke(d){if(d<0&&S.strokes===0)return;S.strokes+=d;if(!tk(S.active))S.orphan=Math.max(0,S.orphan+d);if(d>0)vib();$('cnt').textContent=S.strokes;tray();save();if(d>0)autoHandoff();soon()}
 // When the feeding truck's load (minus the sample allowance) is used up by strokes, stamp it empty and move to the next queued truck
@@ -208,18 +252,21 @@ function autoHandoff(){const t=tk(S.active);if(!t||t.pend||t.noPend||!(calYd()>0
  t.pend={t:Date.now(),pk:S.pile.key,strokes:S.strokes};log('truck_maybe_empty',{truck:t.id});const nx=S.trucks.find(x=>!x.fed&&!x.emptied);
  if(nx){A.sw(nx.id);msg('Strokes say truck '+tname(t)+' is used up. Now counting on truck '+tname(nx)+'. Truck '+tname(t)+' stays open until you confirm.')}
  else{save();render();msg('Strokes say truck '+tname(t)+' is used up, but no truck is queued. Still counting on '+tname(t)+'.')}vib()}
-$('fold').onclick=()=>{$('tray').classList.toggle('min');$('fold').textContent=$('tray').classList.contains('min')?'▴':'▾'};
+$('fold').onclick=()=>{const t=$('tray');t.classList.toggle('min');const shut=t.classList.contains('min');$('fold').textContent=shut?'Show counter':'Hide counter';$('fold').setAttribute('aria-expanded',shut?'false':'true');fitTray()};
+$('plus').onclick=e=>{flash(e.target);stroke(1)};
+$('undoStroke').onclick=()=>stroke(-1);
+addEventListener('resize',fitTray);
 
 const armed={};
 function twoTap(k,btnId,label){if(Date.now()-(armed[k]||0)>4000){armed[k]=Date.now();const b=$(btnId);if(b)b.textContent=label||'Tap again to confirm';setTimeout(render,4200);return false}armed[k]=0;return true}
 const A={
- newPile(){if(!isLatest()){const L=latestPile();A.openPile(L.key);return}undoSnap=JSON.stringify(S);if(fc){clearInterval(fcT);fc=null}let done='';act(()=>{closeSeg();const ok=S.pile.key;done='Pile '+(S.pile.id||'?')+' done: '+(pileTrucks(ok).map(t=>'truck '+tname(t)+' '+(usedOn(t,ok)===null?'?':r1(usedOn(t,ok)))+' yd³').join(', ')||'no trucks')+'. ';const open=S.trucks.filter(t=>!t.emptied).map(t=>{const c=calc(t);return[t,c.rem!==null?c.rem:(c.q>=0&&usedAll(t)===0?c.q:null)]});
+ newPile(skipConfirm){if(!isLatest()){const L=latestPile();A.openPile(L.key);return}if(skipConfirm!==true&&!twoTap('np','np','Tap again to start next pile'))return;undoSnap=JSON.stringify(S);if(fc){clearInterval(fcT);fc=null}let done='';act(()=>{closeSeg();const ok=S.pile.key;done='Pile '+(S.pile.id||'?')+' done: '+(pileTrucks(ok).map(t=>'truck '+tname(t)+' '+(usedOn(t,ok)===null?'?':r2(usedOn(t,ok)))+' yd³').join(', ')||'no trucks')+'. ';const open=S.trucks.filter(t=>!t.emptied).map(t=>{const c=calc(t);return[t,c.rem!==null?c.rem:(c.q>=0&&usedAll(t)===0?c.q:null)]});
   S.piles.push({...S.pile,strokes:S.strokes,done:Date.now()});const p=S.pile;S.pile={...blankPile(),n:maxN()+1,id:nextId(p.id),wall:p.wall,station:p.station,marks:p.marks,len:p.len};S.strokes=0;S.segStart=0;log('new_pile');
   for(const [t,yd] of open){t.carryIn[S.pile.key]={from:p.key,yd};t.left='';log('truck_carry',{truck:t.id,yd})}
-  msg(done+'Pile '+(S.pile.id||'')+' started.'+(open.length?' '+open.map(([t,yd])=>'Truck '+tname(t)+': '+(yd==null?'?':r1(yd))+' yd³ left').join(', '):''))});showUndoPile()},
+  msg(done+'Pile '+(S.pile.id||'')+' started.'+(open.length?' '+open.map(([t,yd])=>'Truck '+tname(t)+': '+(yd==null?'?':r2(yd))+' yd³ left').join(', '):''))});showUndoPile()},
  undoPile(){if(!undoSnap)return;S=JSON.parse(undoSnap);undoSnap=null;$('undoNP').hidden=true;save();render();msg('Back on pile '+S.pile.id+'. Nothing was lost.')},
  pump(){act(()=>{S.pumping=!S.pumping;log(S.pumping?'pump_start':'pump_pause')})},
- arrive(){act(()=>{const t={id:uid(),seq:S.trucks.length?Math.max(...S.trucks.map(x=>x.seq||0))+1:1,num:'',sampleNo:'',qty:S.defLoad?String(S.defLoad):'',batch:'',dispatch:'',arrived:Date.now(),emptied:null,strokes:0,samples:[],waste:'',tests:[],pk0:S.pile.key,ps:{},used:{},carryIn:{},left:''};S.trucks.push(t);log('truck_arrival',{truck:t.id});vib();if(sy(t)>0)msg('Truck '+t.seq+' arrived. Sample due on this truck: report it Taken or Not taken on its card.')})},
+ arrive(){act(()=>{const t={id:uid(),seq:S.trucks.length?Math.max(...S.trucks.map(x=>x.seq||0))+1:1,num:'',sampleNo:'',qty:S.defLoad?String(S.defLoad):'',batch:'',dispatch:'',arrived:Date.now(),emptied:null,strokes:0,samples:[],waste:'',tests:[],pk0:S.pile.key,ps:{},used:{},carryIn:{},left:''};S.trucks.push(t);log('truck_arrival',{truck:t.id});vib();if(sy(t)>0)msg('Truck '+t.seq+' arrived. Sample due — open Sample / QC and tap Sample taken or Not taken.')})},
  // Strokes come from the physical counter: type the reading; the difference goes to the feeding truck,
  // split at the point a truck's load runs out so the next truck gets the rest
  setCounter(v){const n=parseInt(v,10);if(isNaN(n)||n<0)return;let d=n-S.strokes;if(!d)return;if(d<0){stroke(d);return}
@@ -242,7 +289,7 @@ const A={
   if(f==='emptied'&&!t.emptied){if(S.active===id){closeSeg();S.active=null}log('truck_empty',{truck:id})}
   const d=new Date(t[f]||t.arrived||Date.now());d.setHours(h,m,0,0);t[f]=d.getTime();log('edit',{truck:id,field:f,value:v});save();render()},
  remove(id){const t=tk(id);if(!t||t.fed||t.samples.length||t.tests.length)return;if(!twoTap('rm'+id,'rm'+id))return;act(()=>{S.trucks=S.trucks.filter(x=>x!==t);S.ev=S.ev.filter(e=>!(e.type==='truck_arrival'&&e.truck===id));msg('Truck removed')})},
- sample(id){act(()=>{const t=tk(id);const e=log('sample',{truck:id});t.samples.push(e.id)})},
+ sample(id){act(()=>{const t=tk(id);const e=log('sample',{truck:id,yd:Number(S.sampleYd)||0});t.samples.push(e.id);t.sampleRep={v:'taken',t:Date.now(),pk:S.pile.key}})},
  test(id){act(()=>{const t=tk(id);log('qc_test',{truck:id});t.tests.push({id:uid(),t:Date.now(),temp:'',flow:'',pk:S.pile.key})});setTimeout(()=>{const t=tk(id),e=t&&$('t-'+id+'-tt'+(t.tests.length-1));if(e)e.scrollIntoView({block:'center',behavior:'smooth'})},50)},
  undoLast(){const types=['depth_mark','truck_arrival','truck_empty','truck_waste','sample','grout_return','qc_test'];const e=[...pev()].reverse().find(x=>types.includes(x.type));if(!e)return msg('Nothing to undo on this pile.');
   const t=tk(e.truck),name=e.type.replace('_',' ');
@@ -302,91 +349,155 @@ const A={
    S.piles=S.piles.filter(p=>p.key!==k);for(const t of S.trucks)if(t.pk0===into||t.carryIn[into]){const oo=orderKeys(),ii=oo.indexOf(into);if(t.pk0!==into&&oo.indexOf(t.pk0)>=ii)delete t.carryIn[into]}
    resortPiles();msg('Pile '+(P.id||'?')+' deleted. Its entries moved to pile '+pname(into)+'.')})},
  scan(id){scanFor=id;const i=$('camIn');i.value='';i.click()},
- reset(){if(!twoTap('reset','rs','Tap again to delete everything'))return;try{localStorage.removeItem(KEY)}catch(e){}location.reload()}
+ reset(){if(!twoTap('reset','rs','Tap again to delete everything'))return;clearTimeout(mirT);
+ const go=()=>{try{localStorage.removeItem(KEY)}catch(e){}location.reload()};
+ pdb().then(db=>new Promise(res=>{try{const tx=db.transaction(['p','s'],'readwrite');tx.objectStore('p').clear();tx.objectStore('s').clear();tx.oncomplete=()=>{try{db.close()}catch(e){}res()};tx.onerror=()=>res()}catch(e){res()}})).then(go).catch(go)}
 };
 let pend=false,fc=null,fcT=null;
 const fcSec=()=>fc?((Date.now()-fc.start)/1000).toFixed(1):'0.0';
+const SG=[['drillStart','Drill start'],['drillFinish','Drill finish'],['groutStart','Grout start'],['groutFinish','Grout finish'],['reinfStart','Reinforce start'],['reinfFinish','Reinforce finish']];
+const STEP=['setup','arrival','pump','qc','stages','close'];
+let secForce={},secCurrent='setup',secBoot=true;
+function computeCurrent(){const P=S.pile,pk=P.key,trucks=pileTrucks(pk),hasId=!!String(P.id||'').trim(),hasTruck=trucks.length>0;
+ const pouring=!!S.pumping||S.strokes>0||!!(P.st&&(P.st.groutStart||P.st.drillFinish||P.st.drillStart));
+ const groutDone=!!(P.st&&P.st.groutFinish),stagePast=pev('grout_return',pk).length>0||!!(P.st&&(P.st.reinfStart||P.st.groutFinish));
+ const reviewing=num(P.myCount)!==null||!!String(P.opCount||'').trim()||!!String(P.reviewed||'').trim()||!!(P.bandIn&&Object.keys(P.bandIn).some(k=>P.bandIn[k]!==''&&P.bandIn[k]!=null));
+ if((groutDone&&stagePast)||reviewing)return 'close';
+ if(stagePast||groutDone)return 'stages';
+ if(pouring)return 'pump';
+ if(hasId||hasTruck)return 'arrival';
+ return 'setup'}
+function secFlags(id){const P=S.pile,trucks=pileTrucks(P.key),items=[];
+ if(id==='setup'){if(!String(P.id||'').trim())items.push('no pile #');if(!P.station)items.push('no station');if(!P.elev)items.push('no elev')}
+ if(id==='arrival'){if(!trucks.length)items.push('no truck');else if(trucks.some(t=>!t.batch&&!t.dispatch))items.push('batch time missing')}
+ if(id==='pump'){const miss=intervals().filter(r=>r.flag==='MISSING').length;if(miss)items.push(miss+' missed mark'+(miss>1?'s':''));if(S.orphan)items.push('strokes with no truck')}
+ if(id==='qc'){const due=trucks.filter(t=>sy(t)>0&&!(t.samples||[]).length&&!t.sampleRep).length,missed=trucks.filter(t=>t.sampleRep&&t.sampleRep.v!=='taken').length;
+  if(due)items.push(due+' sample due');if(missed)items.push(missed+' sample not taken')}
+ if(id==='stages'){const SV=stages(),open=SG.filter(([k])=>!SV[k]||SV[k].est).length;if(open)items.push(open+' stage time'+(open>1?'s':'')+' open');if(!pev('grout_return').length)items.push('no grout return')}
+ return items}
+function unresolved(){const P=S.pile,pk=P.key,items=[],SV=stages(),trucks=pileTrucks(pk),iv=intervals(),gr=pev('grout_return',pk);
+ if(!String(P.id||'').trim())items.push('Pile # not entered');if(!P.station)items.push('Station not entered');if(!P.elev)items.push('Elev not entered');
+ for(const [k,l] of SG){if(!SV[k])items.push(l+' not stamped');else if(SV[k].est)items.push(l+' filled in automatically')}
+ const miss=iv.filter(r=>r.flag==='MISSING').length;if(miss)items.push(miss+' missed depth mark'+(miss>1?'s':''));
+ if((S.strokes>0||P.opCount)&&(P.mi||0)<(P.marks||[]).length&&!Object.keys(P.bandIn||{}).length&&!iv.length)items.push('Depth marks not entered');
+ if(P.st&&P.st.groutFinish&&!gr.length)items.push('Grout return not logged');
+ gr.filter(e=>e.depth==null).forEach(()=>items.push('Grout return missing depth'));
+ for(const t of trucks){const nm=tname(t);if(!t.batch&&!t.dispatch)items.push('Truck '+nm+' missing batch time');if(!t.qty)items.push('Truck '+nm+' missing load');
+  if(sy(t)>0&&!(t.samples||[]).length&&!t.sampleRep)items.push('Truck '+nm+' sample due, not recorded');
+  if(t.sampleRep&&t.sampleRep.v!=='taken')items.push('Truck '+nm+' sample not taken');
+  if(t.fed&&!t.emptied)items.push('Truck '+nm+' not marked empty')}
+ if(S.orphan)items.push(S.orphan+' strokes with no truck feeding');if(!(calYd()>0))items.push('Pump calibration not set');
+ return items}
+function secSum(id){const P=S.pile;
+ if(id==='setup')return [P.id?('Pile '+P.id):'Pile #',P.wall?('Wall '+P.wall):'',P.station?('Sta '+P.station):'',P.elev?('Elev '+P.elev):'',(P.len||'')+' ft'].filter(Boolean).join(' · ');
+ if(id==='arrival'){const ts=pileTrucks(P.key);return ts.length?ts.map(t=>(t.num||'#'+t.seq)+' '+(t.qty||'?')+' yd³').join(', '):'No truck yet'}
+ if(id==='pump'){const m=nextMark();return (S.pumping?'Pumping':'Not pumping')+' · '+S.strokes+' strokes'+(m===undefined?'':' · next '+m+' ft')}
+ if(id==='qc'){const ts=pileTrucks(P.key);return 'Samples '+r2(ts.reduce((a,t)=>a+sy(t),0))+' yd³ · '+ts.reduce((a,t)=>a+(t.tests||[]).length,0)+' QC'}
+ if(id==='stages'){const SV=stages(),g=SV.groutStart&&SV.groutFinish?hm(SV.groutStart.t)+'–'+hm(SV.groutFinish.t):'',gr=pev('grout_return')[0];return (g?('Grout '+g):'Stages')+(gr?(gr.depth!=null?' · return '+gr.depth+' ft':' · return depth missing'):'')}
+ if(STEP.indexOf(secCurrent)<STEP.indexOf('close'))return 'Review and export';
+ const n=unresolved().length;return n?n+' to check before export':'Ready to export'}
+function isSecOpen(id){if(Object.prototype.hasOwnProperty.call(secForce,id))return !!secForce[id];return id===secCurrent}
+function secFlagText(id){if(STEP.indexOf(id)>=STEP.indexOf(secCurrent))return '';return secFlags(id).join(', ')}
+function toggleSec(id){secForce[id]=!isSecOpen(id);render()}
+function secHTML(id,title,body){const open=isSecOpen(id),flag=secFlagText(id),sum=flag||secSum(id);
+ return `<section id="sec-${id}" class="secblock${open?'':' shut'}${id===secCurrent?' now':''}"><button type="button" class="secbar" aria-expanded="${open?'true':'false'}" onclick="toggleSec('${id}')"><span class="seclabel">${esc(title)}</span><span class="secsum${flag?' flag':''}">${esc(sum)}</span><span class="secchev" aria-hidden="true">${open?'▾':'▸'}</span></button><div class="secbody">${body}</div></section>`}
 function render(){clearTimeout(rT);
- $('tp').textContent=S.pile.id;tray();$('npTray').textContent=isLatest()?'Next pile ▸':'Back to '+(latestPile().id||'latest')+' ▸';
- const ts=S.trucks,sum=f=>ts.reduce((a,t)=>a+f(t),0);
- const recv=sum(t=>parseFloat(t.qty)||0),samp=sum(t=>t.samples.length*S.sampleYd),waste=sum(t=>parseFloat(t.waste)||0);
- const pl=calYd()>0?sum(t=>tStrokes(t)*calYd()):null;
- const at=tk(S.active),nm=nextMark();
- const atR=at?calc(at).rem:null;$('stat').innerHTML=`<div><small>Truck</small><b class="num">${at?esc(at.num||'#'+at.seq):'none'}</b>${at?`<small style="color:var(--ink)"><b class="num" style="font-size:18px">${atR===null?'?':r1(atR)}</b> yd³ left${sLeft(atR)!==null?' · ~'+sLeft(atR)+' strokes':''}</small>`:''}</div><div><small>Strokes</small><b class="num">${confStrokes(S.pile.key).n||'—'}</b><small style="color:var(--ink)">${esc(confStrokes(S.pile.key).src)}</small></div><div><small>${S.pumping?'Pumping':'Paused'}</small><b class="num">${ts.filter(t=>!t.emptied&&!t.fed).length} queued</b></div>`;
+ tray();
+ const ts=S.trucks,at=tk(S.active),atC=at?calc(at):null,atR=atC?atC.rem:null;
+ $('stat').innerHTML=`<div><small>Truck</small><b class="num">${at?esc(at.num||'#'+at.seq):'none'}</b>${at?`<small style="color:var(--ink)"><b class="num" style="font-size:18px">${atR===null?'?':r2(atR)}</b> yd³ left${sLeft(atR)!==null?' · ~'+sLeft(atR)+' strokes':''}</small>`:''}</div><div><small>Strokes</small><b class="num">${confStrokes(S.pile.key).n||'—'}</b><small style="color:var(--ink)">${esc(confStrokes(S.pile.key).src)}</small></div><div><small>${S.pumping?'Pumping':'Paused'}</small><b class="num">${ts.filter(t=>!t.emptied&&!t.fed).length} queued</b></div>`;
  const ae=document.activeElement;if(ae&&ae.tagName==='INPUT'){pend=true;return}pend=false;
- const sh=v=>v===null?'pending':r1(v);
- const cins=ts.filter(t=>t.carryIn[S.pile.key]),lat=latestPile();
- const onOld=!isLatest();
- const pendT=ts.filter(t=>t.pend&&!t.emptied&&t.pend.pk!==S.pile.key);
- let h=`${pendT.map(t=>`<div class="card" style="border:3px solid var(--acc)"><b>Is truck ${esc(tname(t))} empty?</b><div>Strokes passed its load at ${ft(t.pend.t)} on pile ${esc(pname(t.pend.pk))}.</div><div class="row"><button style="flex:1" onclick="A.confirmEmpty('${t.id}')">Yes, empty at ${ft(t.pend.t).replace(/:\d\d /,' ')}</button><button class="sec" style="flex:1" onclick="A.notEmpty('${t.id}')">No, still has grout</button></div></div>`).join('')}${onOld?`<div class="card" style="border:3px solid var(--red)"><b>Editing pile ${esc(S.pile.id||'?')} (earlier pile)</b><div>Everything you change saves to pile ${esc(S.pile.id||'?')}.</div><button style="width:100%;margin-top:6px" onclick="A.openPile('${lat.key}')">Back to pile ${esc(lat.id||'?')}</button></div>`:''}${cins.length?`<div class="card" style="border:2px solid var(--acc)"><b>Carried into pile ${esc(S.pile.id)}</b>${cins.map(t=>{const c=calc(t);return `<div>Truck <b>${esc(tname(t))}</b> · ${cyd(t,S.pile.key)==null?'?':r1(cyd(t,S.pile.key))} yd³ at start · <b>${c.rem===null?'?':r1(c.rem)} yd³ left now${sLeft(c.rem)!==null?' · ~'+sLeft(c.rem)+' strokes':''}</b></div>`}).join('')}</div>`:''}<div class="card"><b>Pile setup</b><div class="row"><input id="f-pile" placeholder="Pile #" value="${esc(S.pile.id)}" onchange="A.cfg('pile',this.value)"><input id="f-wall" placeholder="Wall #" value="${esc(S.pile.wall)}" onchange="A.pset('wall',this.value)"></div><div class="row"><input id="f-sta" placeholder="Station" value="${esc(S.pile.station)}" onchange="A.pset('station',this.value)"><input id="f-elev" placeholder="Elev" value="${esc(S.pile.elev)}" onchange="A.pset('elev',this.value)"></div><div class="row"><input id="f-date" placeholder="Date" value="${esc(S.pile.date)}" onchange="A.pset('date',this.value)"><label style="flex:1;min-width:90px"><small>Pile length (ft)</small><input id="f-len" inputmode="decimal" value="${esc(S.pile.len)}" onchange="A.pset('len',Number(this.value)||0)"></label></div><div class="row"><button class="sec" style="flex:1" onclick="formScan()">Scan filled-in form</button><button class="sec" style="flex:1" onclick="formGrid({},'')">Type in a form</button></div><div class="row"><button id="np" style="flex:1" onclick="A.newPile()">${onOld?'Back to pile '+esc(lat.id||'?'):'Finish pile '+esc(S.pile.id)+' → start '+esc(nextId(S.pile.id)||'next')}</button></div></div><div class="grid"><button id="bp" onclick="A.pump()">${S.pumping?'Pause pumping':'Start / resume pumping'}</button><button onclick="A.arrive()">Truck arrival</button>
- 
- <button onclick="A.ret()">Grout return</button><button class="sec" onclick="A.next()">Switch to next queued</button></div><button id="undoLast" class="sec" style="width:100%" onclick="A.undoLast()">Undo last action</button>`;
- const SG=[['drillStart','Drill start'],['drillFinish','Drill finish'],['groutStart','Grout start'],['groutFinish','Grout finish'],['reinfStart','Reinforce start'],['reinfFinish','Reinforce finish']];
- const SV=stages(),tv=k=>SV[k]?hm(SV[k].t):'';
- h+=`<div class="row" style="margin-top:8px"><button style="flex:1" onclick="showForm(S.pile.key,true)">This pile's form</button><button style="flex:1" onclick="showForm(allPiles()[0].key)">All pile forms (${allPiles().length})</button></div><h2>Pile ${esc(S.pile.id)} stages</h2><div class="card">`+SG.map(([k,l])=>`<div class="row"><button class="sec" style="flex:1" onclick="A.stage('${k}')">${l}</button><label style="max-width:130px"><input id="st-${k}" type="time" value="${tv(k)}" style="${SV[k]&&SV[k].est?'font-style:italic;color:var(--mut);border-style:dashed':''}" onchange="A.stageSet('${k}',this.value)">${SV[k]&&SV[k].est?'<small>auto · tap to set</small>':''}</label></div>`).join('')+`<small style="color:var(--mut)">Missed times fill in from today's own times: drill about ${learnMin('drillStart','drillFinish','drillMin')} min, grout starts at drill finish and runs about ${learnMin('groutStart','groutFinish','groutMin')} min, reinforce starts at grout finish and runs about ${learnMin('reinfStart','reinfFinish','reinfMin')} min. A pile with no times is placed from today's gap between piles.</small></div>`;
- h+=`<h2>Trucks</h2><button class="sec" style="width:100%;margin-bottom:6px" onclick="A.addTruck()">+ Add a truck (type its times)</button>`;
- const here=t=>!t.emptied||pev().some(e=>e.truck===t.id),shown=ts.filter(here),olderL=ts.filter(t=>!here(t)).sort((a,b)=>(a.seq||0)-(b.seq||0)),older=olderL.length;
- if(!shown.length)h+=`<div class="card">No trucks yet. Tap Truck arrival when one pulls up, or Add a truck to key one in later.</div>`;
- const list=[...shown,...olderL];
- for(const t of list){if(older&&t===olderL[0])h+=`<details open style="margin-top:10px"><summary style="font-weight:700">Earlier trucks today (${older})</summary>`;
-  if(olderL.includes(t)){const on=orderKeys().filter(k=>pev(null,k).some(e=>e.truck===t.id)),c=calc(t),tt=(t.tests||[]).filter(x=>x.temp||x.flow);
-   h+=`<div class="card"><div class="row"><b>Truck ${esc(t.seq||'')}</b>${pilePick(t)}<input id="t-${t.id}-num" placeholder="Truck I.D. #" value="${esc(t.num)}" onchange="A.setT('${t.id}','num',this.value)"><small>Load ${esc(t.qty||'?')} yd³</small></div>
-   <div class="row"><label style="flex:1;min-width:95px"><small>Batch</small><input id="t-${t.id}-batch" type="time" ${tIn(t,'batch')} onchange="A.setT('${t.id}','batch',this.value)"></label><label style="flex:1;min-width:95px"><small>Arrived</small><input id="t-${t.id}-arr" type="time" ${tIn(t,'arrived')} onchange="A.setTime('${t.id}','arrived',this.value)"></label><label style="flex:1;min-width:95px"><small>Empty</small><input id="t-${t.id}-emp" type="time" ${tIn(t,'emptied')} onchange="A.setTime('${t.id}','emptied',this.value)"></label></div>
-   ${on.map(k=>{const u=usedOn(t,k),la=leftAfter(t,k);return `<div>Pile <b>${esc(pname(k))}</b>: used ${u===null?'?':r1(u)} yd³ · left ${la===null?'?':r1(la)}</div>`}).join('')}
-   <div style="color:var(--mut);font-size:14px">${t.sampleNo?'Sample '+esc(t.sampleNo)+' · ':''}${tt.map(x=>esc(x.temp||'?')+'°F / '+esc(x.flow||'?')+' s').join(' · ')}${t.left==='waste'?' · leftover wasted':''}</div></div>`;continue}const c=calc(t),co=cutoff(t),canRm=!t.fed&&!t.samples.length&&!t.tests.length,pk=S.pile.key,ci=t.carryIn[pk],u=usedOn(t,pk),man=num(t.used[pk])!==null;
-  const autoU=(()=>{const n=confOn(t,pk),cl=calYd();return n&&cl>0?r1((n*cl)):''})();
-  h+=`<div class="card"><div class="row"><b>#${t.seq||''}</b>${pilePick(t)}<input id="t-${t.id}-num" placeholder="Truck I.D. #" value="${esc(t.num)}" onchange="A.setT('${t.id}','num',this.value)"><label style="flex:1;min-width:90px"><small>Load yd³ (ticket)</small><input id="t-${t.id}-qty" inputmode="decimal" value="${esc(t.qty)}" onchange="A.setT('${t.id}','qty',this.value)"></label></div>
-  ${sy(t)>0&&!t.sampleRep?`<div class="card" style="border:2px solid var(--acc);margin:6px 0"><b>Sample due on this truck</b> <small>(1 every ${esc(S.sampleEvery)} yd³ · ${r1(sy(t))} yd³)</small><div class="row"><button style="flex:1" onclick="A.sampleRep('${t.id}','taken')">Taken</button><button class="sec" style="flex:1" onclick="A.sampleRep('${t.id}','not taken')">Not taken</button></div></div>`:t.sampleRep?`<div style="font-size:14px">Sample ${t.sampleRep.v} · ${ft(t.sampleRep.t)}</div>`:''}
+ const cur=computeCurrent(),prevCur=secCurrent;if(cur!==secCurrent){secCurrent=cur;if(!secBoot)secForce={}}
+ const lat=latestPile(),onOld=!isLatest(),pk=S.pile.key;
+ const pendT=ts.filter(t=>t.pend&&!t.emptied&&t.pend.pk!==pk);
+ const cins=ts.filter(t=>t.carryIn[pk]);
+ let top=`${pendT.map(t=>`<div class="card" style="border:3px solid var(--acc)"><b>Is truck ${esc(tname(t))} empty?</b><div>Strokes passed its load at ${ft(t.pend.t)} on pile ${esc(pname(t.pend.pk))}.</div><div class="row"><button style="flex:1" onclick="A.confirmEmpty('${t.id}')">Yes, empty at ${ft(t.pend.t).replace(/:\d\d /,' ')}</button><button class="sec" style="flex:1" onclick="A.notEmpty('${t.id}')">No, still has grout</button></div></div>`).join('')}`;
+ if(onOld)top+=`<div class="card" style="border:3px solid var(--red)"><b>Editing pile ${esc(S.pile.id||'?')} (earlier pile)</b><div>Everything you change saves to pile ${esc(S.pile.id||'?')}.</div><button style="width:100%;margin-top:6px" onclick="A.openPile('${lat.key}')">Back to pile ${esc(lat.id||'?')}</button></div>`;
+ const setupBody=`<div class="card"><div class="row"><input id="f-pile" placeholder="Pile #" value="${esc(S.pile.id)}" onchange="A.cfg('pile',this.value)"><input id="f-wall" placeholder="Wall #" value="${esc(S.pile.wall)}" onchange="A.pset('wall',this.value)"></div><div class="row"><input id="f-sta" placeholder="Station" value="${esc(S.pile.station)}" onchange="A.pset('station',this.value)"><input id="f-elev" placeholder="Elev" value="${esc(S.pile.elev)}" onchange="A.pset('elev',this.value)"></div><div class="row"><input id="f-date" placeholder="Date" value="${esc(S.pile.date)}" onchange="A.pset('date',this.value)"><label style="flex:1;min-width:90px"><small>Pile length (ft)</small><input id="f-len" inputmode="decimal" value="${esc(S.pile.len)}" onchange="A.pset('len',Number(this.value)||0)"></label></div><div class="row"><button class="sec" style="flex:1" onclick="formScan()">Scan filled-in form</button><button class="sec" style="flex:1" onclick="formGrid({},'')">Type in a form</button></div></div>`;
+ const here=t=>!t.emptied||pev().some(e=>e.truck===t.id),shown=ts.filter(here),olderL=ts.filter(t=>!here(t)).sort((a,b)=>(a.seq||0)-(b.seq||0));
+ const arrivalCard=t=>{const c=calc(t),co=cutoff(t),canRm=!t.fed&&!t.samples.length&&!t.tests.length,ci=t.carryIn[pk],u=usedOn(t,pk),man=num(t.used[pk])!==null;
+  const autoU=(()=>{const n=confOn(t,pk),cl=calYd();return n&&cl>0?r2(n*cl):''})();
+  return `<div class="card"><div class="row"><b>#${t.seq||''}</b>${pilePick(t)}<input id="t-${t.id}-num" placeholder="Truck I.D. #" value="${esc(t.num)}" onchange="A.setT('${t.id}','num',this.value)"><label style="flex:1;min-width:90px"><small>Load yd³ (ticket)</small><input id="t-${t.id}-qty" inputmode="decimal" value="${esc(t.qty)}" onchange="A.setT('${t.id}','qty',this.value)"></label></div>
+  ${sy(t)>0&&!(t.samples||[]).length&&!t.sampleRep?'<div class="flag">Sample due — open Sample / QC. Yardage already counts it until you mark Not taken.</div>':''}
   ${t.ticketNo||t.mix?`<div style="color:var(--mut);font-size:14px">${t.ticketNo?'Ticket '+esc(t.ticketNo):''}${t.ticketNo&&t.mix?' · ':''}${t.mix?'Mix '+esc(t.mix):''}</div>`:''}
   <div class="row"><button style="flex:2" onclick="A.scan('${t.id}')">${t.photo?'Rescan ticket':'Scan ticket'}</button>${t.photo?`<button class="sec" style="flex:1" onclick="viewPhoto('${t.id}')">View ticket</button>`:''}</div>
-  ${ci?`<div class="trayw" style="color:var(--mut)">Carried from pile ${esc(pname(ci.from))}: ${cyd(t,pk)==null?'?':r1(cyd(t,pk))} yd³ on board</div>`:''}
+  ${ci?`<div class="trayw" style="color:var(--mut)">Carried from pile ${esc(pname(ci.from))}: ${cyd(t,pk)==null?'?':r2(cyd(t,pk))} yd³ on board</div>`:''}
   <div class="row"><label style="flex:1;min-width:95px"><small>Batch</small><input id="t-${t.id}-batch" type="time" ${tIn(t,'batch')} onchange="A.setT('${t.id}','batch',this.value)"></label><label style="flex:1;min-width:95px"><small>Arrived</small><input id="t-${t.id}-arr" type="time" ${tIn(t,'arrived')} onchange="A.setTime('${t.id}','arrived',this.value)"></label><label style="flex:1;min-width:95px"><small>Empty</small><input id="t-${t.id}-emp" type="time" ${tIn(t,'emptied')} onchange="A.setTime('${t.id}','emptied',this.value)"></label></div>
   <div>${t.emptied?'Emptied'+(t.left==='waste'?' · leftover wasted':''):t.fed?(S.active===t.id?'<b>Feeding</b>':'Fed earlier'):'Queued'}${t.left==='carry'&&!t.emptied?' · <b>carry to next pile</b>':''}${t.pend&&!t.emptied?' · <b class=flag>looks used up (confirm)</b>':''} · cutoff ${co?ft(co):'<span class=flag>enter batch time</span>'}</div>
-  <div class="row" style="text-align:center">${[['Strokes this pile'+(confStrokes(pk).src!=='my count'?' (confirmed)':''),+confOn(t,pk).toFixed(1)],['Used this pile yd³'+(man?' (typed)':''),u===null?'?':r1(u)],['Left for next pile yd³',(()=>{const la=leftAfter(t,pk);return la===null?'?':r1(la)+(sLeft(la)!==null?' <small>~'+sLeft(la)+' str</small>':'')})()]].map(([l,v])=>`<div style="flex:1;min-width:95px;background:var(--bg);border-radius:6px;padding:4px"><small style="color:var(--mut)">${l}</small><div class="num" style="font-size:24px">${v}</div></div>`).join('')}</div>
-  <div class="row"><label style="flex:1"><small>Correct used yd³ for pile ${esc(S.pile.id)} (leave blank to use strokes)</small><input id="t-${t.id}-used" inputmode="decimal" placeholder="${autoU?autoU+' from strokes':'Enter yd³'}" value="${man?esc(t.used[pk]):''}" onchange="A.setUsed('${t.id}',this.value)"></label></div>
-  <div>Load ${c.q>=0?r1(c.q):'<span class=flag>?</span>'} − used ${c.placed===null?'<span class=flag>?</span>':r1(c.placed)} − sample ${r1(c.s)} − waste ${r1(c.w)} = <b>left on truck ${c.rem===null?'<span class=flag>?</span>':r1(c.rem)} yd³${sLeft(c.rem)!==null?' (~'+sLeft(c.rem)+' strokes)':''}</b></div>
-  ${c.rem!==null&&c.rem>0.05&&t.left!=='waste'?`<div class="row"><button style="flex:1" onclick="A.waste('${t.id}')">Leftover is waste</button>${t.emptied?'':`<button class="sec" style="flex:1" onclick="A.carry('${t.id}')">${t.left==='carry'?'✓ Carrying to next pile':'Carry to next pile'}</button>`}</div>`:''}
-  ${c.rem!==null&&c.rem<-0.05?`<div class=flag>Used more than the load by ${r1((-c.rem))} yd³. Check the load or used amount.</div>`:''}
-  <div class="row"><button class="sec" onclick="A.sw('${t.id}')">Feed pump</button><button class="sec" onclick="A.sample('${t.id}')">Sample taken</button><button class="sec" onclick="A.test('${t.id}')">QC test</button><button class="sec" onclick="A.empty('${t.id}')">Empty</button>${canRm?`<button class="sec" id="rm${t.id}" onclick="A.remove('${t.id}')">Remove</button>`:''}</div>
-  <div class="row"><input id="t-${t.id}-sn" placeholder="Sample #" value="${esc(t.sampleNo)}" onchange="A.setT('${t.id}','sampleNo',this.value)"><input id="t-${t.id}-waste" placeholder="Waste yd³" inputmode="decimal" value="${esc(t.waste)}" onchange="A.setT('${t.id}','waste',this.value)"><label style="flex:1;min-width:90px"><small>Sample yd³ off this truck</small><input id="t-${t.id}-sy" inputmode="decimal" placeholder="${r1(autoSamples()[t.id]||0)} (auto)" value="${esc(t.sampleYd??'')}" onchange="A.setT('${t.id}','sampleYd',this.value)"></label></div>
+  <div class="row" style="text-align:center">${[['Strokes this pile',+confOn(t,pk).toFixed(1)],['Used this pile yd³'+(man?' (typed)':''),u===null?'?':r2(u)],['Left yd³',(()=>{const la=leftAfter(t,pk);return la===null?'?':r2(la)})()]].map(([l,v])=>`<div style="flex:1;min-width:95px;background:var(--bg);border-radius:6px;padding:4px"><small style="color:var(--mut)">${l}</small><div class="num" style="font-size:24px">${v}</div></div>`).join('')}</div>
+  <div class="row"><label style="flex:1"><small>Correct used yd³ for pile ${esc(S.pile.id)} (blank uses strokes)</small><input id="t-${t.id}-used" inputmode="decimal" placeholder="${autoU?autoU+' from strokes':'Enter yd³'}" value="${man?esc(t.used[pk]):''}" onchange="A.setUsed('${t.id}',this.value)"></label></div>
+  ${ydEq(c,'ydeq-'+t.id)}
+  ${c.rem!==null&&c.rem>0.05&&t.left!=='waste'?`<div class="row"><button style="flex:1" onclick="A.waste('${t.id}')">Leftover is waste</button>${t.emptied?'':`<button class="sec" style="flex:1" onclick="A.carry('${t.id}')">${t.left==='carry'?'Carrying to next pile':'Carry to next pile'}</button>`}</div>`:''}
+  ${c.rem!==null&&c.rem<-0.05?`<div class=flag>Used more than the load by ${r2(-c.rem)} yd³. Check the load or used amount.</div>`:''}
+  <div class="row"><label style="flex:1"><small>Waste yd³</small><input id="t-${t.id}-waste" inputmode="decimal" value="${esc(t.waste)}" onchange="A.setT('${t.id}','waste',this.value)"></label><button class="sec" style="flex:1" onclick="A.empty('${t.id}')">Empty</button>${canRm?`<button class="sec" id="rm${t.id}" style="flex:1" onclick="A.remove('${t.id}')">Remove</button>`:''}</div></div>`};
+ const olderCard=t=>{const on=orderKeys().filter(k=>pev(null,k).some(e=>e.truck===t.id)),tt=(t.tests||[]).filter(x=>x.temp||x.flow);
+  return `<div class="card"><div class="row"><b>Truck ${esc(t.seq||'')}</b>${pilePick(t)}<input id="t-${t.id}-num" placeholder="Truck I.D. #" value="${esc(t.num)}" onchange="A.setT('${t.id}','num',this.value)"><small>Load ${esc(t.qty||'?')} yd³</small></div>
+  <div class="row"><label style="flex:1;min-width:95px"><small>Batch</small><input id="t-${t.id}-batch" type="time" ${tIn(t,'batch')} onchange="A.setT('${t.id}','batch',this.value)"></label><label style="flex:1;min-width:95px"><small>Arrived</small><input id="t-${t.id}-arr" type="time" ${tIn(t,'arrived')} onchange="A.setTime('${t.id}','arrived',this.value)"></label><label style="flex:1;min-width:95px"><small>Empty</small><input id="t-${t.id}-emp" type="time" ${tIn(t,'emptied')} onchange="A.setTime('${t.id}','emptied',this.value)"></label></div>
+  ${on.map(k=>{const u=usedOn(t,k),la=leftAfter(t,k);return `<div>Pile <b>${esc(pname(k))}</b>: used ${u===null?'?':r2(u)} yd³ · left ${la===null?'?':r2(la)}</div>`}).join('')}
+  <div style="color:var(--mut);font-size:14px">${t.sampleNo?'Sample '+esc(t.sampleNo)+' · ':''}${tt.map(x=>esc(x.temp||'?')+'°F / '+esc(x.flow||'?')+' s').join(' · ')}${t.left==='waste'?' · leftover wasted':''}</div></div>`};
+ let arrivalBody=`<button style="width:100%" onclick="A.arrive()">Truck arrival</button><button class="sec" style="width:100%;margin-top:6px" onclick="A.addTruck()">+ Add a truck (type its times)</button>`;
+ if(cins.length)arrivalBody+=`<div class="card" style="border:2px solid var(--acc)"><b>Carried into pile ${esc(S.pile.id)}</b>${cins.map(t=>{const c=calc(t);return `<div>Truck <b>${esc(tname(t))}</b> · ${cyd(t,pk)==null?'?':r2(cyd(t,pk))} yd³ at start · <b>${c.rem===null?'?':r2(c.rem)} yd³ left now${sLeft(c.rem)!==null?' · ~'+sLeft(c.rem)+' strokes':''}</b></div>`}).join('')}</div>`;
+ if(!shown.length)arrivalBody+=`<div class="card">No trucks yet. Tap Truck arrival when one pulls up, or Add a truck to key one in later.</div>`;
+ arrivalBody+=shown.map(arrivalCard).join('');
+ if(olderL.length)arrivalBody+=`<details class="more"><summary>Earlier trucks today (${olderL.length})</summary>${olderL.map(olderCard).join('')}</details>`;
+ const openTrucks=ts.filter(t=>!t.emptied);
+ let pumpBody=`<div class="card"><div class="row"><button style="flex:1" onclick="A.stage('drillStart')">Drill start</button><button style="flex:1" onclick="A.stage('drillFinish')">Drill finish</button></div><button id="bp" style="width:100%" onclick="A.pump()">${S.pumping?'Pause pumping':'Start / resume pumping'}</button><small>Drill finish starts the grout and the pump. Count with the yellow +1. Mark depth stays on the bottom bar.</small></div>`;
+ if(!pileTrucks(pk).length)pumpBody+=`<button style="width:100%" onclick="A.arrive()">Truck arrival</button>`;
+ if(!openTrucks.length)pumpBody+=`<div class="card">No truck queued. You can still pump. Strokes with no truck are flagged, not blocked.</div>`;
+ else pumpBody+=openTrucks.map(t=>`<div class="row"><b style="min-width:72px">${esc(tname(t))}</b><span style="flex:1">${S.active===t.id?'<b>Feeding</b>':t.fed?'Fed earlier':'Queued'} · ${esc(t.qty||'?')} yd³</span><button class="sec" style="flex:1" onclick="A.sw('${t.id}')">${S.active===t.id?'Feeding':'Feed pump'}</button></div>`).join('')+`<button class="sec" style="width:100%" onclick="A.next()">Switch to next queued</button>`;
+ if(at)pumpBody+=`<div class="card">${ydEq(atC,'')}</div>`;
+ pumpBody+=`<label><small>Counter reading (optional — sets the stroke total)</small><input id="ctr" inputmode="numeric" placeholder="Counter now ${S.strokes}" onchange="A.setCounter(this.value)"></label>`;
+ const ivNow=intervals();
+ pumpBody+=ivNow.length?`<div class="card"><table><tr><th>Band</th><th>Strokes</th><th></th></tr>${ivNow.map(r=>`<tr><td>${esc(r.band)}</td><td>${r.d==null?'—':r.d}</td><td>${r.flag?`<span class="flag">${esc(r.flag)}</span>`:''}</td></tr>`).join('')}</table></div>`:`<div class="card">No depth marks yet. Mark depth and Missed mark stay on the bottom bar.</div>`;
+ pumpBody+=`<button id="undoLast" class="sec" style="width:100%" onclick="A.undoLast()">Undo last action</button>`;
+ const qcTrucks=pileTrucks(pk);
+ let qcBody=qcTrucks.length?'':`<div class="card">No truck on this pile yet. You can still keep going.</div>`;
+ qcBody+=qcTrucks.map(t=>{const logged=(t.samples||[]).length;
+  return `<div class="card"><b>Truck ${esc(tname(t))}</b><div>Off this truck now: <b>${r2(sy(t))} yd³</b>${logged?' · '+logged+' sample'+(logged>1?'s':''):''}</div>
+  <button style="width:100%" onclick="A.sample('${t.id}')">${esc(sampleActionLabel(t))}</button>
+  <button class="sec" style="width:100%;margin-top:6px" onclick="A.sampleRep('${t.id}','not taken')">Not taken</button>
+  ${t.sampleRep?`<div>Reported ${esc(t.sampleRep.v)} · ${ft(t.sampleRep.t)}</div>`:''}
+  <div class="row"><input id="t-${t.id}-sn" placeholder="Sample #" value="${esc(t.sampleNo)}" onchange="A.setT('${t.id}','sampleNo',this.value)"><label style="flex:1;min-width:90px"><small>Sample yd³ off this truck</small><input id="t-${t.id}-sy" inputmode="decimal" placeholder="${r2(autoSamples()[t.id]||0)} auto" value="${esc(t.sampleYd??'')}" onchange="A.setT('${t.id}','sampleYd',this.value)"></label></div>
+  <button class="sec" style="width:100%" onclick="A.test('${t.id}')">QC test</button>
   ${t.tests.map((x,i)=>{const run=fc&&fc.id===t.id&&fc.i===i;return `<div class="card" style="background:var(--bg);border:1px solid var(--line)"><b>QC test ${i+1}</b> <small style="color:var(--mut)">${ft(x.t)}</small>
   <div class="row"><label style="flex:1"><small>Grout temp °F</small><input id="t-${t.id}-tt${i}" inputmode="decimal" value="${esc(x.temp)}" onchange="A.setTest('${t.id}',${i},'temp',this.value)"></label><label style="flex:1"><small>Flow cone (sec)</small><input id="t-${t.id}-tf${i}" inputmode="decimal" value="${esc(x.flow)}" onchange="A.setTest('${t.id}',${i},'flow',this.value)"></label></div>
-  <button id="fc-${t.id}-${i}" style="width:100%;min-height:72px;font-size:26px;${run?'background:var(--red);color:#fff':''}" onclick="${run?'A.fcStop()':`A.fcStart('${t.id}',${i})`}">${run?'Stop · <span class="num">'+fcSec()+'</span> s':x.flow?'Retime flow cone':'Start flow cone timer'}</button></div>`}).join('')}</div>`}
- if(older)h+=`</details>`;
- const L=ledger(),f1=v=>v===null?'<span class=flag>?</span>':r1(v);
- h+=`<div class="card"><b>Pile ${esc(S.pile.id)} yardage (yd³)</b><br>Arrived ${r1(L.arr)} + carried in ${r1(L.cin)} − used ${f1(L.used)} − samples ${r1(L.samp)} − waste ${r1(L.waste)} = <b>left on trucks ${f1(L.left)}</b>${L.used===null?'<div class=flag>Type used yd³ on each truck, or set pump calibration</div>':''}${S.orphan?`<div class=flag>${S.orphan} strokes not on any truck</div>`:''}</div>`;
- const iv=intervals(),EBs=estBands(S.pile);
- {const P=S.pile,bi=P.bandIn||{},c=confStrokes(P.key),bs=bandSum(P);
- h+=`<h2>Pile ${esc(P.id)} strokes by depth</h2><div class="card"><small style="color:var(--mut)">Type the strokes for each band when you have them; blanks fill in automatically from the total (dashed). Yardage uses ${esc(c.src)}${c.n?' ('+c.n+')':''}.</small><table><tr><th>Band</th><th>Strokes</th><th>yd³</th></tr>${bands().map(b=>{const k=dl2(b),r=iv.find(r=>r.band===b),v=bi[k]??(r&&r.d!=null?r.d:''),e=EBs&&EBs[b];
-  return `<tr><td>${b}</td><td><input id="bd-${k}" type="number" inputmode="numeric" style="max-width:110px;padding:6px;${v===''&&e!=null?'font-style:italic;color:var(--mut);border-style:dashed':''}" value="${esc(v!==''?v:(e??''))}" onchange="A.setBand('${k}',this.value)">${v===''&&e!=null?' <small style="color:var(--mut)">auto</small>':''}</td><td>${v!==''&&calYd()>0?r1(Number(v)*calYd()):e!=null&&calYd()>0?r1(e*calYd()):''}</td></tr>`}).join('')}
-  <tr><td><b>Total</b></td><td><b>${bs??'—'}</b>${bs!=null&&c.src!=='my count'&&bs!==c.n?` <small class=flag>${esc(c.src)} ${c.n}</small>`:''}</td><td><b>${c.n&&calYd()>0?r1(c.n*calYd()):''}</b></td></tr></table></div>`}
+  <button id="fc-${t.id}-${i}" style="width:100%;min-height:72px;font-size:26px;${run?'background:var(--red);color:#fff':''}" onclick="${run?'A.fcStop()':`A.fcStart('${t.id}',${i})`}">${run?'Stop · <span class="num">'+fcSec()+'</span> s':x.flow?'Retime flow cone':'Start flow cone timer'}</button></div>`}).join('')}</div>`}).join('');
+ const SV=stages(),tv=k=>SV[k]?hm(SV[k].t):'';
+ let stageBody=SG.map(([k,l])=>`<div class="row"><button class="sec" style="flex:1" onclick="A.stage('${k}')">${l}</button><label style="max-width:140px"><input id="st-${k}" type="time" value="${tv(k)}" style="${SV[k]&&SV[k].est?'font-style:italic;color:var(--mut);border-style:dashed':''}" onchange="A.stageSet('${k}',this.value)">${SV[k]&&SV[k].est?'<small>auto · tap to set</small>':''}</label></div>`).join('');
+ stageBody+=`<small style="color:var(--mut)">Missed times fill in from today's own times: drill about ${learnMin('drillStart','drillFinish','drillMin')} min, grout starts at drill finish and runs about ${learnMin('groutStart','groutFinish','groutMin')} min, reinforce starts at grout finish and runs about ${learnMin('reinfStart','reinfFinish','reinfMin')} min. A missed time is flagged. It does not stop the pour.</small>`;
+ stageBody+=`<button style="width:100%;margin-top:8px" onclick="A.ret()">Grout return</button>`;
  const gr=pev('grout_return');
- if(gr.length)h+=`<h2>Grout return</h2>`+gr.map(e=>`<div class="row">${ft(e.t)} · strokes ${e.strokes}<input id="gr-${e.id}" placeholder="Depth ft (fill later)" inputmode="decimal" value="${e.depth??''}" onchange="A.setDepth('${e.id}',this.value)">${e.depth==null?'<span class=flag>missing</span>':''}</div>`).join('');
- h+=`<h2>Closeout</h2><div class="card"><div class="row"><label style="flex:1"><small>My count (total strokes)</small><input id="f-my" type="number" inputmode="numeric" value="${esc(S.pile.myCount??'')}" placeholder="${bandSum(S.pile)!=null?bandSum(S.pile)+' (sum of bands)':''}" onchange="A.pset('myCount',this.value)"></label></div><div>Used yd³ figured from <b>${confStrokes(S.pile.key).src} (${confStrokes(S.pile.key).n})</b>${EBs?` · no depths marked, so strokes are split by the ${esc(EBs._src)} (≈ in the table)`:''}</div><div class="row"><input id="f-op" placeholder="Contractor count" inputmode="numeric" value="${esc(S.pile.opCount)}" onchange="A.pset('opCount',this.value)"><input id="f-rev" placeholder="Agreed total" inputmode="numeric" value="${esc(S.pile.reviewed)}" onchange="A.pset('reviewed',this.value)"></div><div class="row"><input id="f-note" placeholder="Explanation" value="${esc(S.pile.note)}" onchange="A.pset('note',this.value)"></div>${S.pile.opCount&&Number(S.pile.opCount)!==S.strokes?'<div class=flag>Counts differ by '+(Number(S.pile.opCount)-S.strokes)+'</div>':''}</div>`;
- h+=`<h2>Review</h2><div class="card">${[
-  ts.filter(t=>!t.emptied).length+' trucks not emptied',SG.filter(([k])=>!SV[k]).length+' pile stages not stamped',SG.filter(([k])=>SV[k]&&SV[k].est).length?SG.filter(([k])=>SV[k]&&SV[k].est).length+' stage times filled in automatically (dashed)':'',
-  iv.filter(r=>r.flag==='MISSING').length+' missing depth marks',
-  gr.filter(e=>e.depth==null).length+' grout returns without depth',
-  ts.filter(t=>t.fed&&!t.qty).length+' fed trucks without load yd³',ts.filter(t=>sy(t)>0&&!t.sampleRep).length?'<span class=flag>'+ts.filter(t=>sy(t)>0&&!t.sampleRep).length+' sample(s) due, not reported</span>':'',
-  ts.filter(t=>!t.batch&&!t.dispatch).length+' trucks without batch time',
-  S.orphan?`<span class=flag>${S.orphan} strokes pumped with no truck feeding (not in any truck's yardage)</span>`:'',
-  !(calYd()>0)?'Calibration not set: type used yd³ on each truck':'Pump '+esc(S.cal)+(S.calUnit==='ft3'?' ft³':' yd³')+' per stroke ('+calYd().toFixed(4)+' yd³)'
- ].filter(Boolean).map(x=>'<div>'+x+'</div>').join('')}</div>`;
- h+=`<h2>Pile ${esc(S.pile.id)} timeline</h2>`+[...pev()].reverse().map(e=>`<div class="tl">${ft(e.t)} · ${e.type.replace('_',' ')}${e.name?' '+e.name:''}${e.depth!=null?' @ '+e.depth+' ft':''} · strokes ${e.strokes}${e.truck?' · '+esc(tname(tk(e.truck))||'truck'):''}${e.missing?' <span class=flag>missed</span>':''}</div>`).join('');
- if(S.piles.length)h+=`<h2>Other piles</h2>`+allPiles().filter(p=>p!==S.pile).reverse().map(p=>{const tr=pileTrucks(p.key),L=ledger(p.key);return `<div class="card"><div class="row"><b style="flex:1">Pile ${esc(p.id||'?')}</b><small>${esc(p.date)} · ${confStrokes(p.key).n} strokes</small></div>${tr.map(t=>{const u=usedOn(t,p.key),la=leftAfter(t,p.key);return `<div>Truck <b>${esc(tname(t))}</b> · used ${u===null?'?':r1(u)} yd³ · left ${la===null?'?':r1(la)}<br><small style="color:var(--mut)">batch ${t.batch?esc(t.batch):'—'} · arrived ${t.arrived?hm(t.arrived):'—'} · empty ${t.emptied&&pev(null,p.key).some(e=>e.truck===t.id&&(e.type==='truck_empty'||e.type==='truck_waste'))?hm(t.emptied):'—'}</small></div>`}).join('')||'<div style="color:var(--mut)">No trucks</div>'}
-  <div class="row"><input id="op-${p.key}" placeholder="Contractor count" inputmode="numeric" value="${esc(p.opCount)}" onchange="A.oldSet('${p.key}','opCount',this.value)"><input id="rv-${p.key}" placeholder="Agreed total" inputmode="numeric" value="${esc(p.reviewed)}" onchange="A.oldSet('${p.key}','reviewed',this.value)"></div><div class="row"><button style="flex:1" onclick="A.openPile('${p.key}')">Open pile ${esc(p.id||'')}</button><button class="sec" style="flex:1" onclick="showForm('${p.key}',true)">View form</button></div><button class="sec" id="dp-${p.key}" style="width:100%;min-height:40px;font-size:15px" onclick="A.dropPile('${p.key}')">Delete pile ${esc(p.id||'')} (skipped / mistake)</button></div>`}).join('');
- h+=`<h2>Settings</h2><div class="card"><div class="row"><label style="flex:1"><small>Anthropic API key for reading handwritten sheets (kept on this phone only, not in backups)</small><input id="s-ai" type="password" autocomplete="off" placeholder="${aiKey()?'Saved ••••'+esc(aiKey().slice(-4)):'sk-ant-…'}" onchange="setAiKey(this.value)"></label>${aiKey()?'<button class="sec" style="min-height:44px;margin-top:16px" onclick="setAiKey(\'\')">Remove</button>':''}</div>
- <div class="row"><input id="s-def" inputmode="decimal" style="max-width:90px" value="${esc(S.defLoad)}" onchange="A.cfg('defLoad',Number(this.value)||0)"><small>Default load yd³ for each new truck (scan or type to change one truck)</small></div>
+ stageBody+=gr.map(e=>`<div class="row">${ft(e.t)} · strokes ${e.strokes}<input id="gr-${e.id}" placeholder="Depth ft (fill later)" inputmode="decimal" value="${e.depth??''}" onchange="A.setDepth('${e.id}',this.value)">${e.depth==null?'<span class=flag>missing</span>':''}</div>`).join('');
+ const P=S.pile,bi=P.bandIn||{},c=confStrokes(P.key),bs=bandSum(P),EBs=estBands(P),iv=intervals();
+ const depthTable=`<div class="card"><small style="color:var(--mut)">Type the strokes for each band when you have them. Blanks fill in from the total (dashed). Yardage uses ${esc(c.src)}${c.n?' ('+c.n+')':''}.</small><table><tr><th>Band</th><th>Strokes</th><th>yd³</th></tr>${bands().map(b=>{const k=dl2(b),r=iv.find(r=>r.band===b),v=bi[k]??(r&&r.d!=null?r.d:''),e=EBs&&EBs[b];
+  return `<tr><td>${esc(b)}</td><td><input id="bd-${k}" type="number" inputmode="numeric" style="max-width:110px" value="${esc(v!==''?v:(e??''))}" onchange="A.setBand('${k}',this.value)">${v===''&&e!=null?' <small style="color:var(--mut)">auto</small>':''}</td><td>${v!==''&&calYd()>0?r2(Number(v)*calYd()):e!=null&&calYd()>0?r2(e*calYd()):''}</td></tr>`}).join('')}
+  <tr><td><b>Total</b></td><td><b>${bs??'—'}</b>${bs!=null&&c.src!=='my count'&&bs!==c.n?` <small class=flag>${esc(c.src)} ${c.n}</small>`:''}</td><td><b>${c.n&&calYd()>0?r2(c.n*calYd()):''}</b></td></tr></table></div>`;
+ const L=ledger(),f1=v=>v===null?'<span class=flag>?</span>':r2(v);
+ const issues=unresolved();
+ let closeBody=`<div class="card"><div class="row"><label style="flex:1"><small>My count (total strokes)</small><input id="f-my" type="number" inputmode="numeric" value="${esc(P.myCount??'')}" placeholder="${bandSum(P)!=null?bandSum(P)+' (sum of bands)':''}" onchange="A.pset('myCount',this.value)"></label></div><div>Used yd³ from <b>${esc(c.src)} (${c.n})</b>${EBs?` · no depths marked, so strokes are split by the ${esc(EBs._src)} (dashed in the table)`:''}</div><div class="row"><input id="f-op" placeholder="Contractor count" inputmode="numeric" value="${esc(P.opCount)}" onchange="A.pset('opCount',this.value)"><input id="f-rev" placeholder="Agreed total" inputmode="numeric" value="${esc(P.reviewed)}" onchange="A.pset('reviewed',this.value)"></div><div class="row"><input id="f-note" placeholder="Explanation" value="${esc(P.note)}" onchange="A.pset('note',this.value)"></div>${P.opCount&&Number(P.opCount)!==S.strokes?'<div class=flag>Counts differ by '+(Number(P.opCount)-S.strokes)+'</div>':''}</div>`;
+ closeBody+=`<h2>Strokes by depth</h2>${depthTable}`;
+ closeBody+=`<div class="card"><b>Pile ${esc(P.id)} yardage (yd³)</b><br>Arrived ${r2(L.arr)} + carried in ${r2(L.cin)} − used ${f1(L.used)} − samples ${r2(L.samp)} − waste ${r2(L.waste)} = <b>left on trucks ${f1(L.left)}</b>${L.used===null?'<div class=flag>Type used yd³ on each truck, or set pump calibration</div>':''}${S.orphan?`<div class=flag>${S.orphan} strokes not on any truck</div>`:''}</div>`;
+ closeBody+=`<h2>Review before export</h2><div class="card" id="review">${issues.length?issues.map(x=>'<div class="flag">'+esc(x)+'</div>').join(''):'<div>Nothing unresolved on this pile.</div>'}${calYd()>0?'<div>Pump '+esc(S.cal)+(S.calUnit==='ft3'?' ft³':' yd³')+' per stroke ('+calYd().toFixed(4)+' yd³)</div>':''}</div>`;
+ closeBody+=`<button id="np" class="sec" style="width:100%" onclick="A.newPile()">${onOld?'Back to pile '+esc(lat.id||'?'):'Next pile'}</button><small>Two taps. This starts the next pile and stays away from the yellow +1, which only counts a stroke.</small>`;
+ closeBody+=`<div class="row" style="margin-top:8px"><button style="flex:1" onclick="showForm(S.pile.key,true)">This pile's form</button><button style="flex:1" onclick="showForm(allPiles()[0].key)">All pile forms (${allPiles().length})</button></div>`;
+ closeBody+=`<div class="row"><button onclick="showForm()">View form</button><button onclick="exportX()">Export Excel</button><button class="sec" onclick="backup()">Backup JSON</button><button class="sec" onclick="$('impIn').value='';$('impIn').click()">Import file</button><button class="sec" id="rs" onclick="A.reset()">Clear all</button></div>`;
+ const timeline=[...pev()].reverse().map(e=>`<div class="tl">${ft(e.t)} · ${e.type.replace('_',' ')}${e.name?' '+e.name:''}${e.depth!=null?' @ '+e.depth+' ft':''} · strokes ${e.strokes}${e.truck?' · '+esc(tname(tk(e.truck))||'truck'):''}${e.missing?' <span class=flag>missed</span>':''}</div>`).join('');
+ closeBody+=`<details class="more"><summary>Timeline</summary>${timeline||'<div class="card">Nothing logged on this pile yet.</div>'}</details>`;
+ if(S.piles.length)closeBody+=`<details class="more"><summary>Other piles</summary>`+allPiles().filter(p=>p!==S.pile).reverse().map(p=>{const tr=pileTrucks(p.key);return `<div class="card"><div class="row"><b style="flex:1">Pile ${esc(p.id||'?')}</b><small>${esc(p.date)} · ${confStrokes(p.key).n} strokes</small></div>${tr.map(t=>{const u=usedOn(t,p.key),la=leftAfter(t,p.key);return `<div>Truck <b>${esc(tname(t))}</b> · used ${u===null?'?':r2(u)} yd³ · left ${la===null?'?':r2(la)}<br><small style="color:var(--mut)">batch ${t.batch?esc(t.batch):'—'} · arrived ${t.arrived?hm(t.arrived):'—'} · empty ${t.emptied&&pev(null,p.key).some(e=>e.truck===t.id&&(e.type==='truck_empty'||e.type==='truck_waste'))?hm(t.emptied):'—'}</small></div>`}).join('')||'<div style="color:var(--mut)">No trucks</div>'}
+  <div class="row"><input id="op-${p.key}" placeholder="Contractor count" inputmode="numeric" value="${esc(p.opCount)}" onchange="A.oldSet('${p.key}','opCount',this.value)"><input id="rv-${p.key}" placeholder="Agreed total" inputmode="numeric" value="${esc(p.reviewed)}" onchange="A.oldSet('${p.key}','reviewed',this.value)"></div><div class="row"><button style="flex:1" onclick="A.openPile('${p.key}')">Open pile ${esc(p.id||'')}</button><button class="sec" style="flex:1" onclick="showForm('${p.key}',true)">View form</button></div><button class="sec" id="dp-${p.key}" style="width:100%" onclick="A.dropPile('${p.key}')">Delete pile ${esc(p.id||'')} (skipped / mistake)</button></div>`}).join('')+`</details>`;
+ closeBody+=`<details class="more"><summary>Settings</summary><div class="card"><div class="row"><label style="flex:1"><small>Anthropic API key for reading handwritten sheets (kept on this phone only, not in backups)</small><input id="s-ai" type="password" autocomplete="off" placeholder="${aiKey()?'Saved ••••'+esc(aiKey().slice(-4)):'sk-ant-…'}" onchange="setAiKey(this.value)"></label>${aiKey()?'<button class="sec" onclick="setAiKey(\'\')">Remove</button>':''}</div>
+ <div class="row"><input id="s-def" inputmode="decimal" style="max-width:90px" value="${esc(S.defLoad)}" onchange="A.cfg('defLoad',Number(this.value)||0)"><small>Default load yd³ for each new truck</small></div>
  <div class="row"><input id="s-samp" inputmode="decimal" value="${esc(S.sampleYd)}" onchange="A.cfg('sampleYd',Number(this.value)||0)"><small>yd³ per sample</small></div>
- <div class="row"><input id="s-sev" inputmode="decimal" style="max-width:90px" value="${esc(S.sampleEvery)}" onchange="A.cfg('sampleEvery',Number(this.value)||0)"><small>One sample every this many yd³ (first truck of the day, then each truck crossing the next mark)</small></div>
+ <div class="row"><input id="s-sev" inputmode="decimal" style="max-width:90px" value="${esc(S.sampleEvery)}" onchange="A.cfg('sampleEvery',Number(this.value)||0)"><small>One sample every this many yd³</small></div>
  <div class="row"><input id="s-marks" value="${esc(S.pile.marks.join(','))}" onchange="A.cfg('marks',this.value)"><small>Marks in field order (ft)</small></div>
- <div class="row"><label style="flex:1"><small>Pump output per stroke (verify)</small><input id="s-cal" inputmode="decimal" value="${esc(S.cal)}" onchange="A.cfg('cal',this.value)"></label><button class="sec" style="min-height:44px;margin-top:16px" onclick="A.cfg('calUnit',S.calUnit==='ft3'?'yd3':'ft3')">${S.calUnit==='ft3'?'ft³':'yd³'} per stroke ⇄</button></div>
+ <div class="row"><label style="flex:1"><small>Pump output per stroke</small><input id="s-cal" inputmode="decimal" value="${esc(S.cal)}" onchange="A.cfg('cal',this.value)"></label><button class="sec" onclick="A.cfg('calUnit',S.calUnit==='ft3'?'yd3':'ft3')">${S.calUnit==='ft3'?'ft³':'yd³'} per stroke</button></div>
  <div class="row"><input id="s-dm" inputmode="numeric" style="max-width:90px" value="${esc(S.drillMin)}" onchange="A.cfg('drillMin',Number(this.value)||0)"><small>Drill minutes until today's piles show otherwise (today: ${learnMin('drillStart','drillFinish','drillMin')})</small></div>
  <div class="row"><input id="s-gm" inputmode="numeric" style="max-width:90px" value="${esc(S.groutMin)}" onchange="A.cfg('groutMin',Number(this.value)||0)"><small>Grout minutes until today's piles show otherwise (today: ${learnMin('groutStart','groutFinish','groutMin')})</small></div>
  <div class="row"><input id="s-rm" inputmode="numeric" style="max-width:90px" value="${esc(S.reinfMin)}" onchange="A.cfg('reinfMin',Number(this.value)||0)"><small>Reinforce minutes until today's piles show otherwise (today: ${learnMin('reinfStart','reinfFinish','reinfMin')})</small></div>
- <div class="row"><input id="s-lim" inputmode="numeric" value="${esc(S.limit)}" onchange="A.cfg('limit',Number(this.value)||120)"><small>Cutoff minutes from batch time. Confirm against your spec.</small></div>
- <div class="row"><button onclick="showForm()">View form</button><button onclick="exportX()">Export Excel</button><button class="sec" onclick="backup()">Backup JSON</button><button class="sec" onclick="$('impIn').value='';$('impIn').click()">Import file</button><button class="sec" id="rs" onclick="A.reset()">Clear all</button></div></div>`;
- $('app').innerHTML=h}
+ <div class="row"><input id="s-lim" inputmode="numeric" value="${esc(S.limit)}" onchange="A.cfg('limit',Number(this.value)||120)"><small>Cutoff minutes from batch time. Confirm against your spec.</small></div></div></details>`;
+ const h=top+secHTML('setup','1 · Pile setup',setupBody)+secHTML('arrival','2 · Truck arrival',arrivalBody)+secHTML('pump','3 · Pumping',pumpBody)+secHTML('qc','4 · Sample / QC',qcBody)+secHTML('stages','5 · Grout return / stages',stageBody)+secHTML('close','6 · Closeout / review',closeBody);
+ $('app').innerHTML=h;fitTray();
+ if(!secBoot&&prevCur!==secCurrent){const el=$('sec-'+secCurrent);if(el)el.scrollIntoView({block:'start'})}
+ secBoot=false}
 document.addEventListener('focusout',()=>setTimeout(()=>{if(pend)render()},0));
 // QC test shown for a truck on a pile: one run on that pile, else its latest from an earlier pile
 function testFor(t,pk){const ts=t.tests||[];if(!ts.length)return{};const here=ts.filter(x=>x.pk===pk);if(here.length)return here[0];const o=orderKeys(),i=o.indexOf(pk);
@@ -495,8 +606,13 @@ function exportX(){if(typeof XLSX==='undefined')return msg('Excel export needs a
  const all=allPiles().map(p=>p===S.pile?{...p,strokes:S.strokes}:p);
  const pr=a=>{const V=stages(a),x=k=>ex(V[k]&&V[k].t);return{Pile:a.id,Wall:a.wall,Date:a.date,LengthFt:a.len,Elev:a.elev,Station:a.station,DrillStart:x('drillStart'),DrillFinish:x('drillFinish'),GroutStart:x('groutStart'),GroutFinish:x('groutFinish'),ReinforceStart:x('reinfStart'),ReinforceFinish:x('reinfFinish'),AutoFilledStages:Object.keys(V).filter(k=>V[k].est).join(' '),MyStrokes:a.strokes,OperatorCount:a.opCount,ReviewedTotal:a.reviewed,Explanation:a.note}};
  const iv=all.flatMap(p=>intervals(p).map(r=>({Pile:p.id,Band:r.band,CumStrokes:r.cum,Strokes:r.d??'',Flag:r.flag})));
+ const yn=v=>{if(typeof v==='number'&&isFinite(v))return Number(v.toFixed(3));if(typeof v==='string'&&/^-?\d/.test(v.trim())&&isFinite(Number(v)))return Number(Number(v).toFixed(3));return v};
+ const addSheet=(name,rows)=>{const data=rows.length?rows.map(row=>{const o={};for(const k in row)o[k]=/Yd3/.test(k)?yn(row[k]):row[k];return o}):[{}];
+  const ws=XLSX.utils.json_to_sheet(data);
+  if(rows.length){Object.keys(rows[0]).forEach((h,c)=>{if(!/Yd3/.test(h))return;for(let r=1;r<=rows.length;r++){const cell=ws[XLSX.utils.encode_cell({r,c})];if(cell&&cell.t==='n'&&typeof cell.v==='number'){cell.v=Number(cell.v.toFixed(3));cell.z='0.000'}}})}
+  XLSX.utils.book_append_sheet(wb,ws,name)};
  const wb=XLSX.utils.book_new();[['Events',ev],['Trucks_QC',tr],['Piles',all.map(pr)],['Intervals',iv],['Truck_by_pile',S.trucks.flatMap(t=>[...new Set([...Object.keys(t.ps),...Object.keys(t.used),...Object.keys(t.carryIn)])].map(k=>({Truck:t.num||'#'+t.seq,Pile:pname(k),CarriedInYd3:t.carryIn[k]?(cyd(t,k)??'?'):'',Strokes:strokesOn(t,k),ConfirmedStrokes:+confOn(t,k).toFixed(1),StrokeSource:confStrokes(k).src,UsedYd3:usedOn(t,k)??'PENDING',UsedSource:num(t.used[k])!==null?'typed':'strokes x cal',WasteYd3:t.wastePk===k?(parseFloat(t.waste)||0):''})))],
- ['Pile_yardage',all.map(p=>{const L=ledger(p.key);return{Pile:p.id,ArrivedYd3:L.arr,CarriedInYd3:L.cin,UsedYd3:L.used??'PENDING',SamplesYd3:L.samp,WasteYd3:L.waste,LeftOnTrucksYd3:L.left??'PENDING'}})]].forEach(([n,d])=>XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(d.length?d:[{}]),n));
+ ['Pile_yardage',all.map(p=>{const L=ledger(p.key);return{Pile:p.id,ArrivedYd3:L.arr,CarriedInYd3:L.cin,UsedYd3:L.used??'PENDING',SamplesYd3:L.samp,WasteYd3:L.waste,LeftOnTrucksYd3:L.left??'PENDING'}})]].forEach(([n,d])=>addSheet(n,d));
  const name='grout-'+stamp()+(P.id?'-pile-'+P.id.replace(/[^\w-]/g,''):'')+'.xlsx';
  const buf=XLSX.write(wb,{bookType:'xlsx',type:'array'});
  offer(name,new Blob([buf]),()=>XLSX.writeFile(wb,name))}catch(e){msg('Export failed: '+e.message)}}
@@ -616,7 +732,7 @@ function pileEmpty(){return !S.strokes&&!Object.keys(S.pile.st||{}).length&&!pev
 function resortPiles(){const nm=v=>{const x=parseFloat(v);return isNaN(x)?Infinity:x};allPiles().map((p,i)=>({p,i})).sort((a,b)=>nm(a.p.id)-nm(b.p.id)||(a.p.n??0)-(b.p.n??0)).forEach((x,i)=>x.p.n=i)}
 function gotoPile(id){if(S.pile.id===id)return;const ex=S.piles.find(p=>p.id===id);if(ex){A.openPile(ex.key);return}
  if(pileEmpty()){S.pile.id=id;resortPiles();save();return}
- if(!isLatest())A.openPile(latestPile().key);A.newPile();S.pile.id=id;$('undoNP').hidden=true;undoSnap=null;resortPiles();save()}
+ if(!isLatest())A.openPile(latestPile().key);A.newPile(true);S.pile.id=id;$('undoNP').hidden=true;undoSnap=null;resortPiles();save()}
 function sheetNext(){const v=sheetQ.shift();if(!v){scanClose();const L=latestPile();if(L.key!==S.pile.key)A.openPile(L.key);msg('Sheet filled in. Check the forms with View paper form.');return}
  gotoPile(v.pid[0]);if(v.len){const L=parseFloat(v.len[0]);if(L>0)setLen(S.pile,L)}render();formGrid(v,'(read by Claude)','',{i:sheetN-sheetQ.length,n:sheetN})}
 function setLen(P,L){P.len=L;P.marks=[];for(let m=Math.floor((L-0.01)/5)*5;m>=0;m-=5)P.marks.push(m);if(P===S.pile)P.mi=Math.min(P.mi||0,P.marks.length)}

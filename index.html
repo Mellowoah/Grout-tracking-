@@ -49,7 +49,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 </style>
 </head><body>
 
-<div id="alert"></div>
+<div id="alert"></div><button id="errb" hidden style="width:100%;border-radius:0;background:var(--red);color:#fff;border:0;min-height:48px" onclick="reportOpen()">Something went wrong. Tap to send a report</button>
 <header><button id="allF" style="width:100%;min-height:44px;margin-bottom:6px;font-size:17px" onclick="showForm(allPiles()[0].key)">View all pile forms</button><div class="stat" id="stat"></div><div id="save">Loading…</div><div id="msg" hidden></div><button id="undoNP" class="sec" hidden style="width:100%;margin-top:6px;min-height:44px" onclick="A.undoPile()">Undo new pile</button></header>
 <main id="app"></main>
 <div id="tray"><div class="top"><div><b style="font-size:20px">Pile <span id="tp"></span></b><div class="num" id="cnt">0</div></div>
@@ -61,7 +61,16 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <div id="formv" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:30;overflow:auto;padding:calc(16px + env(safe-area-inset-top,0px)) 8px 24px"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
-const KEY='groutTracker.v1';
+const KEY='groutTracker.v1';const APPV='grout-v74';
+// Problem reports go to this address (blank = the person picks who to send to)
+const REPORT_TO='';
+// ---- Errors: kept on the phone (last 20) and offered as a one-tap report
+const ERRK='groutTracker.errors';let errNew=0;
+function errList(){try{return JSON.parse(localStorage.getItem(ERRK)||'[]')}catch(e){return[]}}
+function logErr(e,where){try{const l=errList();l.push({t:Date.now(),where:where||'',msg:String(e&&e.message||e).slice(0,300),at:String(e&&e.stack||'').split('\n').slice(0,3).join(' | ').slice(0,300)});localStorage.setItem(ERRK,JSON.stringify(l.slice(-20)))}catch(_){}
+ errNew++;try{const b=document.getElementById('errb');if(b)b.hidden=false}catch(_){}}
+addEventListener('error',e=>{if(e.message&&!/ResizeObserver/.test(e.message))logErr(e.error||e.message,'page')});
+addEventListener('unhandledrejection',e=>logErr(e.reason,'promise'));
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const uid=()=>Math.random().toString(36).slice(2,8);
 const today=()=>new Date().toLocaleDateString([],{month:'numeric',day:'numeric',year:'2-digit'});
@@ -193,7 +202,7 @@ function ledger(pk=S.pile.key){const sum=f=>S.trucks.reduce((a,t)=>a+f(t),0);let
  return{arr,cin,used:pend?null:used,samp,waste,left:lp?null:left}}
 function nextMark(){return S.pile.marks[S.pile.mi]}
 function flash(el){el.style.outline='4px solid #fff';setTimeout(()=>el.style.outline='',120)}
-function act(fn){fn();save();render()}
+function act(fn){try{fn()}catch(e){logErr(e,'action')}save();try{render()}catch(e){logErr(e,'screen')}}
 function band(a,b){return Math.min(a,b)+'–'+Math.max(a,b)+' ft'}
 function bands(p=S.pile){const out=[];let prev=Number(p.len)||0;for(const m of p.marks){if(m!==prev)out.push(band(prev,m));prev=m}return out}
 function intervals(p=S.pile){const L=Number(p.len)||0;let rows=[],prev={d:L,s:0,good:L,after:false};
@@ -409,7 +418,7 @@ function render(){clearTimeout(rT);
  <div class="row"><input id="s-gm" inputmode="numeric" style="max-width:90px" value="${esc(S.groutMin)}" onchange="A.cfg('groutMin',Number(this.value)||0)"><small>Grout minutes until today's piles show otherwise (today: ${learnMin('groutStart','groutFinish','groutMin')})</small></div>
  <div class="row"><input id="s-rm" inputmode="numeric" style="max-width:90px" value="${esc(S.reinfMin)}" onchange="A.cfg('reinfMin',Number(this.value)||0)"><small>Reinforce minutes until today's piles show otherwise (today: ${learnMin('reinfStart','reinfFinish','reinfMin')})</small></div>
  <div class="row"><input id="s-lim" inputmode="numeric" value="${esc(S.limit)}" onchange="A.cfg('limit',Number(this.value)||120)"><small>Cutoff minutes from batch time. Confirm against your spec.</small></div>
- <div class="row"><button onclick="showForm()">View form</button><button onclick="exportX()">Export Excel</button><button class="sec" onclick="backup()">Backup JSON</button><button class="sec" onclick="$('impIn').value='';$('impIn').click()">Import file</button><button class="sec" id="rs" onclick="A.reset()">Clear all</button></div></div>`;
+ <div class="row"><button onclick="showForm()">View form</button><button onclick="exportX()">Export Excel</button><button class="sec" onclick="backup()">Backup JSON</button><button class="sec" onclick="reportOpen()">Report a problem</button><button class="sec" onclick="$('impIn').value='';$('impIn').click()">Import file</button><button class="sec" id="rs" onclick="A.reset()">Clear all</button></div></div>`;
  h=h.slice(0,g4)+sec('settings','Settings & backup',h.slice(g4));
  $('app').innerHTML=h}
 document.addEventListener('focusout',()=>setTimeout(()=>{if(pend)render()},0));
@@ -723,6 +732,31 @@ function impMerge(D){closeSeg();const inP=[...(D.piles||[]),{...D.pile,strokes:D
  S.pile=pick;S.strokes=pick.strokes||0;S.segStart=S.strokes;const at=tk(pick.active);S.active=at&&!at.emptied?at.id:null;S.pumping=false;delete pick.active;delete pick.pumping;
  S.trucks.forEach(t=>{t.used=t.used||{};t.carryIn=t.carryIn||{};t.ps=t.ps||{};t.tests=t.tests||[];t.samples=t.samples||[]});
  log('import',{piles:[...ids].join(',')});save();return [...ids]}
+// Things that look wrong in the data: sent along with a report as suggestions
+function diagnose(){const out=[],today=orderKeys();
+ for(const t of S.trucks){const la=t.pk0?leftAfter(t,orderKeys().slice(-1)[0]):null;if(la!==null&&la<-0.05)out.push('Truck '+tname(t)+' used '+r1(-la)+' yd³ more than its load (check load, used or strokes)');
+  if(!t.qty)out.push('Truck '+tname(t)+' has no load');if(!t.batch&&!t.dispatch)out.push('Truck '+tname(t)+' has no batch time');if(!t.pk0&&!t.emptied)out.push('Truck '+tname(t)+' is not on any pile yet');
+  if(t.pend&&!t.emptied)out.push('Truck '+tname(t)+' looks used up; empty not confirmed')}
+ for(const p of allPiles()){const c=confStrokes(p.key),L=ledger(p.key);if(!c.n&&p!==S.pile)out.push('Pile '+(p.id||'?')+' has no stroke count');
+  if(c.n&&!pileTrucks(p.key).length)out.push('Pile '+(p.id||'?')+' has strokes but no truck');if(L.used!==null&&L.used>L.arr+L.cin+0.05)out.push('Pile '+(p.id||'?')+' used more grout than arrived');
+  const bs=bandSum(p);if(bs!=null&&c.n&&Math.abs(bs-c.n)>3)out.push('Pile '+(p.id||'?')+' depth strokes add to '+bs+' but the count is '+c.n);
+  if(!p.id)out.push('A pile has no number')}
+ const ids=allPiles().map(p=>p.id).filter(Boolean);ids.filter((x,i)=>ids.indexOf(x)!==i).forEach(x=>out.push('Pile number '+x+' is used twice'));
+ return [...new Set(out)]}
+function reportText(note){const e=errList().slice(-8),d=diagnose(),c=confStrokes(S.pile.key);
+ return ['GROUT TRACKER PROBLEM REPORT','What happened: '+(note||'(not described)'),'','App '+APPV+' · '+new Date().toLocaleString()+' · '+navigator.userAgent.replace(/\s+/g,' ').slice(0,160),
+  'Current pile '+(S.pile.id||'?')+' · '+allPiles().length+' piles · '+S.trucks.length+' trucks · pump '+(S.pumping?'on':'off')+' · feeding '+(tk(S.active)?tname(tk(S.active)):'none')+' · strokes '+(c.n||0)+' ('+c.src+')',
+  '','Possible issues found:',...(d.length?d.map(x=>'- '+x):['- none found']),'','Errors on this phone:',...(e.length?e.map(x=>'- '+new Date(x.t).toLocaleTimeString()+' ['+x.where+'] '+x.msg+(x.at?' @ '+x.at:'')):['- none'])].join('\n')}
+function reportOpen(){const d=diagnose();scanShow(`<h2>Report a problem</h2><div class="card">Say what you were doing and what looks wrong. The report adds the app version, your current pile, any errors and the checks below, so the problem can be found.</div>
+ <textarea id="rp-note" rows="4" style="width:100%;font:500 16px Barlow,system-ui,sans-serif;padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink)" placeholder="e.g. Truck 3 shows the wrong yards on pile 47"></textarea>
+ <div class="card"><b>Checks found</b>${d.length?d.map(x=>`<div>• ${esc(x)}</div>`).join(''):'<div>Nothing obvious.</div>'}${errList().length?`<div style="margin-top:6px"><b>${errList().length}</b> error(s) recorded on this phone</div>`:''}</div>
+ <div class="row"><button style="flex:1" onclick="reportSend('email')">Send by email</button><button style="flex:1" onclick="reportSend('text')">Send by text</button></div>
+ <div class="row"><button class="sec" style="flex:1" onclick="reportSend('copy')">Copy report</button><button class="sec" style="flex:1" onclick="scanClose()">Close</button></div>`)}
+async function reportSend(kind){const body=reportText(($('rp-note')||{}).value||''),sub='Grout Tracker problem · '+(S.pile.id?'pile '+S.pile.id:'')+' · '+APPV;
+ if(kind==='copy'){try{await navigator.clipboard.writeText(body);msg('Report copied. Paste it into an email or text.')}catch(e){msg('Couldn\'t copy on this phone. Use Send by email.')}return}
+ const b=body.length>1800?body.slice(0,1800)+'\n…(cut short; use Copy report for all of it)':body;
+ location.href=kind==='email'?'mailto:'+encodeURIComponent(REPORT_TO)+'?subject='+encodeURIComponent(sub)+'&body='+encodeURIComponent(b):'sms:?&body='+encodeURIComponent(sub+'\n'+b);
+ try{localStorage.removeItem(ERRK)}catch(_){}errNew=0;const eb=$('errb');if(eb)eb.hidden=true;scanClose()}
 function tick(){const now=Date.now();let worst=null;
  for(const t of S.trucks){if(t.emptied)continue;const co=cutoff(t);if(!co)continue;const r=co-now;if(r<=600000&&(!worst||r<worst.r))worst={t,r,co}}
  const a=$('alert');if(!worst){a.style.display='none';return}
@@ -735,7 +769,7 @@ setInterval(tick,1000);
 (async()=>{let had=false;try{had=!!localStorage.getItem(KEY)}catch(e){}
  if(!had){try{const db=await pdb();const b=await new Promise(r=>{const q=db.transaction('s').objectStore('s').get('state');q.onsuccess=()=>r(q.result);q.onerror=()=>r(null)});
   if(b&&b.j){localStorage.setItem(KEY,b.j);location.reload();return}}catch(e){}}
- render();tick();save();preload()})();
+ render();tick();save();preload();if(errList().length){const b=$('errb');if(b)b.hidden=false}})();
 async function preload(){const PK='groutTracker.preloaded';let done=[];try{done=JSON.parse(localStorage.getItem(PK)||'[]')}catch(e){}
  try{const r=await fetch('preload.json',{cache:'no-store'});if(!r.ok)return;const J=await r.json();for(const D of (J&&J.list)||[J])await preloadOne(D,done,PK)}catch(e){}}
 async function preloadOne(D,done,PK){try{if(!D||!D.preloadId||done.includes(D.preloadId))return;

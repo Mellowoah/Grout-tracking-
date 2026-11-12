@@ -62,7 +62,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v85';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v86';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -249,7 +249,7 @@ const A={
  arrive(){act(()=>{const t={id:uid(),seq:S.trucks.length?Math.max(...S.trucks.map(x=>x.seq||0))+1:1,num:'',sampleNo:'',qty:S.defLoad?String(S.defLoad):'',batch:'',dispatch:'',arrived:Date.now(),emptied:null,strokes:0,samples:[],waste:'',tests:[],pk0:null,onsite:true,ps:{},used:{},carryIn:{},left:''};S.trucks.push(t);log('truck_onsite',{truck:t.id});vib();if(sy(t)>0)msg('Truck '+t.seq+' arrived. Sample due on this truck: report it Taken or Not taken on its card.')})},
  // Strokes come from the physical counter: type the reading; the difference goes to the feeding truck,
  // split at the point a truck's load runs out so the next truck gets the rest
- setCounter(v){const n=parseInt(v,10);if(isNaN(n)||n<0)return;let d=n-S.strokes;if(!d)return;if(d<0){stroke(d);return}
+ setCounter(v){const n=parseInt(v,10);if(isNaN(n)||n<0)return;S.ctrAt=Date.now();let d=n-S.strokes;if(!d)return;if(d<0){stroke(d);return}
   for(let g=0;d>0&&g<20;g++){const t=tk(S.active);let step=d;if(t&&calYd()>0&&parseFloat(t.qty)>0&&!t.pend&&num(t.used[S.pile.key])===null){const r=calc(t).rem;if(r!==null&&r>0)step=Math.min(d,Math.max(1,Math.ceil(r/calYd()-1e-9)))}
    stroke(step);d-=step;if(tk(S.active)===t&&d>0){stroke(d);d=0}}const c=$('ctr');if(c){c.value='';c.placeholder='Counter now '+S.strokes}},
  ctrMark(){const c=$('ctr');if(c&&c.value!=='')A.setCounter(c.value);A.mark()},
@@ -626,7 +626,8 @@ function buzzUnder(){try{navigator.vibrate&&navigator.vibrate([900,200,900])}cat
 const BUZZ_AHEAD=10; // seconds before the line is expected
 function depthTick(){if($('depv').style.display==='none')return;const P=S.pile,p=linePredict(P);
  if(p&&p.at){const key=P.key+':'+p.d;if(depBuzzed!==key&&Date.now()>=p.at-BUZZ_AHEAD*1000){depBuzzed=key;buzz()}}
- const c=$('dl-cd');if(c&&p)c.innerHTML=cdText(p)}
+ const c=$('dl-cd');if(c&&p)c.innerHTML=cdText(p);
+ const e=truckETA(),pe=$('pv-eta');if(pe)pe.innerHTML=etaText();if(e&&e.secs<=60){const k=e.t.id+':'+P.key;if(etaBuzzed!==k){etaBuzzed=k;buzz()}}}
 function cdText(p){if(!p.at)return gStart(S.pile)?'':'Tap <b>Grout start</b> to start the timing';const s=Math.round((p.at-Date.now())/1000);
  return s>0?'Expected in <b class="num" style="font-size:28px">'+Math.floor(s/60)+':'+String(s%60).padStart(2,'0')+'</b>':'<b>Should be here now'+(s<-20?' ('+Math.floor(-s/60)+':'+String(-s%60).padStart(2,'0')+' late)':'')+'</b>'}
 function depthRender(){const P=S.pile,p=linePredict(P),L=lines(P),done=!p;
@@ -693,10 +694,21 @@ function pileQC(P){const d=pileDia(P),len=Number(P.len)||0,cs=confStrokes(P.key)
 const fx=f=>f.toFixed(2)+'×';
 function qcCell(q){if(!q||q.n==null)return'';return `<span style="${q.under?'color:var(--red);font-weight:800':q.auto?'color:var(--red);font-style:italic':''}">${fx(q.f)}${q.under?' UNDER':''}</span>`}
 // ---- Pouring view helpers: the truck feeding the pump and what's waiting
+// Feeding truck run-out estimate: yd³ left at the last counter reading, less what the pump has pushed since
+// at this pile's pace (strokes per foot ÷ seconds per foot from the depth lines / today's piles)
+function truckETA(){const t=tk(S.active),P=S.pile,cy=calYd();if(!t||!S.pumping||!(cy>0))return null;const c=calc(t);if(c.rem===null)return null;
+ const spf=spfOf(P),sps=spsOf(P);if(!spf||!sps)return null;const rate=spf/sps; // strokes per second
+ const base=Math.max(S.ctrAt&&S.ctrAt>=(gStart(P)||0)?S.ctrAt:0,gStart(P)||0);if(!base)return null;
+ const left=c.rem-rate*cy*(Date.now()-base)/1000,secs=left/(rate*cy);return{t,left,secs,rate}}
+function etaText(){const e=truckETA();if(!e)return'';const nx=S.trucks.find(x=>!x.emptied&&!x.rejected&&x!==e.t&&(x.onsite||x.pk0));
+ if(e.secs<=0)return `<div class="card" style="background:var(--red);color:#fff"><b>Truck ${esc(tname(e.t))} should be about empty now</b>${nx?`<button style="width:100%;margin-top:6px" onclick="A.sw('${nx.id}');depthRender()">Switch to truck ${esc(tname(nx))}</button>`:'<div>No other truck on site.</div>'}</div>`;
+ const m=Math.floor(e.secs/60),sec=Math.floor(e.secs%60);
+ return `<div style="margin-top:4px;${e.secs<=90?'color:var(--red);font-weight:800':''}">Runs out in about <b class="num" style="font-size:24px">${m}:${String(sec).padStart(2,'0')}</b> · ~${r1(Math.max(0,e.left))} yd³ now${e.secs<=90&&nx?' · next: truck '+esc(tname(nx)):e.secs<=90?' · <b>no truck waiting</b>':''}</div>`}
+let etaBuzzed=null;
 function pourTruckH(){const at=tk(S.active),wait=S.trucks.filter(t=>!t.emptied&&!t.rejected&&t!==at&&(t.onsite||t.pk0));
  let h=`<div class="card">`;
  if(at){const c=calc(at);h+=`<div class="row" style="justify-content:space-between"><div><small style="color:var(--mut)">Feeding pump</small><div style="font-size:22px"><b>Truck ${esc(tname(at))}</b></div></div><div style="text-align:right"><b class="num" style="font-size:30px">${c.rem===null?'?':r1(c.rem)}</b> yd³ left${sLeft(c.rem)!==null?'<br><small>~'+sLeft(c.rem)+' strokes</small>':''}</div></div>
-  <div class="row"><button class="sec" style="flex:1;min-height:48px" onclick="A.empty('${at.id}');depthRender()">Truck ${esc(tname(at))} empty</button></div>`}
+  <div id="pv-eta">${etaText()}</div><div class="row"><button class="sec" style="flex:1;min-height:48px" onclick="A.empty('${at.id}');depthRender()">Truck ${esc(tname(at))} empty</button></div>`}
  else h+=`<div class="flag">No truck feeding the pump</div>`;
  h+=wait.length?`<div class="row">${wait.map(t=>`<button style="flex:1;min-height:56px" onclick="A.sw('${t.id}');depthRender()">Switch to truck ${esc(tname(t))}</button>`).join('')}</div>`
   :`<div class="row"><button class="sec" style="flex:1;min-height:48px" onclick="A.arrive();depthRender()">Truck arrived</button></div>`;

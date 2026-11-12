@@ -28,6 +28,7 @@ Open it once with signal; after that it works with no connection. After an updat
 9. **Next pile ▸**: one tap, never blocked. Open trucks carry their leftover to the next pile. 20 s undo.
 
 ## Pouring view and grout factor
+- **Tap counter is back**: a big **+1 stroke** button on the bottom bar and in the middle of the Pouring view (−1 to fix a miss). Tap once per pump stroke and the depth lines take the count by themselves (or type your hand counter in the small box at the line).
 - **Pouring view** (opens at Grout start) puts the pour on one screen: feeding truck with yd³ / strokes left, **Switch to truck #** / **Truck empty**, the next depth line with the buzz, **Problem / delay** and **Grout finish**.
 - With the pile diameter (Pile details, or Today's piles) each band's grout is compared with the hole's theoretical volume. A band typed / read below the required factor (Settings, default 1.15×, confirm against your spec) buzzes, shows a red **UNDER** alert, and is flagged in strokes by depth, on the form and at End day. Without a diameter, each band is checked against today's typical strokes per foot (finished piles, else this pile's own read bands) and flagged under 0.80× of it (Settings). Auto-filled bands are shown but not flagged.
 - The feeding truck shows **Runs out in about m:ss** (yd³ left at the last counter reading, less what the pump has pushed since at this pile's pace). It buzzes a minute before, turns red with the next truck to switch to, and shows **Switch to truck #** when it should be empty. It never closes a truck by itself.

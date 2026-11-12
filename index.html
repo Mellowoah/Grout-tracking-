@@ -15,7 +15,7 @@
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0b1118;--ink:#f4f6f8;--mut:#9fb0bf;--line:#2b3946;--card:#16212b;--red:#ff5a5a;color-scheme:dark}}
 :root[data-theme="dark"]{--bg:#0b1118;--ink:#f4f6f8;--mut:#9fb0bf;--line:#2b3946;--card:#16212b;--red:#ff5a5a;color-scheme:dark}
 *{box-sizing:border-box}html,body{margin:0}
-body{background:var(--bg);color:var(--ink);font:500 16px/1.35 Barlow,system-ui,sans-serif;padding-bottom:calc(290px + env(safe-area-inset-bottom,0px))}
+body{background:var(--bg);color:var(--ink);font:500 16px/1.35 Barlow,system-ui,sans-serif;padding-bottom:calc(320px + env(safe-area-inset-bottom,0px))}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--bg);z-index:10}
 .num{font-family:"Barlow Condensed",system-ui,sans-serif;font-weight:800}
 header{position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);z-index:9;padding:8px 12px;border-bottom:2px solid var(--ink)}
@@ -55,14 +55,14 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <div id="tray"><div class="top"><div><b style="font-size:20px">Pile <span id="tp"></span></b><div class="num" id="cnt">0</div></div>
 <div class="row" style="flex-wrap:nowrap"><button class="sec" style="font-size:15px;padding:6px 8px;white-space:nowrap" onclick="endDayOpen()">End day</button><button class="sec" id="npTray" style="font-size:15px;padding:6px 8px;white-space:nowrap" onclick="A.newPile()" aria-label="Finish pile and start next">Next pile ▸</button><button class="sec" style="padding:6px 10px" id="fold" aria-label="Fold counter">▾</button></div></div>
 <div id="tnone" class="trayw" hidden>No truck feeding: these strokes won't count toward any truck</div>
-<div id="trayBody"><div style="margin-top:6px"><small id="tint"></small></div></div></div>
+<div id="trayBody"><div style="margin-top:4px"><small id="tint"></small></div><div style="display:flex;gap:8px;margin-top:6px"><button class="sec" style="width:70px;font-size:22px" onclick="tapStroke(-1)" aria-label="Minus one stroke">−1</button><button id="plus" style="flex:1;margin-top:0;min-height:84px;font-size:30px" onclick="tapStroke(1)">+1 stroke</button></div></div></div>
 <input type="file" id="camIn" accept="image/*" hidden><input type="file" id="formIn" accept="image/*" hidden><input type="file" id="impIn" accept=".json,application/json" hidden>
 <div id="depv" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:32;overflow:auto;padding:calc(12px + env(safe-area-inset-top,0px)) 12px 24px;transition:background .1s"></div><div id="scanv" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:31;overflow:auto;padding:calc(16px + env(safe-area-inset-top,0px)) 12px 24px"></div>
 <div id="formv" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:30;overflow:auto;padding:calc(16px + env(safe-area-inset-top,0px)) 8px 24px"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v86';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v87';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -139,7 +139,7 @@ const bandSum=r=>{const v=Object.values(r.bandIn||{}).filter(x=>x!==''&&x!=null)
 function lineTotal(r){const L=r.lines||[];if(!L.length)return null;const all=bands(r),bi=r.bandIn||{};if(all.length&&all.every(b=>bi[dl2(b)]!=null))return null;
  const last=L[L.length-1],withC=L.filter(l=>l.c!=null),lc=withC[withC.length-1];if(lc&&lc===last)return lc.c;const spf=spfOf(r);if(!spf)return lc?lc.c:null;
  return Math.round(lc?lc.c+spf*(lc.d-last.d):spf*((Number(r.len)||0)-last.d))}
-const myCount=r=>{const m=num(r.myCount);if(m!==null)return m;const lt=lineTotal(r);return lt!=null?lt:(bandSum(r)??(r.strokes||0))};
+const myCount=r=>{const m=num(r.myCount);if(m!==null)return m;const lt=lineTotal(r);if(r.tapped)return Math.max(lt||0,r.strokes||0);return lt!=null?lt:(bandSum(r)??(r.strokes||0))};
 function confStrokes(pk){const r=pileRec(pk),a=num(r.reviewed),o=num(r.opCount);return a!==null?{n:a,src:'agreed total'}:o!==null?{n:o,src:'contractor count'}:{n:myCount(r),src:'my count'}}
 // Each truck's share of the pile = its strokes on my counter, scaled to the confirmed total
 function confOn(t,pk){const n=strokesOn(t,pk),my=pileRec(pk).strokes||0,cs=confStrokes(pk);
@@ -223,7 +223,7 @@ function intervals(p=S.pile){const L=Number(p.len)||0;let rows=[],prev={d:L,s:0,
 
 function tray(){const c=confStrokes(S.pile.key);$('cnt').textContent=c.n?c.n:'';$('tint').textContent=(c.n?'strokes · '+c.src+(calYd()>0?' · '+r1(c.n*calYd())+' yd³':''):'');$('tnone').hidden=true}
 let rT;function soon(){clearTimeout(rT);rT=setTimeout(render,400)}
-function stroke(d){if(d<0&&S.strokes===0)return;S.strokes+=d;if(!tk(S.active))S.orphan=Math.max(0,S.orphan+d);if(d>0)vib();$('cnt').textContent=S.strokes;tray();save();if(d>0)autoHandoff();soon()}
+function stroke(d){if(d<0&&S.strokes===0)return;S.strokes+=d;S.ctrAt=Date.now();if(d)S.pile.tapped=true;if(!tk(S.active))S.orphan=Math.max(0,S.orphan+d);if(d>0)vib();$('cnt').textContent=S.strokes;tray();save();if(d>0)autoHandoff();soon()}
 // When the feeding truck's load (minus the sample allowance) is used up by strokes, stamp it empty and move to the next queued truck
 // Strokes say the feeding truck's load is used up: count on the next queued truck, but leave this one open and tag it.
 // It is only closed when you tap Empty, or confirm the tag (asked once the next pile starts).
@@ -620,7 +620,8 @@ function depthOpen(){const P=S.pile;if(!lineMarks(P).length)return msg('Set the 
 function depthClose(){$('depv').style.display='none';clearInterval(depT);depT=null;try{depWL&&depWL.release()}catch(e){}depWL=null;render()}
 function buzz(){try{navigator.vibrate&&navigator.vibrate([250,120,250,120,400])}catch(e){}
  if(S.beep!==false)try{const a=depAC;if(a){[0,0.25,0.5].forEach(o=>{const os=a.createOscillator(),g=a.createGain();os.frequency.value=1250;g.gain.value=0.25;os.connect(g);g.connect(a.destination);os.start(a.currentTime+o);os.stop(a.currentTime+o+0.16)})}}catch(e){}
- const v=$('depv');v.style.background='var(--acc)';setTimeout(()=>v.style.background='',350);setTimeout(()=>v.style.background='var(--acc)',700);setTimeout(()=>v.style.background='',1050)}
+ // flash, then back to the screen's own solid background (an empty value left it see-through)
+ const v=$('depv');v.style.background='var(--acc)';setTimeout(()=>v.style.background='var(--bg)',350);setTimeout(()=>v.style.background='var(--acc)',700);setTimeout(()=>v.style.background='var(--bg)',1050)}
 function buzzUnder(){try{navigator.vibrate&&navigator.vibrate([900,200,900])}catch(e){}
  if(S.beep!==false)try{const a=depAC;if(a){[0,0.6].forEach(o=>{const os=a.createOscillator(),g=a.createGain();os.frequency.value=440;g.gain.value=0.3;os.connect(g);g.connect(a.destination);os.start(a.currentTime+o);os.stop(a.currentTime+o+0.45)})}}catch(e){}}
 const BUZZ_AHEAD=10; // seconds before the line is expected
@@ -630,25 +631,30 @@ function depthTick(){if($('depv').style.display==='none')return;const P=S.pile,p
  const e=truckETA(),pe=$('pv-eta');if(pe)pe.innerHTML=etaText();if(e&&e.secs<=60){const k=e.t.id+':'+P.key;if(etaBuzzed!==k){etaBuzzed=k;buzz()}}}
 function cdText(p){if(!p.at)return gStart(S.pile)?'':'Tap <b>Grout start</b> to start the timing';const s=Math.round((p.at-Date.now())/1000);
  return s>0?'Expected in <b class="num" style="font-size:28px">'+Math.floor(s/60)+':'+String(s%60).padStart(2,'0')+'</b>':'<b>Should be here now'+(s<-20?' ('+Math.floor(-s/60)+':'+String(-s%60).padStart(2,'0')+' late)':'')+'</b>'}
-function depthRender(){const P=S.pile,p=linePredict(P),L=lines(P),done=!p;
- const ua=P.underAlert,oi=openIss();
- $('depv').innerHTML=`<div class="row" style="justify-content:space-between"><b style="font-size:20px">Pouring pile ${esc(P.id||'?')} · pump ${S.pumping?'on':'off'}</b><button class="sec" style="min-height:44px" onclick="depthClose()">Close</button></div>
- ${oi?`<div class="card" style="background:var(--red);color:#fff"><b>Stopped: ${esc(ikName(oi.kind))}</b> since ${ft(oi.start)}<button style="width:100%;margin-top:6px" onclick="issResume();depthRender()">Back running</button></div>`:''}
- ${ua?`<div class="card" style="background:var(--red);color:#fff"><b style="font-size:20px">${esc(ua.b)} low on grout</b><div>${fx(ua.f)} of ${esc(ua.ref||'hole volume')}, flagged under ${fx(ua.need||gF())}. Tell the operator; check the spec for what's needed (e.g. re-drill below this band).</div><button style="width:100%;margin-top:6px" onclick="delete S.pile.underAlert;save();depthRender()">OK</button></div>`:''}
- ${pourTruckH()}
- ${done?`<div class="card" style="text-align:center"><div style="font:800 40px 'Barlow Condensed',system-ui,sans-serif">All lines done</div></div><button style="width:100%;min-height:80px;font-size:24px" onclick="A.stage('groutFinish');depthClose()">Grout finish · pump off</button>`:`
- <div class="card" style="text-align:center"><small style="color:var(--mut)">Next line</small><div class="num" style="font-size:96px;line-height:1">${p.d} ft</div>
- ${p.ctr!=null?`<div style="font-size:22px">Counter about <b class="num" style="font-size:40px">${p.ctr}</b></div><small style="color:var(--mut)">strokes from 0 at grout start · ~${(p.spf*5).toFixed(0)} per 5 ft</small>`:'<small style="color:var(--mut)">Counter estimate shows after the first reading, or once today\'s piles or a diameter give a rate.</small>'}
- <div id="dl-cd" style="margin-top:8px;font-size:20px">${cdText(p)}</div></div>
- ${gStart(P)?'':`<button style="width:100%;margin-bottom:8px" onclick="A.stage('groutStart');depthRender()">Grout start · pump on</button>`}
- <label><small>Counter at this line (leave blank and it fills in by itself)</small><input id="dl-c" type="number" inputmode="numeric" style="font-size:28px;padding:10px" placeholder="${p.ctr!=null?'≈ '+p.ctr:''}"></label>
- <button style="width:100%;min-height:120px;font-size:34px;margin-top:8px" onclick="linePass()">Passed ${p.d} ft</button>
- <div class="row"><button class="sec" style="flex:1" onclick="linePass(true)">Missed it</button><button class="sec" style="flex:1" onclick="lineUndo()"${L.length?'':' disabled'}>Undo last line</button></div>`}
- ${bandQC(P)?pourQCH(P):(L.length?`<div class="card">${L.slice().reverse().map(l=>{const b=bandOf(P,l.d),v=(P.bandIn||{})[dl2(b)];return `<div>${esc(b)} · ${l.t?ft(l.t):'missed'} · ${v!=null?'<b>'+v+'</b> strokes':'<b style="color:var(--red)">auto</b>'}</div>`}).join('')}</div>`:'')+pourQCH(P)}
- <div class="row"><button class="sec" style="flex:1;border-color:var(--red)" onclick="issOpen()">Problem / delay</button>${done?'':`<button class="sec" style="flex:1" onclick="A.stage('groutFinish');depthClose()">Grout finish</button>`}</div>
- <div class="row"><button class="sec" style="flex:1;min-height:44px" onclick="S.beep=S.beep===false;save();depthRender()">Beep ${S.beep===false?'off':'on'}</button><button class="sec" style="flex:1;min-height:44px" onclick="buzz()">Test buzz</button></div>
- <small style="color:var(--mut)">Buzzes ${BUZZ_AHEAD} s before each line is expected (from how fast today's piles came up). Keep this screen open; the phone stays awake.${navigator.vibrate?'':' This phone can\'t vibrate from a web app: it beeps and flashes instead.'}</small>`}
-function linePass(missed){const P=S.pile,d=nextLine(P);if(d==null)return;const el=$('dl-c'),v=el&&!missed?el.value.trim():'',c=v===''?null:Number(v),L=lines(P);
+// Pouring view, laid out for one hand: tap counter in the middle, next line above it, truck and line taps below
+function depthRender(){const P=S.pile,p=linePredict(P),L=lines(P),done=!p,ua=P.underAlert,oi=openIss(),at=tk(S.active),
+ wait=S.trucks.filter(t=>!t.emptied&&!t.rejected&&t!==at&&(t.onsite||t.pk0)),sb='class="sec" style="flex:1;min-height:48px;font-size:16px;padding:4px"';
+ $('depv').innerHTML=`<div class="row" style="justify-content:space-between;flex-wrap:nowrap"><b style="font-size:18px">Pile ${esc(P.id||'?')} · pump ${S.pumping?'on':'off'}</b><button class="sec" style="min-height:40px;padding:4px 12px" onclick="depthClose()">Close</button></div>
+ ${oi?`<div class="card" style="background:var(--red);color:#fff;padding:8px"><b>Stopped: ${esc(ikName(oi.kind))}</b> since ${ft(oi.start)}<button style="width:100%;margin-top:6px;min-height:48px" onclick="issResume();depthRender()">Back running</button></div>`:''}
+ ${ua?`<div class="card" style="background:var(--red);color:#fff;padding:8px"><b>${esc(ua.b)} low on grout</b>: ${fx(ua.f)} of ${esc(ua.ref||'hole volume')} (flag under ${fx(ua.need||gF())}). Tell the operator; check the spec.<button style="width:100%;margin-top:6px;min-height:44px" onclick="delete S.pile.underAlert;save();depthRender()">OK</button></div>`:''}
+ ${gStart(P)?'':`<button style="width:100%;margin-bottom:6px" onclick="A.stage('groutStart');depthRender()">Grout start · pump on</button>`}
+ <div class="card" style="display:flex;align-items:center;gap:10px;padding:8px">${done?`<div style="flex:1;font:800 30px 'Barlow Condensed',system-ui,sans-serif">All lines done</div>`:`<div style="flex:1"><small style="color:var(--mut)">Next line</small><div class="num" style="font-size:56px;line-height:1">${p.d} ft</div></div>
+  <div style="text-align:right;font-size:16px">${p.ctr!=null?`at ~<b class="num" style="font-size:28px">${p.ctr}</b><br>`:''}<span id="dl-cd">${cdText(p)}</span></div>`}</div>
+ <div style="display:flex;gap:8px;align-items:stretch"><button class="sec" style="width:76px;font-size:22px" onclick="tapStroke(-1)">−1</button>
+  <button id="pv-tap" style="flex:1;min-height:150px;font-size:26px;line-height:1.1" onclick="tapStroke(1)"><span class="num" id="pv-cnt" style="font-size:72px;display:block">${S.strokes}</span>tap per stroke</button></div>
+ ${done?`<button style="width:100%;min-height:72px;font-size:24px;margin-top:8px" onclick="A.stage('groutFinish');depthClose()">Grout finish · pump off</button>`:`
+ <div class="row" style="margin-top:8px;flex-wrap:nowrap"><button style="flex:3;min-height:72px;font-size:26px" onclick="linePass()">Passed ${p.d} ft</button><input id="dl-c" type="number" inputmode="numeric" aria-label="Hand counter at this line" style="flex:1;min-width:0;font-size:20px;padding:6px" placeholder="hand ctr"></div>
+ <div class="row" style="flex-wrap:nowrap"><button ${sb} onclick="linePass(true)">Missed line</button><button ${sb} onclick="lineUndo()"${L.length?'':' disabled'}>Undo line</button><button ${sb} onclick="A.stage('groutFinish');depthClose()">Grout finish</button></div>`}
+ <div class="card" style="padding:8px">${at?`<div class="row" style="justify-content:space-between;flex-wrap:nowrap;margin:0"><b>Truck ${esc(tname(at))}</b><span><b class="num" style="font-size:22px">${(()=>{const c=calc(at);return c.rem===null?'?':r1(c.rem)})()}</b> yd³ <small style="color:var(--mut)">at last count</small></span></div><div id="pv-eta">${etaText()}</div>`:'<div class="flag">No truck feeding the pump</div>'}
+  <div class="row" style="flex-wrap:nowrap">${wait.slice(0,2).map(t=>`<button style="flex:1;min-height:48px;font-size:16px;padding:4px" onclick="A.sw('${t.id}');depthRender()">Switch to ${esc(tname(t))}</button>`).join('')}${at?`<button ${sb} onclick="A.empty('${at.id}');depthRender()">${esc(tname(at))} empty</button>`:''}${wait.length?'':`<button ${sb} onclick="A.arrive();depthRender()">Truck arrived</button>`}</div></div>
+ <details data-s="pvqc" ${secOpen.pvqc?'open':''} ontoggle="secT(this)"><summary style="font-weight:700;padding:8px 0">Grout check${(()=>{const Q=bandQC(P);const u=Q&&Q.filter(q=>q.under).length;return Q?(u?' · <span class=flag>'+u+' band'+(u>1?'s':'')+' low</span>':' · OK so far'):''})()}</summary>${pourQCH(P)}</details>
+ <div class="row" style="flex-wrap:nowrap"><button class="sec" style="flex:1;min-height:44px;font-size:15px;border-color:var(--red)" onclick="issOpen()">Problem / delay</button><button class="sec" style="flex:1;min-height:44px;font-size:15px" onclick="S.beep=S.beep===false;save();depthRender()">Beep ${S.beep===false?'off':'on'}</button></div>
+ <small style="color:var(--mut)">Tap once per pump stroke, or keep your hand counter and type it in the box at each line. Buzzes before each line and before the truck runs out; the phone stays awake.${navigator.vibrate?'':' iPhone: beeps and flashes instead of vibrating.'}</small>`}
+// One stroke from the tap button: counts on the feeding truck, refreshes the numbers without redrawing, buzzes ~2 strokes before the next line
+function tapStroke(d){stroke(d);const c=$('pv-cnt');if(c)c.textContent=S.strokes;const P=S.pile,p=linePredict(P);
+ if(d>0&&p&&p.ctr!=null&&S.strokes>=p.ctr-2){const key=P.key+':'+p.d;if(depBuzzed!==key){depBuzzed=key;buzz()}}
+ const pe=$('pv-eta');if(pe)pe.innerHTML=etaText()}
+function linePass(missed){const P=S.pile,d=nextLine(P);if(d==null)return;const el=$('dl-c'),v=el&&!missed?el.value.trim():'',L=lines(P),prevC=Math.max(0,...L.map(x=>x.c||0)),c=v!==''?Number(v):(!missed&&S.strokes>prevC&&P.tapped?S.strokes:null);
  const l={d,t:missed?null:Date.now(),c:c!=null&&c>=0?c:null};
  // a reading gives this band's strokes when the line before it had one too (or this is the first line, counting from 0)
  L.push(l);

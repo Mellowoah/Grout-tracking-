@@ -77,6 +77,8 @@ S.trucks.forEach(t=>{t.used=t.used||{};t.carryIn=t.carryIn||{};t.left=t.left||''
  if(!t.pk0){const a=S.ev.find(e=>e.type==='truck_arrival'&&e.truck===t.id);t.pk0=a?a.pk:S.pile.key}
  if(!t.ps)t.ps={[t.pk0]:t.strokes||0};if(t.waste&&!t.wastePk)t.wastePk=t.pk0});
 const $=id=>document.getElementById(id);
+// Next pile number: 42 → 43, P-09 → P-10; blank if the last one had no number
+const nextId=id=>{const m=String(id||'').match(/^(.*?)(\d+)$/);if(!m)return'';const n=String(+m[2]+1);return m[1]+n.padStart(m[2].length,'0')};
 const ft=ms=>ms?new Date(ms).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'}):'—';
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S));$('save').textContent='Saved on this phone '+ft(Date.now())}catch(e){$('save').textContent='Not saved: storage unavailable'}}
 let msgT;function msg(t){const m=$('msg');m.textContent=t;m.hidden=false;clearTimeout(msgT);msgT=setTimeout(()=>m.hidden=true,6000)}
@@ -151,9 +153,9 @@ const armed={};
 function twoTap(k,btnId,label){if(Date.now()-(armed[k]||0)>4000){armed[k]=Date.now();const b=$(btnId);if(b)b.textContent=label||'Tap again to confirm';setTimeout(render,4200);return false}armed[k]=0;return true}
 const A={
  newPile(){if(!twoTap('np','np'))return;act(()=>{closeSeg();const open=S.trucks.filter(t=>!t.emptied).map(t=>{const c=calc(t);return[t,c.rem!==null?c.rem:(c.q>=0&&usedAll(t)===0?c.q:null)]});
-  S.piles.push({...S.pile,strokes:S.strokes,done:Date.now()});const p=S.pile;S.pile={...blankPile(),wall:p.wall,station:p.station,marks:p.marks,len:p.len};S.strokes=0;S.segStart=0;log('new_pile');
+  S.piles.push({...S.pile,strokes:S.strokes,done:Date.now()});const p=S.pile;S.pile={...blankPile(),id:nextId(p.id),wall:p.wall,station:p.station,marks:p.marks,len:p.len};S.strokes=0;S.segStart=0;log('new_pile');
   for(const [t,yd] of open){t.carryIn[S.pile.key]={from:p.key,yd};t.left='';log('truck_carry',{truck:t.id,yd})}
-  if(open.length)msg(open.length+' truck'+(open.length>1?'s':'')+' carried forward to this pile')})},
+  msg('Pile '+(S.pile.id||'')+' started.'+(open.length?' '+open.map(([t,yd])=>'Truck '+tname(t)+': '+(yd==null?'?':r1(yd))+' yd³ left').join(', '):''))})},
  pump(){act(()=>{S.pumping=!S.pumping;log(S.pumping?'pump_start':'pump_pause')})},
  arrive(){act(()=>{const t={id:uid(),seq:S.trucks.length?Math.max(...S.trucks.map(x=>x.seq||0))+1:1,num:'',sampleNo:'',qty:'',batch:'',dispatch:'',arrived:Date.now(),emptied:null,strokes:0,samples:[],waste:'',tests:[],pk0:S.pile.key,ps:{},used:{},carryIn:{},left:''};S.trucks.push(t);log('truck_arrival',{truck:t.id});vib()})},
  mark(){act(()=>{const d=nextMark();if(d===undefined)return msg('All depth marks for this pile are done.');log('depth_mark',{depth:d,truck:S.active});S.pile.mi++;vib()})},
@@ -207,10 +209,11 @@ function render(){clearTimeout(rT);
  const recv=sum(t=>parseFloat(t.qty)||0),samp=sum(t=>t.samples.length*S.sampleYd),waste=sum(t=>parseFloat(t.waste)||0);
  const pl=calYd()>0?sum(t=>tStrokes(t)*calYd()):null;
  const at=tk(S.active),nm=nextMark();
- $('stat').innerHTML=`<div><small>Truck</small><b class="num">${at?esc(at.num||'(no #)'):'none'}</b></div><div><small>Next mark</small><b class="num">${nm===undefined?'done':nm+' ft'}</b></div><div><small>${S.pumping?'Pumping':'Paused'}</small><b class="num">${ts.filter(t=>!t.emptied&&!t.fed).length} queued</b></div>`;
+ const atR=at?calc(at).rem:null;$('stat').innerHTML=`<div><small>Truck</small><b class="num">${at?esc(at.num||'#'+at.seq):'none'}</b>${at?`<small style="color:var(--ink)"><b class="num" style="font-size:18px">${atR===null?'?':r1(atR)}</b> yd³ left</small>`:''}</div><div><small>Next mark</small><b class="num">${nm===undefined?'done':nm+' ft'}</b></div><div><small>${S.pumping?'Pumping':'Paused'}</small><b class="num">${ts.filter(t=>!t.emptied&&!t.fed).length} queued</b></div>`;
  const ae=document.activeElement;if(ae&&ae.tagName==='INPUT'){pend=true;return}pend=false;
  const sh=v=>v===null?'pending':v.toFixed(1);
- let h=`<div class="card"><b>Pile setup</b><div class="row"><input id="f-pile" placeholder="Pile #" value="${esc(S.pile.id)}" onchange="A.cfg('pile',this.value)"><input id="f-wall" placeholder="Wall #" value="${esc(S.pile.wall)}" onchange="A.pset('wall',this.value)"></div><div class="row"><input id="f-sta" placeholder="Station" value="${esc(S.pile.station)}" onchange="A.pset('station',this.value)"><input id="f-elev" placeholder="Elev" value="${esc(S.pile.elev)}" onchange="A.pset('elev',this.value)"></div><div class="row"><input id="f-date" placeholder="Date" value="${esc(S.pile.date)}" onchange="A.pset('date',this.value)"><label style="flex:1;min-width:90px"><small>Pile length (ft)</small><input id="f-len" inputmode="decimal" value="${esc(S.pile.len)}" onchange="A.pset('len',Number(this.value)||0)"></label></div><div class="row"><button id="np" class="sec" style="flex:1" onclick="A.newPile()">Start new pile</button></div></div><div class="grid"><button id="bp" onclick="A.pump()">${S.pumping?'Pause pumping':'Start / resume pumping'}</button><button onclick="A.arrive()">Truck arrival</button>
+ const cins=ts.filter(t=>t.carryIn[S.pile.key]);
+ let h=`${cins.length?`<div class="card" style="border:2px solid var(--acc)"><b>Carried into pile ${esc(S.pile.id)}</b>${cins.map(t=>{const c=calc(t);return `<div>Truck <b>${esc(tname(t))}</b> · ${t.carryIn[S.pile.key].yd==null?'?':r1(t.carryIn[S.pile.key].yd)} yd³ at start · <b>${c.rem===null?'?':r1(c.rem)} yd³ left now</b></div>`}).join('')}</div>`:''}<div class="card"><b>Pile setup</b><div class="row"><input id="f-pile" placeholder="Pile #" value="${esc(S.pile.id)}" onchange="A.cfg('pile',this.value)"><input id="f-wall" placeholder="Wall #" value="${esc(S.pile.wall)}" onchange="A.pset('wall',this.value)"></div><div class="row"><input id="f-sta" placeholder="Station" value="${esc(S.pile.station)}" onchange="A.pset('station',this.value)"><input id="f-elev" placeholder="Elev" value="${esc(S.pile.elev)}" onchange="A.pset('elev',this.value)"></div><div class="row"><input id="f-date" placeholder="Date" value="${esc(S.pile.date)}" onchange="A.pset('date',this.value)"><label style="flex:1;min-width:90px"><small>Pile length (ft)</small><input id="f-len" inputmode="decimal" value="${esc(S.pile.len)}" onchange="A.pset('len',Number(this.value)||0)"></label></div><div class="row"><button id="np" class="sec" style="flex:1" onclick="A.newPile()">Start new pile</button></div></div><div class="grid"><button id="bp" onclick="A.pump()">${S.pumping?'Pause pumping':'Start / resume pumping'}</button><button onclick="A.arrive()">Truck arrival</button>
  <button onclick="A.mark()">Mark depth ${nm===undefined?'':nm+' ft'}</button><button class="sec" onclick="A.miss()">Missed this mark</button>
  <button onclick="A.ret()">Grout return</button><button class="sec" onclick="A.next()">Switch to next queued</button></div><button id="undoLast" class="sec" style="width:100%" onclick="A.undoLast()">Undo last action</button>`;
  const SG=[['drillStart','Drill start'],['drillFinish','Drill finish'],['groutStart','Grout start'],['groutFinish','Grout finish'],['reinfStart','Reinforce start'],['reinfFinish','Reinforce finish']];
@@ -288,7 +291,8 @@ function showForm(){
  const box=(r)=>`<table style="background:#fff;color:#0d1b2a;margin-top:12px">`+r.map(([l,v])=>`<tr><td style="${lab('g')};text-align:center;min-width:90px;font-weight:600">${esc(l)}</td><td style="${cell};min-width:100px">${esc(v)}</td></tr>`).join('')+`</table>`;
  h+=`</table></div>`+box([['ARRIVED',L.arr+L.cin?(L.arr+L.cin).toFixed(1):''],['USED',L.used?f2(L.used):''],['ELEV',P.elev],['STATION',P.station]]);
  const comb=iv.filter(r=>r.flag.startsWith('COMBINED')),extra=[];
- if(L.cin)extra.push(['Carried in',L.cin.toFixed(1)]);if(L.samp)extra.push(['Samples',L.samp.toFixed(1)]);if(L.waste)extra.push(['Waste',L.waste.toFixed(1)]);
+ for(const t of used){const ci=t.carryIn[P.key];if(ci)extra.push(['Truck '+tname(t)+' carried in from pile '+pname(ci.from),ci.yd==null?'?':r1(ci.yd)])}
+ for(const t of used){const c=calc(t);extra.push(['Truck '+tname(t)+' left'+(t.left==='waste'?' (wasted)':t.emptied?'':' (carries to next pile)'),c.rem===null?'?':r1(c.rem)])}if(L.samp)extra.push(['Samples',L.samp.toFixed(1)]);if(L.waste)extra.push(['Waste',L.waste.toFixed(1)]);
  if(L.arr+L.cin)extra.push(['Left on trucks',f2(L.left)]);if(P.wall)extra.push(['Wall',P.wall]);if(P.opCount)extra.push(['My count / contractor',S.strokes+' / '+P.opCount]);
  comb.forEach(r=>extra.push(['Missed mark',r.flag.replace('COMBINED: ','')]));
  if(extra.length)h+=`<p style="color:var(--mut);margin:14px 0 0">Not on the paper sheet:</p>`+box(extra);

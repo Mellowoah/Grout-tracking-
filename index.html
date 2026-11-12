@@ -108,13 +108,25 @@ const latestPile=()=>allPiles().slice(-1)[0];
 const pileRec=pk=>pk===S.pile.key?{...S.pile,strokes:S.strokes}:(S.piles.find(p=>p.key===pk)||{});
 function confStrokes(pk){const r=pileRec(pk),a=num(r.reviewed),o=num(r.opCount);return a!==null?{n:a,src:'agreed total'}:o!==null?{n:o,src:'contractor count'}:{n:r.strokes||0,src:'my count'}}
 // Each truck's share of the pile = its strokes on my counter, scaled to the confirmed total
-function confOn(t,pk){const n=strokesOn(t,pk),my=pileRec(pk).strokes||0,c=confStrokes(pk).n;return my>0?n*c/my:n}
+function confOn(t,pk){const n=strokesOn(t,pk),my=pileRec(pk).strokes||0,cs=confStrokes(pk);
+ if(my>0)return n*cs.n/my;
+ // I didn't count this pile but the contractor did: fill trucks in the order they fed it, each up to what it had on board
+ if(cs.src!=='my count'&&cs.n>0)return (seqAlloc(pk)[t.id])||0;return n}
+function feedOrder(pk){const seen=[],add=id=>{if(id&&tk(id)&&!seen.includes(id))seen.push(id)};
+ for(const e of pev(null,pk))if(e.type==='truck_carry'||e.type==='truck_switch')add(e.truck);
+ if(pk===S.pile.key)add(S.active);
+ // then trucks that were on site for this pile (arrived or carried in) as overflow, in arrival order
+ for(const e of pev(null,pk))if(e.type==='truck_arrival'||e.type==='truck_carry')add(e.truck);return seen}
+function onBoard(t,pk){const order=orderKeys(),i=order.indexOf(pk),q=parseFloat(t.qty);if(!(q>=0))return Infinity;
+ if(t.pk0===pk||i<=0)return q-(S.sampleYd||0);const prev=leftAfter(t,order[i-1]);return prev===null?Infinity:Math.max(0,prev)}
+function seqAlloc(pk){const ids=feedOrder(pk),c=confStrokes(pk).n,cy=calYd(),out={};let rest=c;
+ ids.forEach((id,i)=>{const cap=cy>0?onBoard(tk(id),pk)/cy:Infinity,take=i===ids.length-1?rest:Math.min(rest,cap);out[id]=Math.max(0,take);rest-=out[id]});return out}
 function usedOn(t,pk){const m=num(t.used[pk]);if(m!==null)return m;const n=confOn(t,pk);if(!n)return 0;const c=calYd();return c>0?n*c:null}
 // Grout left on a truck at the end of a given pile (piles in the order worked)
 function leftAfter(t,pk){const order=orderKeys(),idx=order.indexOf(pk),q=parseFloat(t.qty);if(idx<0||!(q>=0))return null;let u=0;
  for(const k of order.slice(0,idx+1)){const x=usedOn(t,k);if(x===null)return null;u+=x}const wi=order.indexOf(t.wastePk);return q-u-(S.sampleYd||0)-(wi>=0&&wi<=idx?(parseFloat(t.waste)||0):0)}
 const pileTrucks=pk=>S.trucks.filter(t=>pev(null,pk).some(e=>e.truck===t.id));
-function usedAll(t){let tot=0;for(const k of new Set([...Object.keys(t.ps),...Object.keys(t.used),...(S.active===t.id?[S.pile.key]:[])])){const u=usedOn(t,k);if(u===null)return null;tot+=u}return tot}
+function usedAll(t){let tot=0;for(const k of orderKeys()){const u=usedOn(t,k);if(u===null)return null;tot+=u}return tot}
 const pname=k=>k===S.pile.key?S.pile.id:((S.piles.find(p=>p.key===k)||{}).id||'?');
 // Stage times: anything tapped/typed wins; gaps are filled from the field rules
 // drill start = drill finish − drillMin · grout start = drill finish · reinforce start = grout finish · reinforce finish = reinforce start + reinfMin

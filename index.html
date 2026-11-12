@@ -61,13 +61,14 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <div id="formv" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:30;overflow:auto;padding:calc(16px + env(safe-area-inset-top,0px)) 8px 24px"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
-const KEY='groutTracker.v1';const APPV='grout-v75';
+const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v76';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
 const REPO_ISSUES='https://github.com/Mellowoah/Grout-tracking-/issues/new';
 // ---- Errors: kept on the phone (last 20) and offered as a one-tap report
-const ERRK='groutTracker.errors';let errNew=0;
+const ERRK='groutTracker.errors'+(PROF?':'+PROF:'');let errNew=0;
 function errList(){try{return JSON.parse(localStorage.getItem(ERRK)||'[]')}catch(e){return[]}}
 function logErr(e,where){try{const l=errList();l.push({t:Date.now(),where:where||'',msg:String(e&&e.message||e).slice(0,300),at:String(e&&e.stack||'').split('\n').slice(0,3).join(' | ').slice(0,300)});localStorage.setItem(ERRK,JSON.stringify(l.slice(-20)))}catch(_){}
  errNew++;try{const b=document.getElementById('errb');if(b)b.hidden=false}catch(_){}}
@@ -95,8 +96,8 @@ const $=id=>document.getElementById(id);
 const nextId=id=>{const m=String(id||'').match(/^(.*?)(\d+)$/);if(!m)return'';const n=String(+m[2]+1);return m[1]+n.padStart(m[2].length,'0')};
 const ft=ms=>ms?new Date(ms).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'}):'—';
 function save(){const j=JSON.stringify(S);let ok=false;try{localStorage.setItem(KEY,j);ok=true}catch(e){}
- mirror(j);$('save').textContent=ok?'Saved on this phone '+ft(Date.now())+' · '+(S.piles.length+1)+' piles':'Not saved to main storage. Backup copy only: export now'}
-let mirT;function mirror(j){clearTimeout(mirT);mirT=setTimeout(()=>{try{pdb().then(db=>{const tx=db.transaction('s','readwrite');tx.objectStore('s').put({t:Date.now(),j},'state')})}catch(e){}},300)}
+ mirror(j);$('save').textContent=(PROF?'['+PROF+' profile] ':'')+(ok?'Saved on this phone '+ft(Date.now())+' · '+(S.piles.length+1)+' piles':'Not saved to main storage. Backup copy only: export now')}
+let mirT;function mirror(j){clearTimeout(mirT);mirT=setTimeout(()=>{try{pdb().then(db=>{const tx=db.transaction('s','readwrite');tx.objectStore('s').put({t:Date.now(),j},'state'+(PROF?':'+PROF:''))})}catch(e){}},300)}
 let undoSnap=null,undoT;function showUndoPile(){const u=$('undoNP');u.hidden=false;clearTimeout(undoT);undoT=setTimeout(()=>{u.hidden=true;undoSnap=null},20000)}
 let msgT;function msg(t){const m=$('msg');m.textContent=t;m.hidden=false;clearTimeout(msgT);msgT=setTimeout(()=>m.hidden=true,6000)}
 function log(type,data){const e={id:uid(),type,t:Date.now(),entered:Date.now(),pile:S.pile.id,pk:S.pile.key,strokes:S.strokes,...data};S.ev.push(e);return e}
@@ -771,10 +772,10 @@ function tick(){const now=Date.now();let worst=null;
 setInterval(tick,1000);
 // If main storage came back empty but the backup copy has records, restore them
 (async()=>{let had=false;try{had=!!localStorage.getItem(KEY)}catch(e){}
- if(!had){try{const db=await pdb();const b=await new Promise(r=>{const q=db.transaction('s').objectStore('s').get('state');q.onsuccess=()=>r(q.result);q.onerror=()=>r(null)});
+ if(!had){try{const db=await pdb();const b=await new Promise(r=>{const q=db.transaction('s').objectStore('s').get('state'+(PROF?':'+PROF:''));q.onsuccess=()=>r(q.result);q.onerror=()=>r(null)});
   if(b&&b.j){localStorage.setItem(KEY,b.j);location.reload();return}}catch(e){}}
  render();tick();save();preload();if(errList().length){const b=$('errb');if(b)b.hidden=false}})();
-async function preload(){const PK='groutTracker.preloaded';let done=[];try{done=JSON.parse(localStorage.getItem(PK)||'[]')}catch(e){}
+async function preload(){const PK='groutTracker.preloaded'+(PROF?':'+PROF:'');let done=[];try{done=JSON.parse(localStorage.getItem(PK)||'[]')}catch(e){}
  try{const r=await fetch('preload.json',{cache:'no-store'});if(!r.ok)return;const J=await r.json();for(const D of (J&&J.list)||[J])await preloadOne(D,done,PK)}catch(e){}}
 async function preloadOne(D,done,PK){try{if(!D||!D.preloadId||done.includes(D.preloadId))return;
   // a sheet read ahead of time: filled in exactly like Scan filled-in form, on whatever is on this phone

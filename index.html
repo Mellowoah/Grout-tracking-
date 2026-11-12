@@ -272,7 +272,8 @@ function render(){clearTimeout(rT);
   ${ci?`<div class="trayw" style="color:var(--mut)">Carried from pile ${esc(pname(ci.from))}: ${ci.yd==null?'?':ci.yd.toFixed(1)} yd³ on board</div>`:''}
   <div class="row"><label style="flex:1;min-width:95px"><small>Batch</small><input id="t-${t.id}-batch" type="time" value="${esc(t.batch)}" onchange="A.setT('${t.id}','batch',this.value)"></label><label style="flex:1;min-width:95px"><small>Arrived</small><input id="t-${t.id}-arr" type="time" value="${hm(t.arrived)}" onchange="A.setTime('${t.id}','arrived',this.value)"></label><label style="flex:1;min-width:95px"><small>Empty</small><input id="t-${t.id}-emp" type="time" value="${hm(t.emptied)}" onchange="A.setTime('${t.id}','emptied',this.value)"></label></div>
   <div>${t.emptied?'Emptied'+(t.left==='waste'?' · leftover wasted':''):t.fed?(S.active===t.id?'<b>Feeding</b>':'Fed earlier'):'Queued'}${t.left==='carry'&&!t.emptied?' · <b>carry to next pile</b>':''}${t.pend&&!t.emptied?' · <b class=flag>looks used up (confirm)</b>':''} · cutoff ${co?ft(co):'<span class=flag>enter batch time</span>'}</div>
-  <div class="row"><label style="flex:1;min-width:120px"><small>Used on pile ${esc(S.pile.id)} yd³ ${man?'(typed)':autoU?'(strokes × cal)':''}</small><input id="t-${t.id}-used" inputmode="decimal" placeholder="${autoU||'Enter yd³'}" value="${man?esc(t.used[pk]):''}" onchange="A.setUsed('${t.id}',this.value)"></label><div style="flex:1;min-width:120px"><small style="color:var(--mut)">Strokes this pile${confStrokes(pk).src!=='my count'?' (confirmed)':''}</small><div class="num" style="font-size:22px">${+confOn(t,pk).toFixed(1)}</div></div></div>
+  <div class="row" style="text-align:center">${[['Strokes this pile'+(confStrokes(pk).src!=='my count'?' (confirmed)':''),+confOn(t,pk).toFixed(1)],['Used this pile yd³'+(man?' (typed)':''),u===null?'?':r1(u)],['Left for next pile yd³',(()=>{const la=leftAfter(t,pk);return la===null?'?':r1(la)+(sLeft(la)!==null?' <small>~'+sLeft(la)+' str</small>':'')})()]].map(([l,v])=>`<div style="flex:1;min-width:95px;background:var(--bg);border-radius:6px;padding:4px"><small style="color:var(--mut)">${l}</small><div class="num" style="font-size:24px">${v}</div></div>`).join('')}</div>
+  <div class="row"><label style="flex:1"><small>Correct used yd³ for pile ${esc(S.pile.id)} (leave blank to use strokes)</small><input id="t-${t.id}-used" inputmode="decimal" placeholder="${autoU?autoU+' from strokes':'Enter yd³'}" value="${man?esc(t.used[pk]):''}" onchange="A.setUsed('${t.id}',this.value)"></label></div>
   <div>Load ${c.q>=0?c.q.toFixed(1):'<span class=flag>?</span>'} − used ${c.placed===null?'<span class=flag>?</span>':c.placed.toFixed(1)} − sample ${c.s.toFixed(1)} − waste ${c.w.toFixed(1)} = <b>left on truck ${c.rem===null?'<span class=flag>?</span>':r1(c.rem)} yd³${sLeft(c.rem)!==null?' (~'+sLeft(c.rem)+' strokes)':''}</b></div>
   ${c.rem!==null&&c.rem>0.05&&t.left!=='waste'?`<div class="row"><button style="flex:1" onclick="A.waste('${t.id}')">Leftover is waste</button>${t.emptied?'':`<button class="sec" style="flex:1" onclick="A.carry('${t.id}')">${t.left==='carry'?'✓ Carrying to next pile':'Carry to next pile'}</button>`}</div>`:''}
   ${c.rem!==null&&c.rem<-0.05?`<div class=flag>Used more than the load by ${(-c.rem).toFixed(1)} yd³. Check the load or used amount.</div>`:''}
@@ -311,7 +312,7 @@ function render(){clearTimeout(rT);
  <div class="row"><button onclick="showForm()">View form</button><button onclick="exportX()">Export Excel</button><button class="sec" onclick="backup()">Backup JSON</button><button class="sec" id="rs" onclick="A.reset()">Clear all</button></div></div>`;
  $('app').innerHTML=h}
 document.addEventListener('focusout',()=>setTimeout(()=>{if(pend)render()},0));
-function formHTML(pk){
+function formHTML(pk,pair){
  const fh=ms=>{if(!ms)return'';const d=new Date(ms);return (d.getHours()%12||12)+':'+String(d.getMinutes()).padStart(2,'0')};
  const fs=s=>{if(!s)return'';const [h,m]=s.split(':').map(Number);return (h%12||12)+':'+String(m).padStart(2,'0')};
  const cur=!pk||pk===S.pile.key,P=cur?S.pile:S.piles.find(p=>p.key===pk),PS=cur?S.strokes:(P.strokes||0),iv=intervals(P),gr=pev('grout_return',P.key)[0];
@@ -338,7 +339,7 @@ function formHTML(pk){
  for(const [l,f,c] of rows)h+=`<tr><td style="${lab(c)}">${esc(l)}</td>`+ts.map((t,i)=>`<td style="${cell};min-width:84px">${esc(f(t,i))}</td>`).join('')+'</tr>';
  const L=ledger(P.key),f2=v=>v===null?'?':r1(v);
  const box=(r)=>`<table style="background:#fff;color:#0d1b2a;margin-top:12px">`+r.map(([l,v])=>`<tr><td style="${lab('g')};text-align:center;min-width:90px;font-weight:600">${esc(l)}</td><td style="${cell};min-width:100px">${esc(v)}</td></tr>`).join('')+`</table>`;
- h+=`</table></div>`+box([['ARRIVED',L.arr+L.cin?(L.arr+L.cin).toFixed(1):''],['USED',L.used?f2(L.used):''],['ELEV',P.elev],['STATION',P.station]]);
+ h+=`</table></div>`+(pair?'':box([['ARRIVED',L.arr+L.cin?(L.arr+L.cin).toFixed(1):''],['USED',L.used!==null?f2(L.used):'?'],['CARRY OVER',L.left!==null?f2(L.left):'?'],['ELEV',P.elev],['STATION',P.station]]));
  const comb=iv.filter(r=>r.flag.startsWith('COMBINED')),extra=[];
  if(L.samp)extra.push(['Samples',L.samp.toFixed(1)]);if(L.waste)extra.push(['Waste',L.waste.toFixed(1)]);
  if(L.arr+L.cin)extra.push(['Left on trucks',f2(L.left)]);if(P.wall)extra.push(['Wall',P.wall]);if(P.opCount)extra.push(['My count / contractor',PS+' / '+P.opCount]);
@@ -346,10 +347,15 @@ function formHTML(pk){
  if(extra.length)h+=`<p style="color:var(--mut);margin:14px 0 0">Not on the paper sheet:</p>`+box(extra);
  h+=`<p style="color:var(--mut)">${anyEst?'* Filled in from drill / reinforce timing rules. ':''}Blank means not logged yet. ? means a reading is missing. Screenshot this screen to save or share it.</p>`;
  return h}
-// All piles' forms run one after another (like the two-up field sheet); a truck that feeds two piles shows on both
-function showForm(pk){const keys=orderKeys();const go=pk||S.pile.key;
- const el=$('formv');el.innerHTML=`<div class="row" style="position:sticky;top:0;background:var(--bg);padding:4px 0;z-index:2"><button onclick="document.getElementById('formv').style.display='none'">Close</button><button class="sec" onclick="showForm('${go}')">Refresh</button></div>`+keys.map(formHTML).join('<hr style="margin:20px 0;border:0;border-top:2px dashed var(--line)">');
- el.style.display='block';const a=$('fp-'+go);if(a)setTimeout(()=>a.scrollIntoView({block:'start'}),0)}
+// Forms laid out like the field sheet: two piles side by side, the Arrived / Used box between them (left value = left pile, right value = right pile)
+function midVals(pk){const P=pileRec(pk),L=ledger(pk),f=v=>v===null?'?':r1(v);return{ARRIVED:L.arr+L.cin?r1(L.arr+L.cin):'',USED:f(L.used),'CARRY OVER':f(L.left),ELEV:P.elev||'',STATION:P.station||''}}
+function midBox(a,b){const A=midVals(a),B=b?midVals(b):{},c='border:1px solid #6b7c99;height:34px;padding:2px 6px;font-size:18px;min-width:70px;background:#fff;color:#0d1b2a';
+ return `<table style="margin-top:46px">`+Object.keys(A).map(k=>`<tr><td style="${c}">${esc(A[k])}</td><td style="${c};background:#a9b9d3;font:600 13px Barlow,system-ui,sans-serif;text-align:center;white-space:nowrap">${k}</td><td style="${c}">${esc(B[k]??'')}</td></tr>`).join('')+`</table>`}
+function showForm(pk){const keys=orderKeys();const go=pk||S.pile.key;let pairs=[];for(let i=0;i<keys.length;i+=2)pairs.push([keys[i],keys[i+1]]);
+ const el=$('formv');el.innerHTML=`<div class="row" style="position:sticky;top:0;left:0;background:var(--bg);padding:4px 0;z-index:2"><button onclick="document.getElementById('formv').style.display='none'">Close</button><button class="sec" onclick="showForm('${go}')">Refresh</button><small style="color:var(--mut)">Swipe sideways to see both piles</small></div>`+
+  pairs.map(([a,b])=>`<div style="overflow-x:auto"><div style="display:flex;gap:12px;align-items:flex-start;width:max-content">
+   <div style="width:360px">${formHTML(a,true)}</div>${midBox(a,b)}<div style="width:360px">${b?formHTML(b,true):'<h2 style="margin-top:20px;color:var(--mut)">Next pile</h2>'}</div></div></div>`).join('<hr style="margin:20px 0;border:0;border-top:2px dashed var(--line)">');
+ el.style.display='block';const a=$('fp-'+go);if(a)setTimeout(()=>{a.scrollIntoView({block:'start',inline:'start'})},0)}
 async function offer(filename,data,fallback){let dl=null;try{dl=window.claude&&window.claude.use?await window.claude.use('downloads'):null}catch(e){}
  if(dl){try{await dl.save({filename,data});msg('Saved '+filename)}catch(e){msg(e&&e.code==='declined'?'Save cancelled.':'Could not save the file here. Use View paper form and take a screenshot.')}return}
  try{fallback()}catch(e){msg('Could not save the file here. Use View paper form and take a screenshot.')}}
@@ -419,7 +425,7 @@ async function viewPhoto(id){let b=null;try{b=await getPhoto(id)}catch(_){}const
 // ---- Scan a filled-in paper form: photo -> pick left/right pile -> read -> review grid (same rows as the sheet) -> fill this pile
 const FR=[['pid','Pile #','p',''],['pdate','Date','p',''],['num','Truck I.D. #','t',''],['batch','Batch time','t','time'],['arrived','Arrival time','t','time'],['emptied','Truck empty','t','time'],
  ['drillStart','Drill start','s','time'],['drillFinish','Drill finish','s','time'],['groutStart','Grout / hole start','s','time'],['groutFinish','Grout / hole finish','s','time'],['ret','Grout return (ft)','p','decimal'],
- ['reinfStart','Reinforce start','s','time'],['reinfFinish','Reinforce finish','s','time'],['temp','Grout temp °F','t','decimal'],['flow','Flow cone (sec)','t','decimal'],['sampleNo','Sample #','t',''],
+ ['reinfStart','Reinforce start','s','time'],['reinfFinish','Reinforce finish','s','time'],['temp','Grout temp °F','t','decimal'],['flow','Flow cone (sec)','t','decimal'],['sampleNo','Sample #','t',''],['used','Used this pile yd³','t','decimal'],['left','Left for next pile yd³','t','decimal'],
  ['total','Total strokes (used as contractor count)','p','numeric'],['d0-5','Depth 0-5','b','numeric'],['d5-10','Depth 5-10','b','numeric'],['d10-15','Depth 10-15','b','numeric'],['d15-20','Depth 15-20','b','numeric'],['d20-23','Depth 20-23','b','numeric'],
  ['elev','Elev','p',''],['station','Station','p','']];
 const FL={pid:/PILE\s*\/?\s*DATE/,num:/TRUCK\s*I\.?\s*D/,batch:/BATCH/,arrived:/ARRIVAL|ARRIVED\s*TIME/,emptied:/TRUCK\s*EMPTY|EMPTY/,drillStart:/DRILL\s*START/,drillFinish:/DRILL\s*FINISH/,
@@ -444,7 +450,7 @@ async function formRead(side){const src=formPrep.ocr;let c=src;if(side!=='whole'
  try{const w=await ocrWorker(p=>{const s=$('scanst');if(s)s.textContent='Reading form… '+p+'%'});await w.setParameters({tessedit_pageseg_mode:'4'});const r=await w.recognize(c);text=r.data.text||'';await w.setParameters({tessedit_pageseg_mode:'3'})}
  catch(x){err=navigator.onLine?'Couldn\'t read the form.':'Reading needs signal the first time, to load the reader onto this phone.'}
  formGrid(text?parseForm(text):{},text,err)}
-function formGrid(v,text,err){const pt=pileTrucks(S.pile.key).slice(0,2);const cur=(k,i)=>{const t=pt[i];if(!t)return'';if(k==='num')return t.num||'';if(k==='batch')return t.batch||'';if(k==='arrived')return hm(t.arrived);if(k==='emptied')return hm(t.emptied);if(k==='sampleNo')return t.sampleNo||'';if(k==='temp'||k==='flow')return (t.tests[0]||{})[k]||'';return''};
+function formGrid(v,text,err){const pt=pileTrucks(S.pile.key).slice(0,2);const cur=(k,i)=>{const t=pt[i];if(!t)return'';if(k==='num')return t.num||'';if(k==='batch')return t.batch||'';if(k==='arrived')return hm(t.arrived);if(k==='emptied')return hm(t.emptied);if(k==='sampleNo')return t.sampleNo||'';if(k==='temp'||k==='flow')return (t.tests[0]||{})[k]||'';if(k==='used'){const u=usedOn(t,S.pile.key);return u===null?'':r1(u)}if(k==='left'){const la=leftAfter(t,S.pile.key);return la===null?'':r1(la)}return''};
  const pcur=k=>{const P=S.pile,SV=stages(P);if(k==='pid')return P.id;if(k==='pdate')return P.date;if(k==='elev'||k==='station')return P[k]||'';if(k==='total')return P.opCount||'';if(k==='ret'){const g=pev('grout_return')[0];return g&&g.depth!=null?g.depth:''}if(k[0]==='d'&&k.includes('-'))return (P.bandIn||{})[k.slice(1)]??'';return SV[k]&&!SV[k].est?hm(SV[k].t):''};
  const n=Object.values(v).reduce((a,x)=>a+x.length,0),inp=(id,ty,val,hit)=>`<input id="${id}" ${ty==='time'?'type="time"':ty?'inputmode="'+ty+'"':''} value="${esc(val)}" style="padding:6px;${hit?'border:2px solid var(--acc)':''}">`;
  scanShow(`<h2>Fill pile ${esc(S.pile.id||'')} from form</h2>${err?`<div class="card flag">${err} Type the values below.</div>`:text?`<div class="card">Read ${n} value${n===1?'':'s'} (yellow boxes). Handwriting is hard to read, so check each one and fill the rest, then tap Fill pile.</div>`:`<div class="card">Type the values from your sheet, then tap Fill pile. Blank boxes are skipped.</div>`}
@@ -460,13 +466,16 @@ function formApply(){const g=id=>{const e=$(id);return e?e.value.trim():''},at=(
  const bi={};for(const b of ['0-5','5-10','10-15','15-20','20-23']){const v=g('fg-d'+b);if(v!=='')bi[b]=Number(v)}if(Object.keys(bi).length){P.bandIn=Object.assign(P.bandIn||{},bi);changed++}
  const ret=g('fg-ret');if(ret!==''){const e=pev('grout_return')[0];if(e)e.depth=Number(ret);else log('grout_return',{depth:Number(ret),source:'form'});changed++}
  const pt=pileTrucks(pk);
- for(const i of [0,1]){const v=k=>g('fg-'+k+'-'+i);const any=['num','batch','arrived','emptied','temp','flow','sampleNo'].some(k=>v(k));if(!any)continue;
+ for(const i of [0,1]){const v=k=>g('fg-'+k+'-'+i);const any=['num','batch','arrived','emptied','temp','flow','sampleNo'].some(k=>v(k))||(pt[i]&&['used','left'].some(k=>v(k)));if(!any)continue;
   let t=(v('num')&&S.trucks.find(x=>x.num===v('num')&&!x.emptied))||(v('num')&&pt.find(x=>x.num===v('num')))||pt[i];
   if(!t){A.arrive();t=S.trucks[S.trucks.length-1]}
   if(!pev(null,pk).some(e=>e.truck===t.id))log('form_import',{truck:t.id});
   set(t,'num',v('num'));set(t,'batch',v('batch'));set(t,'sampleNo',v('sampleNo'));
   if(v('arrived')){t.arrived=at(v('arrived'),t.arrived);changed++}
   if(v('emptied')){if(S.active===t.id){closeSeg();S.active=null}t.emptied=at(v('emptied'),t.arrived);if(!pev('truck_empty',pk).some(e=>e.truck===t.id))log('truck_empty',{truck:t.id,source:'form'});delete t.pend;changed++}
+  {const u0=usedOn(t,pk),la0=leftAfter(t,pk),uv=v('used'),lv=v('left');
+   if(uv!==''&&(u0===null||uv!==r1(u0))){t.used[pk]=uv;changed++}
+   else if(lv!==''&&(la0===null||lv!==r1(la0))){const ob=onBoard(t,pk);if(isFinite(ob)){t.used[pk]=String(+Math.max(0,ob-Number(lv)).toFixed(2));changed++}}}
   if(v('temp')||v('flow')){if(!t.tests.length)t.tests.push({id:uid(),t:Date.now(),temp:'',flow:''});if(v('temp'))t.tests[0].temp=v('temp');if(v('flow'))t.tests[0].flow=v('flow');changed++}}
  log('form_fill',{changed});save();msg(changed?'Pile '+(P.id||'')+' filled from form ('+changed+' items).':'Nothing to fill.');scanClose()}
 function tick(){const now=Date.now();let worst=null;

@@ -776,8 +776,8 @@ function formHTML(pk,pair){
  let h=`<h2 id="fp-${P.key}" style="margin-top:20px">Pile ${esc(P.id||'?')}${cur?' (current)':''}</h2><div class="wrap"><table style="background:#fff;color:#0d1b2a;min-width:320px">`;
  for(const [l,f,c] of rows)h+=`<tr><td style="${lab(c)}">${esc(l)}</td>`+ts.map((t,i)=>{const v=String(f(t,i)??'');return `<td style="${cell};min-width:84px${/\*$/.test(v)?';color:#d00000;font-style:italic;font-weight:700':''}">${esc(v)}</td>`}).join('')+'</tr>';
  const L=ledger(P.key),f2=v=>v===null?'?':r1(v);
- const box=(r)=>`<table style="background:#fff;color:#0d1b2a;margin-top:12px">`+r.map(([l,v])=>`<tr><td style="${lab('g')};text-align:center;min-width:90px;font-weight:600">${esc(l)}</td><td style="${cell};min-width:100px">${esc(v)}</td></tr>`).join('')+`</table>`;
- h+=`</table></div>`+(pair?'':box([['ARRIVED',L.arr+L.cin?r1((L.arr+L.cin)):''],['USED',L.used!==null?f2(L.used):'?'],['CARRY OVER',L.left!==null?f2(L.left):'?'],['ELEV',P.elev],['STATION',P.station]]));
+ const box=(r)=>`<table style="background:#fff;color:#0d1b2a;margin-top:12px">`+r.map(([l,v])=>`<tr><td style="${lab('g')};text-align:center;min-width:90px;font-weight:600">${esc(l)}</td><td style="${cell};min-width:100px">${cellV(v)}</td></tr>`).join('')+`</table>`;
+ h+=`</table></div>`+(pair?'':box([['ARRIVED',arrCell(L)],['USED',L.used!==null?f2(L.used):'?'],['CARRY OVER',L.left!==null?f2(L.left):'?'],['ELEV',P.elev],['STATION',P.station]]));
  const comb=iv.filter(r=>r.flag.startsWith('COMBINED')),extra=[];
  if(L.samp)extra.push(['Samples',r1(L.samp)]);if(L.waste)extra.push(['Waste',r1(L.waste)]);
  if(L.arr+L.cin)extra.push(['Left on trucks',f2(L.left)]);if(P.wall)extra.push(['Wall',P.wall]);if(P.opCount)extra.push(['My count / contractor',(myCount({...P,strokes:PS})||'—')+' / '+P.opCount]);
@@ -788,9 +788,12 @@ function formHTML(pk,pair){
  h+=`<p style="color:var(--mut)">${anyEst||EB?'<span style="color:#d00000;font-weight:700">Red *</span> = filled in automatically from today\'s times and your drill / grout / reinforce rules. ':''}Blank means not logged yet. ? means a reading is missing. Use Email or Text above to send it.</p>`;
  return h}
 // Forms laid out like the field sheet: two piles side by side, the Arrived / Used box between them (left value = left pile, right value = right pile)
-function midVals(pk){const P=pileRec(pk),L=ledger(pk),f=v=>v===null?'?':r1(v);return{ARRIVED:L.arr+L.cin?r1(L.arr+L.cin):'',USED:f(L.used),'CARRY OVER':f(L.left),ELEV:P.elev||'',STATION:P.station||''}}
+// Arrived = new trucks + grout carried in; when some was carried in, show the new-truck part small in brackets
+function arrCell(L){if(!(L.arr+L.cin))return{html:''};const tr=v=>String(+r1(v));return{html:esc(r1(L.arr+L.cin))+(L.cin>0.0005?` <small style="font-size:12px;color:#555">(${tr(L.arr)} new)</small>`:'')}}
+function midVals(pk){const P=pileRec(pk),L=ledger(pk),f=v=>v===null?'?':r1(v);return{ARRIVED:arrCell(L),USED:f(L.used),'CARRY OVER':f(L.left),ELEV:P.elev||'',STATION:P.station||''}}
+function cellV(v){return v&&v.html!=null?v.html:esc(v)}
 function midBox(a,b){const A=midVals(a),B=b?midVals(b):{},c='border:1px solid #6b7c99;height:34px;padding:2px 6px;font-size:18px;min-width:70px;background:#fff;color:#0d1b2a';
- return `<table style="margin-top:46px">`+Object.keys(A).map(k=>`<tr><td style="${c}">${esc(A[k])}</td><td style="${c};background:#a9b9d3;font:600 13px Barlow,system-ui,sans-serif;text-align:center;white-space:nowrap">${k}</td><td style="${c}">${esc(B[k]??'')}</td></tr>`).join('')+`</table>`}
+ return `<table style="margin-top:46px">`+Object.keys(A).map(k=>`<tr><td style="${c};white-space:nowrap">${cellV(A[k])}</td><td style="${c};background:#a9b9d3;font:600 13px Barlow,system-ui,sans-serif;text-align:center;white-space:nowrap">${k}</td><td style="${c};white-space:nowrap">${cellV(B[k]??'')}</td></tr>`).join('')+`</table>`}
 // Form view: all piles in sheet pairs, or one pile on its own. Email / Text send pictures of the forms through the phone's share menu.
 let formMode={pk:null,only:false};
 function showForm(pk,only){const keys=orderKeys();const go=pk||S.pile.key;formMode={pk:go,only:!!only};let pairs=[];
@@ -809,7 +812,7 @@ function pileText(pk){const P=pileRec(pk),L=ledger(pk),SV=stages(P),f=k=>SV[k]?h
  const g=pev('grout_return',pk)[0];if(g)lines.push('Grout return '+(g.depth!=null?g.depth+' ft':'?'));
  const bi=P.bandIn||{},iv=intervals(P),EB=estBands(P),bd=bands(P).slice().reverse().map(b=>{const r=iv.find(r=>r.band===b),v=bi[dl2(b)]??(r&&r.d!=null?r.d:(EB?EB[b]:null));return v!=null?dl2(b)+': '+v:null}).filter(Boolean);
  lines.push(`Strokes ${c.n||'—'} (${c.src})${bd.length?' · '+bd.join(', '):''}`);
- lines.push(`Arrived ${r1(L.arr+L.cin)} · Used ${L.used===null?'?':r1(L.used)} · Carry over ${L.left===null?'?':r1(L.left)} yd³`);return lines.join('\n')}
+ lines.push(`Arrived ${r1(L.arr+L.cin)}${L.cin>0.0005?' ('+(+r1(L.arr))+' new + '+r1(L.cin)+' carried)':''} · Used ${L.used===null?'?':r1(L.used)} · Carry over ${L.left===null?'?':r1(L.left)} yd³`);return lines.join('\n')}
 function sendText(kind){const keys=formMode.only?[formMode.pk]:orderKeys(),body=keys.map(pileText).join('\n\n'),sub='Grout log '+(formMode.only?'pile '+pname(formMode.pk):'piles '+keys.map(pname).join(', '));
  location.href=kind==='email'?'mailto:?subject='+encodeURIComponent(sub)+'&body='+encodeURIComponent(body):'sms:?&body='+encodeURIComponent(sub+'\n\n'+body)}
 async function sendForms(kind){const st=$('sendst'),say=t=>{if(st)st.textContent=t};say('Making pictures of the forms…');

@@ -24,7 +24,7 @@ Open it once with signal; after that it works with no connection. After an updat
 ## Yardage rules
 - Pump output 0.86 ft³ per stroke (Settings, ft³/yd³ switch).
 - Used per truck per pile = confirmed strokes × pump output (or typed). Left for next = load − sample − used − waste.
-- Sample yd³ comes off each truck (default 1.1, per-truck override on the truck card).
+- One 1.1 yd³ sample for every 50 yd³ delivered that day: the first truck, then each truck whose load crosses the next 50 (Settings; per-truck override on the truck card).
 - When strokes pass a truck's load, counting moves to the next truck; the first is tagged and you confirm it empty after the next pile starts. Trucks only close when you say so.
 - 2-hour cutoff from batch time: warning only.
 

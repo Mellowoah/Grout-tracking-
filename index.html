@@ -66,7 +66,7 @@ const blankPile=()=>({key:uid(),id:'',wall:'',date:today(),elev:'',station:'',st
 let S={pile:blankPile(),strokes:0,segStart:0,pumping:false,active:null,trucks:[],ev:[],piles:[],cal:'',limit:120,sampleYd:1.1,drillMin:3,reinfMin:15,warned:{},orphan:0};
 try{const r=localStorage.getItem(KEY);if(r)S=Object.assign(S,JSON.parse(r))}catch(e){}
 S.pile=Object.assign(blankPile(),{key:''},S.pile||{});S.pile.st=S.pile.st||{};
-if(S.drillMin==null)S.drillMin=3;if(S.defLoad==null)S.defLoad=9;if(!S.calUnit){S.calUnit='ft3';if(S.cal==='')S.cal='0.86'}
+if(S.drillMin==null)S.drillMin=3;if(S.defLoad==null)S.defLoad=9;if(S.sampleEvery==null)S.sampleEvery=50;if(!S.calUnit){S.calUnit='ft3';if(S.cal==='')S.cal='0.86'}
 // Pump output per stroke in yd³ (setting can be entered in ft³ or yd³)
 const calYd=()=>{const c=parseFloat(S.cal);return c>0?(S.calUnit==='ft3'?c/27:c):NaN};if(S.reinfMin==null)S.reinfMin=15;
 S.piles=S.piles||[];S.piles.forEach((p,i)=>{if(p.n==null)p.n=i});if(S.pile&&S.pile.n==null)S.pile.n=S.piles.length;S.ev=S.ev||[];S.trucks=S.trucks||[];S.orphan=S.orphan||0;S.warned=S.warned||{};
@@ -100,7 +100,13 @@ const sLeft=rem=>rem!==null&&calYd()>0?Math.max(0,Math.floor(rem/calYd())):null;
 // Sample yd³ taken off a truck: its own value if set, else the Settings default
 // Grout a truck brought into a pile = what it had left after the pile it came from (live, so later fixes flow through)
 const cyd=(t,pk)=>{const c=t.carryIn&&t.carryIn[pk];if(!c)return null;const v=leftAfter(t,c.from);return v!==null?v:(c.yd??null)};
-const sy=t=>{const v=num(t.sampleYd);return v!==null?v:(S.sampleYd||0)};
+// Samples: one of S.sampleYd for every S.sampleEvery yd³ delivered that day (counting from yard 0), taken off the truck
+// whose load crosses each mark. A value typed on a truck overrides this.
+function autoSamples(){const out={},every=Number(S.sampleEvery)||0,day=t=>t.arrived?new Date(t.arrived).toDateString():'?',cum={};
+ const ts=[...S.trucks].sort((a,b)=>(a.arrived||Infinity)-(b.arrived||Infinity)||(a.seq||0)-(b.seq||0));
+ for(const t of ts){const d=day(t),st=cum[d]||0,q=parseFloat(t.qty)||Number(S.defLoad)||0,en=st+q;cum[d]=en;
+  let n=0;if(every>0){for(let k=Math.ceil(st/every)*every;k<en;k+=every)n++}else n=1;out[t.id]=n*(S.sampleYd||0)}return out}
+const sy=t=>{const v=num(t.sampleYd);return v!==null?v:(autoSamples()[t.id]||0)};
 const r1=v=>(Math.abs(v)<0.05?0:v).toFixed(1);
 const num=v=>v===undefined||v===null||v===''?null:(parseFloat(v)||0);
 // Used yd³ on one pile: typed amount wins, else strokes × calibration
@@ -295,7 +301,7 @@ function render(){clearTimeout(rT);
   ${c.rem!==null&&c.rem>0.05&&t.left!=='waste'?`<div class="row"><button style="flex:1" onclick="A.waste('${t.id}')">Leftover is waste</button>${t.emptied?'':`<button class="sec" style="flex:1" onclick="A.carry('${t.id}')">${t.left==='carry'?'✓ Carrying to next pile':'Carry to next pile'}</button>`}</div>`:''}
   ${c.rem!==null&&c.rem<-0.05?`<div class=flag>Used more than the load by ${(-c.rem).toFixed(1)} yd³. Check the load or used amount.</div>`:''}
   <div class="row"><button class="sec" onclick="A.sw('${t.id}')">Feed pump</button><button class="sec" onclick="A.sample('${t.id}')">Sample taken</button><button class="sec" onclick="A.test('${t.id}')">QC test</button><button class="sec" onclick="A.empty('${t.id}')">Empty</button>${canRm?`<button class="sec" id="rm${t.id}" onclick="A.remove('${t.id}')">Remove</button>`:''}</div>
-  <div class="row"><input id="t-${t.id}-sn" placeholder="Sample #" value="${esc(t.sampleNo)}" onchange="A.setT('${t.id}','sampleNo',this.value)"><input id="t-${t.id}-waste" placeholder="Waste yd³" inputmode="decimal" value="${esc(t.waste)}" onchange="A.setT('${t.id}','waste',this.value)"><label style="flex:1;min-width:90px"><small>Sample yd³ off this truck</small><input id="t-${t.id}-sy" inputmode="decimal" placeholder="${esc(S.sampleYd)}" value="${esc(t.sampleYd??'')}" onchange="A.setT('${t.id}','sampleYd',this.value)"></label></div>
+  <div class="row"><input id="t-${t.id}-sn" placeholder="Sample #" value="${esc(t.sampleNo)}" onchange="A.setT('${t.id}','sampleNo',this.value)"><input id="t-${t.id}-waste" placeholder="Waste yd³" inputmode="decimal" value="${esc(t.waste)}" onchange="A.setT('${t.id}','waste',this.value)"><label style="flex:1;min-width:90px"><small>Sample yd³ off this truck</small><input id="t-${t.id}-sy" inputmode="decimal" placeholder="${r1(autoSamples()[t.id]||0)} (auto)" value="${esc(t.sampleYd??'')}" onchange="A.setT('${t.id}','sampleYd',this.value)"></label></div>
   ${t.tests.map((x,i)=>{const run=fc&&fc.id===t.id&&fc.i===i;return `<div class="card" style="background:var(--bg);border:1px solid var(--line)"><b>QC test ${i+1}</b> <small style="color:var(--mut)">${ft(x.t)}</small>
   <div class="row"><label style="flex:1"><small>Grout temp °F</small><input id="t-${t.id}-tt${i}" inputmode="decimal" value="${esc(x.temp)}" onchange="A.setTest('${t.id}',${i},'temp',this.value)"></label><label style="flex:1"><small>Flow cone (sec)</small><input id="t-${t.id}-tf${i}" inputmode="decimal" value="${esc(x.flow)}" onchange="A.setTest('${t.id}',${i},'flow',this.value)"></label></div>
   <button id="fc-${t.id}-${i}" style="width:100%;min-height:72px;font-size:26px;${run?'background:var(--red);color:#fff':''}" onclick="${run?'A.fcStop()':`A.fcStart('${t.id}',${i})`}">${run?'Stop · <span class="num">'+fcSec()+'</span> s':x.flow?'Retime flow cone':'Start flow cone timer'}</button></div>`}).join('')}</div>`}
@@ -321,7 +327,8 @@ function render(){clearTimeout(rT);
   <div class="row"><input id="op-${p.key}" placeholder="Contractor count" inputmode="numeric" value="${esc(p.opCount)}" onchange="A.oldSet('${p.key}','opCount',this.value)"><input id="rv-${p.key}" placeholder="Agreed total" inputmode="numeric" value="${esc(p.reviewed)}" onchange="A.oldSet('${p.key}','reviewed',this.value)"></div><div class="row"><button style="flex:1" onclick="A.openPile('${p.key}')">Open pile ${esc(p.id||'')}</button><button class="sec" style="flex:1" onclick="showForm('${p.key}')">View form</button></div></div>`}).join('');
  h+=`<h2>Settings</h2><div class="card"><div class="row"><label style="flex:1"><small>Anthropic API key for reading handwritten sheets (kept on this phone only, not in backups)</small><input id="s-ai" type="password" autocomplete="off" placeholder="${aiKey()?'Saved ••••'+esc(aiKey().slice(-4)):'sk-ant-…'}" onchange="setAiKey(this.value)"></label>${aiKey()?'<button class="sec" style="min-height:44px;margin-top:16px" onclick="setAiKey(\'\')">Remove</button>':''}</div>
  <div class="row"><input id="s-def" inputmode="decimal" style="max-width:90px" value="${esc(S.defLoad)}" onchange="A.cfg('defLoad',Number(this.value)||0)"><small>Default load yd³ for each new truck (scan or type to change one truck)</small></div>
- <div class="row"><input id="s-samp" inputmode="decimal" value="${esc(S.sampleYd)}" onchange="A.cfg('sampleYd',Number(this.value)||0)"><small>yd³ taken off every truck for samples</small></div>
+ <div class="row"><input id="s-samp" inputmode="decimal" value="${esc(S.sampleYd)}" onchange="A.cfg('sampleYd',Number(this.value)||0)"><small>yd³ per sample</small></div>
+ <div class="row"><input id="s-sev" inputmode="decimal" style="max-width:90px" value="${esc(S.sampleEvery)}" onchange="A.cfg('sampleEvery',Number(this.value)||0)"><small>One sample every this many yd³ (first truck of the day, then each truck crossing the next mark)</small></div>
  <div class="row"><input id="s-marks" value="${esc(S.pile.marks.join(','))}" onchange="A.cfg('marks',this.value)"><small>Marks in field order (ft)</small></div>
  <div class="row"><label style="flex:1"><small>Pump output per stroke (verify)</small><input id="s-cal" inputmode="decimal" value="${esc(S.cal)}" onchange="A.cfg('cal',this.value)"></label><button class="sec" style="min-height:44px;margin-top:16px" onclick="A.cfg('calUnit',S.calUnit==='ft3'?'yd3':'ft3')">${S.calUnit==='ft3'?'ft³':'yd³'} per stroke ⇄</button></div>
  <div class="row"><input id="s-dm" inputmode="numeric" style="max-width:90px" value="${esc(S.drillMin)}" onchange="A.cfg('drillMin',Number(this.value)||0)"><small>Drill minutes (start before finish, used when a time is missed)</small></div>

@@ -53,6 +53,8 @@ label small{display:block;color:var(--mut)}
 <div class="row"><button class="sec" id="undo">Undo stroke</button><button class="sec" id="fold" aria-label="Fold counter">▾</button></div></div>
 <div id="tnone" class="trayw" hidden>No truck feeding: these strokes won't count toward any truck</div>
 <div id="trayBody"><div style="margin-top:6px">Next mark <b class="num" id="tnext" style="font-size:28px"></b> · <small id="tint"></small></div><div class="row" style="flex-wrap:nowrap;margin-top:6px"><button id="plus" style="flex:2;width:auto;margin-top:0">+1</button><button id="tmark" style="flex:1;min-height:96px" onclick="A.mark()">Mark depth</button></div></div></div>
+<input type="file" id="camIn" accept="image/*" hidden>
+<div id="scanv" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:31;overflow:auto;padding:calc(16px + env(safe-area-inset-top,0px)) 12px 24px"></div>
 <div id="formv" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:30;overflow:auto;padding:calc(16px + env(safe-area-inset-top,0px)) 8px 24px"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
@@ -102,9 +104,8 @@ function stages(p=S.pile){const st=p.st||{},D=(S.drillMin||0)*60000,R=(S.reinfMi
   set('groutFinish',g('reinfStart')||(g('reinfFinish')&&g('reinfFinish')-R));set('reinfStart',g('groutFinish')||(g('reinfFinish')&&g('reinfFinish')-R));set('reinfFinish',g('reinfStart')&&g('reinfStart')+R)}
  return o}
 const hm=ms=>{if(!ms)return'';const d=new Date(ms);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')};
-function cutoff(t){const b=t.batch||t.dispatch;if(!b)return null;const [h,m]=b.split(':').map(Number);const ref=t.arrived||Date.now();const d=new Date(ref);d.setHours(h,m,0,0);
- if(d.getTime()>ref+5*60000)d.setDate(d.getDate()-1); // batched before midnight, arrived after
- return d.getTime()+S.limit*60000}
+// Truck must be used within S.limit minutes of arriving on site
+function cutoff(t){return t.arrived?t.arrived+S.limit*60000:null}
 function calc(t){const q=parseFloat(t.qty),placed=usedAll(t);
  const s=t.samples.length*S.sampleYd,w=parseFloat(t.waste)||0;
  const rem=(placed!==null&&q>=0)?q-placed-s-w:null;return{placed,s,w,rem,q}}
@@ -180,6 +181,7 @@ const A={
  stageSet(k,v){if(!v){delete S.pile.st[k]}else{const [h,m]=v.split(':').map(Number);const d=new Date();d.setHours(h,m,0,0);S.pile.st[k]=d.getTime();log('stage',{name:k,edited:true})}save();render()},
  pset(f,v){S.pile[f]=v;save();render()},
  cfg(f,v){if(f==='marks'){S.pile.marks=v.split(',').map(x=>x.trim()).filter(x=>x!=='').map(Number).filter(x=>!isNaN(x));S.pile.mi=pev('depth_mark').length}else if(f==='pile')S.pile.id=v;else S[f]=v;save();render()},
+ scan(id){scanFor=id;const i=$('camIn');i.value='';i.click()},
  reset(){if(!twoTap('reset','rs','Tap again to delete everything'))return;try{localStorage.removeItem(KEY)}catch(e){}location.reload()}
 };
 let pend=false;
@@ -204,9 +206,11 @@ function render(){clearTimeout(rT);
  for(const t of shown){const c=calc(t),co=cutoff(t),canRm=!t.fed&&!t.samples.length&&!t.tests.length,pk=S.pile.key,ci=t.carryIn[pk],u=usedOn(t,pk),man=num(t.used[pk])!==null;
   const autoU=(()=>{const n=strokesOn(t,pk),cl=parseFloat(S.cal);return n&&cl>0?(n*cl).toFixed(1):''})();
   h+=`<div class="card"><div class="row"><b>#${t.seq||''}</b><input id="t-${t.id}-num" placeholder="Truck I.D. #" value="${esc(t.num)}" onchange="A.setT('${t.id}','num',this.value)"><label style="flex:1;min-width:90px"><small>Load yd³ (ticket)</small><input id="t-${t.id}-qty" inputmode="decimal" value="${esc(t.qty)}" onchange="A.setT('${t.id}','qty',this.value)"></label></div>
+  ${t.ticketNo||t.mix?`<div style="color:var(--mut);font-size:14px">${t.ticketNo?'Ticket '+esc(t.ticketNo):''}${t.ticketNo&&t.mix?' · ':''}${t.mix?'Mix '+esc(t.mix):''}</div>`:''}
+  <div class="row"><button style="flex:2" onclick="A.scan('${t.id}')">${t.photo?'Rescan ticket':'Scan ticket'}</button>${t.photo?`<button class="sec" style="flex:1" onclick="viewPhoto('${t.id}')">View ticket</button>`:''}</div>
   ${ci?`<div class="trayw" style="color:var(--mut)">Carried from pile ${esc(pname(ci.from))}: ${ci.yd==null?'?':ci.yd.toFixed(1)} yd³ on board</div>`:''}
   <div class="row"><label style="flex:1;min-width:95px"><small>Batch</small><input id="t-${t.id}-batch" type="time" value="${esc(t.batch)}" onchange="A.setT('${t.id}','batch',this.value)"></label><label style="flex:1;min-width:95px"><small>Arrived</small><input id="t-${t.id}-arr" type="time" value="${hm(t.arrived)}" onchange="A.setTime('${t.id}','arrived',this.value)"></label><label style="flex:1;min-width:95px"><small>Empty</small><input id="t-${t.id}-emp" type="time" value="${hm(t.emptied)}" onchange="A.setTime('${t.id}','emptied',this.value)"></label></div>
-  <div>${t.emptied?'Emptied'+(t.left==='waste'?' · leftover wasted':''):t.fed?(S.active===t.id?'<b>Feeding</b>':'Fed earlier'):'Queued'}${t.left==='carry'&&!t.emptied?' · <b>carry to next pile</b>':''} · cutoff ${co?ft(co):'<span class=flag>no batch time</span>'}</div>
+  <div>${t.emptied?'Emptied'+(t.left==='waste'?' · leftover wasted':''):t.fed?(S.active===t.id?'<b>Feeding</b>':'Fed earlier'):'Queued'}${t.left==='carry'&&!t.emptied?' · <b>carry to next pile</b>':''} · cutoff ${co?ft(co):'—'}</div>
   <div class="row"><label style="flex:1;min-width:120px"><small>Used on pile ${esc(S.pile.id)} yd³ ${man?'(typed)':autoU?'(from strokes)':''}</small><input id="t-${t.id}-used" inputmode="decimal" placeholder="${autoU||'Enter yd³'}" value="${man?esc(t.used[pk]):''}" onchange="A.setUsed('${t.id}',this.value)"></label><div style="flex:1;min-width:120px"><small style="color:var(--mut)">Strokes this pile</small><div class="num" style="font-size:22px">${strokesOn(t,pk)}</div></div></div>
   <div>Load ${c.q>=0?c.q.toFixed(1):'<span class=flag>?</span>'} − used ${c.placed===null?'<span class=flag>?</span>':c.placed.toFixed(1)} − samples ${c.s.toFixed(1)} − waste ${c.w.toFixed(1)} = <b>left on truck ${c.rem===null?'<span class=flag>?</span>':r1(c.rem)} yd³</b></div>
   ${c.rem!==null&&c.rem>0.05&&t.left!=='waste'?`<div class="row"><button style="flex:1" onclick="A.waste('${t.id}')">Leftover is waste</button>${t.emptied?'':`<button class="sec" style="flex:1" onclick="A.carry('${t.id}')">${t.left==='carry'?'✓ Carrying to next pile':'Carry to next pile'}</button>`}</div>`:''}
@@ -227,7 +231,7 @@ function render(){clearTimeout(rT);
   iv.filter(r=>r.flag==='MISSING').length+' missing depth marks',
   gr.filter(e=>e.depth==null).length+' grout returns without depth',
   ts.filter(t=>t.fed&&!t.qty).length+' fed trucks without load yd³',
-  ts.filter(t=>!t.emptied&&!t.batch&&!t.dispatch).length+' open trucks without batch time',
+  ts.filter(t=>!t.batch&&!t.dispatch).length+' trucks without batch time',
   S.orphan?`<span class=flag>${S.orphan} strokes pumped with no truck feeding (not in any truck's yardage)</span>`:'',
   S.cal===''?'Calibration not set: type used yd³ on each truck':'Calibration '+esc(S.cal)+' yd³/stroke'
  ].filter(Boolean).map(x=>'<div>'+x+'</div>').join('')}</div>`;
@@ -237,7 +241,7 @@ function render(){clearTimeout(rT);
  <div class="row"><input id="s-cal" placeholder="Pump calibration yd³ per stroke (verify)" inputmode="decimal" value="${esc(S.cal)}" onchange="A.cfg('cal',this.value)"></div>
  <div class="row"><input id="s-dm" inputmode="numeric" style="max-width:90px" value="${esc(S.drillMin)}" onchange="A.cfg('drillMin',Number(this.value)||0)"><small>Drill minutes (start before finish, used when a time is missed)</small></div>
  <div class="row"><input id="s-rm" inputmode="numeric" style="max-width:90px" value="${esc(S.reinfMin)}" onchange="A.cfg('reinfMin',Number(this.value)||0)"><small>Reinforce minutes (finish after start, used when a time is missed)</small></div>
- <div class="row"><input id="s-lim" inputmode="numeric" value="${esc(S.limit)}" onchange="A.cfg('limit',Number(this.value)||120)"><small>Cutoff minutes from batch time. Confirm against your spec.</small></div>
+ <div class="row"><input id="s-lim" inputmode="numeric" value="${esc(S.limit)}" onchange="A.cfg('limit',Number(this.value)||120)"><small>Cutoff minutes from arrival time. Confirm against your spec.</small></div>
  <div class="row"><button onclick="showForm()">View form</button><button onclick="exportX()">Export Excel</button><button class="sec" onclick="backup()">Backup JSON</button><button class="sec" id="rs" onclick="A.reset()">Clear all</button></div></div>`;
  $('app').innerHTML=h}
 document.addEventListener('focusout',()=>setTimeout(()=>{if(pend)render()},0));
@@ -278,7 +282,7 @@ async function offer(filename,data,fallback){let dl=null;try{dl=window.claude&&w
 function stamp(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function exportX(){if(typeof XLSX==='undefined')return msg('Excel export needs a connection to load. Try again with signal.');try{const ex=v=>v?new Date(v).toISOString():'';const P=S.pile;
  const ev=S.ev.map(e=>({ID:e.id,Type:e.type,EventTime:new Date(e.t).toISOString(),EnteredTime:new Date(e.entered).toISOString(),Pile:e.pile,Truck:tk(e.truck)?.num||e.truck||'',DepthFt:e.depth??'',CumStrokes:e.strokes,Missing:e.missing?'MISSING':''}));
- const tr=S.trucks.map(t=>{const c=calc(t);return{ID:t.id,Seq:t.seq,TruckID:t.num,SampleNo:t.sampleNo||'',LoadYd3:t.qty,Batch:t.batch||t.dispatch,Arrived:new Date(t.arrived).toISOString(),Emptied:t.emptied?new Date(t.emptied).toISOString():'',CutoffEst:cutoff(t)?new Date(cutoff(t)).toISOString():'',Strokes:tStrokes(t),UsedYd3:c.placed??'PENDING',SamplesYd3:c.s,WasteYd3:c.w,LeftOnTruckYd3:c.rem??'UNRESOLVED',Leftover:t.left==='waste'?'WASTED':t.emptied?'':'ON TRUCK',Tests:t.tests.map(x=>x.temp+'F/'+x.flow+'s@'+ft(x.t)).join('; ')}});
+ const tr=S.trucks.map(t=>{const c=calc(t);return{ID:t.id,Seq:t.seq,TruckID:t.num,SampleNo:t.sampleNo||'',TicketNo:t.ticketNo||'',Mix:t.mix||'',TicketPhoto:t.photo?'on phone':'',LoadYd3:t.qty,Batch:t.batch||t.dispatch,Arrived:new Date(t.arrived).toISOString(),Emptied:t.emptied?new Date(t.emptied).toISOString():'',CutoffEst:cutoff(t)?new Date(cutoff(t)).toISOString():'',Strokes:tStrokes(t),UsedYd3:c.placed??'PENDING',SamplesYd3:c.s,WasteYd3:c.w,LeftOnTruckYd3:c.rem??'UNRESOLVED',Leftover:t.left==='waste'?'WASTED':t.emptied?'':'ON TRUCK',Tests:t.tests.map(x=>x.temp+'F/'+x.flow+'s@'+ft(x.t)).join('; ')}});
  const all=[...S.piles,{...P,strokes:S.strokes}];
  const pr=a=>{const V=stages(a),x=k=>ex(V[k]&&V[k].t);return{Pile:a.id,Wall:a.wall,Date:a.date,LengthFt:a.len,Elev:a.elev,Station:a.station,DrillStart:x('drillStart'),DrillFinish:x('drillFinish'),GroutStart:x('groutStart'),GroutFinish:x('groutFinish'),ReinforceStart:x('reinfStart'),ReinforceFinish:x('reinfFinish'),AutoFilledStages:Object.keys(V).filter(k=>V[k].est).join(' '),MyStrokes:a.strokes,OperatorCount:a.opCount,ReviewedTotal:a.reviewed,Explanation:a.note}};
  const iv=all.flatMap(p=>intervals(p).map(r=>({Pile:p.id,Band:r.band,CumStrokes:r.cum,Strokes:r.d??'',Flag:r.flag})));
@@ -289,6 +293,55 @@ function exportX(){if(typeof XLSX==='undefined')return msg('Excel export needs a
  offer(name,new Blob([buf]),()=>XLSX.writeFile(wb,name))}catch(e){msg('Export failed: '+e.message)}}
 function backup(){const json=JSON.stringify(S),name='grout-backup-'+stamp()+'.json';
  offer(name,json,()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([json],{type:'application/json'}));a.download=name;a.click()})}
+// ---- Ticket scanning: photo -> on-phone text reading (Tesseract, files in ./ocr) -> review -> apply
+let scanFor=null,ocrW=null,scanRes=null;
+function loadScript(src){return new Promise((res,rej)=>{if(window.Tesseract)return res();const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=()=>rej(new Error('load'));document.head.appendChild(s)})}
+async function ocrWorker(prog){if(ocrW)return ocrW;await loadScript('ocr/tesseract.min.js');const base=new URL('ocr/',location.href).href;
+ ocrW=await Tesseract.createWorker('eng',1,{workerPath:base+'worker.min.js',corePath:base,langPath:base.replace(/\/$/,''),workerBlobURL:false,logger:m=>{if(m.status==='recognizing text')prog(Math.round(m.progress*100))}});return ocrW}
+// Downscale + grayscale + stretch contrast: smaller photo to store, cleaner text to read
+function prepImage(file){return new Promise((res,rej)=>{const img=new Image();img.onload=()=>{const k=Math.min(1,2000/Math.max(img.width,img.height));const c=document.createElement('canvas');c.width=Math.round(img.width*k);c.height=Math.round(img.height*k);const x=c.getContext('2d');x.drawImage(img,0,0,c.width,c.height);
+ const keep=document.createElement('canvas');const k2=Math.min(1,1400/Math.max(c.width,c.height));keep.width=Math.round(c.width*k2);keep.height=Math.round(c.height*k2);keep.getContext('2d').drawImage(c,0,0,keep.width,keep.height);
+ const d=x.getImageData(0,0,c.width,c.height),a=d.data;let lo=255,hi=0;for(let i=0;i<a.length;i+=4){const g=.299*a[i]+.587*a[i+1]+.114*a[i+2];a[i]=g;if(g<lo)lo=g;if(g>hi)hi=g}const r=Math.max(1,hi-lo);
+ for(let i=0;i<a.length;i+=4){const g=Math.max(0,Math.min(255,(a[i]-lo)*255/r));a[i]=a[i+1]=a[i+2]=g}x.putImageData(d,0,0);URL.revokeObjectURL(img.src);keep.toBlob(b=>res({ocr:c,photo:b}),'image/jpeg',.7)};img.onerror=()=>rej(new Error('image'));img.src=URL.createObjectURL(file)})}
+// Pull fields out of the ticket text. Tickets differ by plant, so every value is shown for review before it is saved.
+function parseTicket(text){const L=text.toUpperCase().split(/\n+/).map(x=>x.replace(/\s+/g,' ').trim()).filter(Boolean),out={},src={};
+ const after=(lab,val,ok=()=>true,skip)=>{for(let i=0;i<L.length;i++){if(skip&&skip.test(L[i]))continue;const m=L[i].match(lab);if(!m)continue;const rest=L[i].slice(m.index+m[0].length)+' '+(L[i+1]||'');const v=rest.match(val);if(v&&ok(v))return{v,line:L[i]}}return null};
+ const qn=v=>{const n=parseFloat(String(v).replace(',','.'));return n>=0.25&&n<=14?n:null};const QV=/(\d{1,2}(?:[.,]\d{1,2})?)/;
+ let q=after(/THIS\s*LOAD|LOAD\s*(QTY|QUANTITY|SIZE|VOL(UME)?|AMOUNT)|QTY\s*(THIS\s*)?LOAD|DEL(IVERED)?\s*QTY|QTY\s*DEL(IVERED)?|LOADED/,QV,v=>qn(v[1])!==null,/ORDER|CUM|TOTAL|TO\s*DATE/);
+ if(!q)for(const l of L){if(/ORDER|CUM|TOTAL|TO\s*DATE/.test(l))continue;const m=l.match(/(\d{1,2}(?:[.,]\d{1,2})?)\s*(CY|C\.Y|CYD|YD3|YDS?\b|CU\.?\s*YDS?|CUBIC\s*YARDS?)/);if(m&&qn(m[1])!==null){q={v:m,line:l};break}}
+ if(!q)q=after(/\bQTY\b|QUANTITY/,QV,v=>qn(v[1])!==null,/ORDER|CUM|TOTAL|TO\s*DATE/);
+ if(q){out.qty=String(qn(q.v[1]));src.qty=q.line}
+ const id=(lab,len,k)=>{const r=after(lab,new RegExp('^\\W{0,4}([A-Z0-9][A-Z0-9-]{'+(len[0]-1)+','+(len[1]-1)+'})\\b'),v=>/\d/.test(v[1]));if(r){out[k]=r.v[1];src[k]=r.line}};
+ id(/TRUCK\s*(NO|NUMBER|ID|#)?\.?/,[1,8],'num');id(/TICKET\s*(NO|NUMBER|#)?\.?/,[3,12],'ticketNo');id(/MIX\s*(DESIGN|CODE|ID|NO|#)?\.?/,[2,14],'mix');id(/SAMPLE\s*(NO|NUMBER|ID|#)?\.?/,[1,10],'sampleNo');
+ const TV=/(\d{1,2})\s?[:.]\s?(\d{2})\s*([AP])?\.?\s?M?\b/;const tm=v=>{let h=+v[1],m=+v[2];if(h>23||m>59)return null;if(v[3]==='P'&&h<12)h+=12;if(v[3]==='A'&&h===12)h=0;if(!v[3]&&h>=1&&h<=5)h+=12;return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')};
+ let b=after(/BATCH|LOAD(ED)?\s*TIME|TIME\s*LOADED|PLANT\s*TIME|TIME\s*OUT|LEFT\s*PLANT|LEAVE\s*PLANT|DISPATCH/,TV,v=>!!tm(v));
+ if(!b)for(const l of L){const v=l.match(TV);if(v&&tm(v)){b={v,line:l,guess:true};break}}
+ if(b){out.batch=tm(b.v);src.batch=b.line+(b.guess?' (first time on ticket)':'')}
+ return{out,src}}
+const SCF=[['num','Truck I.D. #',''],['qty','Load yd³','decimal'],['batch','Batch time','time'],['ticketNo','Ticket #',''],['mix','Mix',''],['sampleNo','Sample #','']];
+function scanShow(h){const el=$('scanv');el.innerHTML=h;el.style.display='block'}
+function scanClose(){$('scanv').style.display='none';$('scanv').innerHTML='';scanRes=null;render()}
+$('camIn').onchange=async e=>{const f=e.target.files&&e.target.files[0],t=tk(scanFor);if(!f||!t)return;
+ scanShow(`<h2>Reading ticket for truck ${esc(tname(t))}</h2><div class="card" id="scanst">Preparing photo…</div>`);
+ let prep;try{prep=await prepImage(f)}catch(_){scanShow(`<div class="card flag">Couldn't open that photo. Try again.</div><button onclick="scanClose()">Close</button>`);return}
+ const id=t.id;try{await putPhoto(id,prep.photo);t.photo=true;save()}catch(_){}
+ let text='',err='';try{const w=await ocrWorker(p=>{const s=$('scanst');if(s)s.textContent='Reading ticket… '+p+'%'});const st=$('scanst');if(st)st.textContent='Reading ticket…';const r=await w.recognize(prep.ocr);text=r.data.text||''}catch(x){err=navigator.onLine?'Couldn\'t read the ticket.':'Reading tickets needs signal the first time, to load the reader onto this phone.'}
+ const {out,src}=text?parseTicket(text):{out:{},src:{}};scanRes={id,out};
+ const n=Object.keys(out).length;
+ scanShow(`<h2>Ticket for truck ${esc(tname(t))}</h2>${err?`<div class="card flag">${err} The photo is saved. Type the numbers below.</div>`:`<div class="card">${n?`Found ${n} item${n>1?'s':''}. Check each one, fix anything wrong, then tap Use these.`:'Couldn\'t pick out any values. The photo is saved. Type the numbers below, or retake the photo flatter and closer.'}</div>`}
+ ${SCF.map(([k,l,ty])=>{const cur=t[k]||'',v=out[k]??cur;return `<div class="card"><label><small>${l}${src[k]?' · found on ticket':cur?' · already entered':''}</small><input id="sc-${k}" ${ty==='time'?'type="time"':ty==='decimal'?'inputmode="decimal"':''} value="${esc(v)}" style="${src[k]?'border:2px solid var(--acc)':''}"></label>${src[k]?`<small style="color:var(--mut)">“${esc(src[k])}”</small>`:''}${out[k]!=null&&cur&&cur!==out[k]?`<small class="flag"> Was ${esc(cur)}</small>`:''}</div>`}).join('')}
+ <div class="row"><button style="flex:2" onclick="scanApply()">Use these</button><button class="sec" style="flex:1" onclick="scanClose()">Cancel</button></div>
+ <img id="scimg" style="width:100%;margin-top:10px;border-radius:8px" alt="Ticket photo">
+ ${text?`<details style="margin-top:8px"><summary>Text read from the ticket</summary><pre style="white-space:pre-wrap;font-size:13px">${esc(text)}</pre></details>`:''}`);
+ $('scimg').src=URL.createObjectURL(prep.photo)};
+function scanApply(){const t=scanRes&&tk(scanRes.id);if(!t)return scanClose();
+ for(const [k] of SCF){const v=$('sc-'+k).value.trim();if(v!==(t[k]||'')){t[k]=v;log('edit',{truck:t.id,field:k,value:v,source:'ticket scan'})}}
+ log('ticket_scan',{truck:t.id});save();msg('Ticket saved to truck '+tname(t));scanClose()}
+function pdb(){return new Promise((res,rej)=>{const r=indexedDB.open('groutPhotos',1);r.onupgradeneeded=()=>r.result.createObjectStore('p');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
+async function putPhoto(id,blob){const db=await pdb();return new Promise((res,rej)=>{const tx=db.transaction('p','readwrite');tx.objectStore('p').put(blob,id);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)})}
+async function getPhoto(id){const db=await pdb();return new Promise((res,rej)=>{const q=db.transaction('p').objectStore('p').get(id);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)})}
+async function viewPhoto(id){let b=null;try{b=await getPhoto(id)}catch(_){}const t=tk(id);
+ scanShow(`<div class="row"><button onclick="scanClose()">Close</button></div><h2>Ticket · truck ${esc(tname(t))}</h2>${b?'<img id="scimg" style="width:100%;border-radius:8px" alt="Ticket photo">':'<div class="card flag">Photo not found on this phone.</div>'}`);if(b)$('scimg').src=URL.createObjectURL(b)}
 function tick(){const now=Date.now();let worst=null;
  for(const t of S.trucks){if(t.emptied)continue;const co=cutoff(t);if(!co)continue;const r=co-now;if(r<=600000&&(!worst||r<worst.r))worst={t,r,co}}
  const a=$('alert');if(!worst){a.style.display='none';return}

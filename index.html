@@ -147,7 +147,8 @@ function leftAfter(t,pk){const order=orderKeys(),idx=order.indexOf(pk),q=parseFl
  for(const k of order.slice(0,idx+1)){const x=usedOn(t,k);if(x===null)return null;rem-=x;if(t.wastePk===k)rem-=parseFloat(t.waste)||0;
   if(x>0&&rem>0.001&&!emptyOn(t,k))rem=Math.round((rem-0.001)*1000)/1000}
  return rem}
-const pileTrucks=pk=>S.trucks.filter(t=>pev(null,pk).some(e=>e.truck===t.id));
+// a truck is on a pile if something happened to it there (an edit to its details doesn't count)
+const pileTrucks=pk=>S.trucks.filter(t=>pev(null,pk).some(e=>e.truck===t.id&&e.type!=='edit'));
 function usedAll(t){let tot=0;for(const k of orderKeys()){const u=usedOn(t,k);if(u===null)return null;tot+=u}return tot}
 const pname=k=>k===S.pile.key?S.pile.id:((S.piles.find(p=>p.key===k)||{}).id||'?');
 // Stage times: anything tapped/typed wins; gaps are filled from the field rules
@@ -612,9 +613,12 @@ async function formRead(side){const src=formPrep.ocr;let c=src;if(side!=='whole'
  try{const w=await ocrWorker(p=>{const s=$('scanst');if(s)s.textContent='Reading form… '+p+'%'});await w.setParameters({tessedit_pageseg_mode:'4'});const r=await w.recognize(c);text=r.data.text||'';await w.setParameters({tessedit_pageseg_mode:'3'})}
  catch(x){err=navigator.onLine?'Couldn\'t read the form.':'Reading needs signal the first time, to load the reader onto this phone.'}
  formGrid(text?parseForm(text):{},text,err)}
-function formGrid(v,text,err,step){const pt=pileTrucks(S.pile.key).slice(0,2);const cur=(k,i)=>{const t=pt[i];if(!t)return'';if(k==='tno')return t.seq||'';if(k==='num')return t.num||'';if(k==='batch')return t.batch||'';if(k==='arrived')return hm(t.arrived);if(k==='emptied')return hm(t.emptied);if(k==='sampleNo')return t.sampleNo||'';if(k==='temp'||k==='flow')return testFor(t,S.pile.key)[k]||'';if(k==='used'){const u=usedOn(t,S.pile.key);return u===null?'':r1(u)}if(k==='left'){const la=leftAfter(t,S.pile.key);return la===null?'':r1(la)}return''};
+function formGrid(v,text,err,step){const pt=pileTrucks(S.pile.key).slice(0,2);
+ // the truck a column is about: by its circled number when the sheet gives one; a column the sheet left empty stays empty
+ const colT=i=>{if(v.tno&&v.tno.some(Boolean)){const n=v.tno[i];if(!n)return null;const c=S.trucks.filter(x=>String(x.seq)===String(n));return c.find(x=>pev(null,S.pile.key).some(e=>e.truck===x.id))||c.find(x=>!x.emptied)||c[0]||null}return pt[i]};
+ const cur=(k,i)=>{const t=colT(i);if(!t)return'';if(k==='tno')return t.seq||'';if(k==='num')return t.num||'';if(k==='batch')return t.batch||'';if(k==='arrived')return hm(t.arrived);if(k==='emptied')return hm(t.emptied);if(k==='sampleNo')return t.sampleNo||'';if(k==='temp'||k==='flow')return testFor(t,S.pile.key)[k]||'';if(k==='used'){const u=usedOn(t,S.pile.key);return u===null?'':r1(u)}if(k==='left'){const la=leftAfter(t,S.pile.key);return la===null?'':r1(la)}return''};
  const pcur=k=>{const P=S.pile,SV=stages(P);if(k==='pid')return P.id;if(k==='pdate')return P.date;if(k==='len')return P.len;if(k==='elev'||k==='station')return P[k]||'';if(k==='total')return P.opCount||'';if(k==='ret'){const g=pev('grout_return')[0];return g&&g.depth!=null?g.depth:''}if(k[0]==='d'&&k.includes('-'))return (P.bandIn||{})[k.slice(1)]??'';return SV[k]&&!SV[k].est?hm(SV[k].t):''};
- const rows=FRrows(),n=rows.reduce((a,[k])=>a+((v[k]||[]).filter(x=>x!==''&&x!=null).length),0),inp=(id,ty,val,hit)=>`<input id="${id}" ${ty==='time'?'type="time"':ty?'inputmode="'+ty+'"':''} value="${esc(val)}" style="padding:6px;${hit?'border:2px solid var(--acc)':''}">`;
+ const rows=FRrows(),n=rows.reduce((a,[k])=>a+((v[k]||[]).filter(x=>x!==''&&x!=null).length),0),inp=(id,ty,val,hit)=>`<input id="${id}" ${ty==='time'?'type="time"':ty?'inputmode="'+ty+'"':''} value="${esc(val)}" data-o="${hit?'':esc(val)}" style="padding:6px;${hit?'border:2px solid var(--acc)':''}">`;
  const ai=text==='(read by Claude)';
  scanShow(`<h2>${step?`Sheet pile ${step.i} of ${step.n}: `:''}Fill pile ${esc(S.pile.id||'')}${ai?'':' from form'}</h2>${err?`<div class="card flag">${err} Type the values below.</div>`:text?`<div class="card">${ai?'Claude read':'Read'} ${n} value${n===1?'':'s'} (yellow boxes). Check each one${ai?'':' (handwriting is hard to read)'} and fill the rest, then tap Fill pile.${v._note?`<br><small>Note on sheet: ${esc(v._note)}</small>`:''}</div>`:`<div class="card">Type the values from your sheet, then tap Fill pile. Blank boxes are skipped.</div>`}
  <div class="wrap"><table style="min-width:330px"><tr><th></th><th>Truck 1</th><th>Truck 2</th></tr>${rows.map(([k,l,kind,ty])=>{const a=v[k]||[];if(kind==='t')return `<tr><td><small>${l}</small></td><td>${inp('fg-'+k+'-0',ty,a[0]||cur(k,0),!!a[0])}</td><td>${inp('fg-'+k+'-1',ty,a[1]||cur(k,1),!!a[1])}</td></tr>`;
@@ -634,7 +638,7 @@ function formApply(chain){const g=id=>{const e=$(id);return e?e.value.trim():''}
   const tno=v('tno');let t=null;
   if(tno)t=S.trucks.filter(x=>String(x.seq)===tno).sort((a,b)=>(pev(null,pk).some(e=>e.truck===b.id)?1:0)-(pev(null,pk).some(e=>e.truck===a.id)?1:0)||(a.emptied?1:0)-(b.emptied?1:0)).find(Boolean)||null;
   if(!t&&v('num'))t=S.trucks.find(x=>x.num===v('num')&&!x.emptied)||pt.find(x=>x.num===v('num'))||null;
-  if(!t&&!tno)t=pt[i]||null;
+  if(!t&&!tno){const anyNo=[0,1].some(j=>g('fg-tno-'+j));if(anyNo)continue;t=pt[i]||null}
   if(!t){A.arrive();t=S.trucks[S.trucks.length-1];if(tno)t.seq=+tno||tno;t.arrived=null}
   // truck that came over from the previous pile: record what it brought
   if(t.pk0!==pk&&!t.carryIn[pk]&&prevK&&t.pk0!==undefined&&order.indexOf(t.pk0)<order.indexOf(pk)){t.carryIn[pk]={from:prevK,yd:leftAfter(t,prevK)}}
@@ -642,7 +646,7 @@ function formApply(chain){const g=id=>{const e=$(id);return e?e.value.trim():''}
   set(t,'num',v('num'));set(t,'batch',v('batch'));set(t,'sampleNo',v('sampleNo'));
   if(v('arrived')){t.arrived=at(v('arrived'),t.arrived);changed++}
   if(v('emptied')){if(S.active===t.id){closeSeg();S.active=null}t.emptied=at(v('emptied'),t.arrived);if(!pev('truck_empty',pk).some(e=>e.truck===t.id))log('truck_empty',{truck:t.id,source:'form'});delete t.pend;changed++}
-  {const u0=usedOn(t,pk),la0=leftAfter(t,pk),uv=v('used'),lv=v('left');
+  {const ch=k=>{const e=$('fg-'+k+'-'+i);return e&&e.value.trim()!==(e.dataset.o||'')};const u0=usedOn(t,pk),la0=leftAfter(t,pk),uv=ch('used')?v('used'):'',lv=ch('left')?v('left'):'';
    if(uv!==''&&(u0===null||uv!==r1(u0))){t.used[pk]=uv;changed++}
    else if(lv!==''&&(la0===null||lv!==r1(la0))){const ob=onBoard(t,pk);if(isFinite(ob)){t.used[pk]=String(+Math.max(0,ob-Number(lv)).toFixed(2));changed++}}}
   if(v('temp')||v('flow')){let x=t.tests.find(q=>q.pk===pk);if(!x){x={id:uid(),t:Date.now(),temp:'',flow:'',pk};t.tests.push(x)}if(v('temp'))x.temp=v('temp');if(v('flow'))x.flow=v('flow');changed++}}
@@ -686,6 +690,10 @@ setInterval(tick,1000);
 async function preload(){const PK='groutTracker.preloaded';let done=[];try{done=JSON.parse(localStorage.getItem(PK)||'[]')}catch(e){}
  try{const r=await fetch('preload.json',{cache:'no-store'});if(!r.ok)return;const J=await r.json();for(const D of (J&&J.list)||[J])await preloadOne(D,done,PK)}catch(e){}}
 async function preloadOne(D,done,PK){try{if(!D||!D.preloadId||done.includes(D.preloadId))return;
+  // a sheet read ahead of time: filled in exactly like Scan filled-in form, on whatever is on this phone
+  if(D.sheetFill){const ids=[];for(const p of D.sheetFill){const v=aiToGrid(p);gotoPile(v.pid[0]);if(v.len){const L=parseFloat(v.len[0]);if(L>0)setLen(S.pile,L)}formGrid(v,'(read by Claude)','',null);formApply(false);ids.push(v.pid[0])}
+   for(const [seq,pid] of D.moveTrucks||[]){const t=S.trucks.filter(x=>String(x.seq)===String(seq)).pop(),pp=allPiles().find(x=>x.id===pid);if(t&&pp)A.movePile(t.id,pp.key)}
+   const L=latestPile();if(L.key!==S.pile.key)A.openPile(L.key);done.push(D.preloadId);localStorage.setItem(PK,JSON.stringify(done));save();render();msg('Loaded your sheet: piles '+ids.join(', ')+'. Now on pile '+(S.pile.id||'?')+'.');return}
   if(D.renamePiles){const notes=[];for(const [from,to] of D.renamePiles){const all=allPiles(),pf=all.find(x=>x.id===from);if(pf&&!all.some(x=>x.id===to)){pf.id=to;notes.push('pile '+from+' is now pile '+to)}}
    resortPiles();done.push(D.preloadId);localStorage.setItem(PK,JSON.stringify(done));save();render();msg((notes.join('; ')||'No pile to rename')+(D.note?' '+D.note:'')+'.');return}
   if(D.patch){const notes=[];for(const p of D.trucks||[]){let t=S.trucks.filter(x=>String(x.seq)===String(p.seq)).sort((a,b)=>(b.arrived||0)-(a.arrived||0))[0];

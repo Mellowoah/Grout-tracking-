@@ -10,6 +10,12 @@ Phone app for logging grout piles: pump strokes, depth marks, trucks, yardage, Q
 
 Open it once with signal; after that it works with no connection. After an update, close and reopen the app once or twice to pick it up.
 
+## Today's piles (plan the day)
+- Open **Today's piles** at the top and type the day's pile numbers (`41-48, 52` works), with wall, length and diameter for all of them; fill station / elev per pile in the list.
+- Each pile's details fill in when you get to it; **Next pile ▸** goes to the next pile on the list. Tap a pile # in the list to jump to it.
+- **Ready for the day** shows footage, estimated grout (diameter, corrected by how today's finished piles ran) plus samples, about how many trucks, and what's missing (station, elevation, length, pump setting).
+- At **End day**, piles on the list that weren't done stay on it for tomorrow.
+
 ## How a pile runs
 1. **Pile setup**: pile #, wall, station, elev, length (next pile # fills in automatically).
 2. **Drill start** when the drill goes down (never blocks anything). **Drill finish** starts the grout and the pump (grout runs about 7 min; finish fills in if missed).

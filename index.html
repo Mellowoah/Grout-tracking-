@@ -61,9 +61,10 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const uid=()=>Math.random().toString(36).slice(2,8);
 const today=()=>new Date().toLocaleDateString([],{month:'numeric',day:'numeric',year:'2-digit'});
 const blankPile=()=>({key:uid(),id:'',wall:'',date:today(),elev:'',station:'',st:{},opCount:'',reviewed:'',note:'',marks:[20,15,10,5,0],mi:0,len:23});
-let S={pile:blankPile(),strokes:0,segStart:0,pumping:false,active:null,trucks:[],ev:[],piles:[],cal:'',limit:120,sampleYd:1.1,warned:{},orphan:0};
+let S={pile:blankPile(),strokes:0,segStart:0,pumping:false,active:null,trucks:[],ev:[],piles:[],cal:'',limit:120,sampleYd:1.1,drillMin:3,reinfMin:15,warned:{},orphan:0};
 try{const r=localStorage.getItem(KEY);if(r)S=Object.assign(S,JSON.parse(r))}catch(e){}
 S.pile=Object.assign(blankPile(),{key:''},S.pile||{});S.pile.st=S.pile.st||{};
+if(S.drillMin==null)S.drillMin=3;if(S.reinfMin==null)S.reinfMin=15;
 S.piles=S.piles||[];S.ev=S.ev||[];S.trucks=S.trucks||[];S.orphan=S.orphan||0;S.warned=S.warned||{};
 // Older records: tag each event with the pile it belongs to (piles are separated by new_pile events)
 if(!S.pile.key||S.ev.some(e=>!e.pk)){let n=0;for(const e of S.ev){if(e.type==='new_pile')n++;if(!e.pk)e.pk='p'+n}S.piles.forEach((p,i)=>{if(!p.key)p.key='p'+i});if(!S.pile.key)S.pile.key='p'+n}
@@ -91,6 +92,15 @@ const num=v=>v===undefined||v===null||v===''?null:(parseFloat(v)||0);
 function usedOn(t,pk){const m=num(t.used[pk]);if(m!==null)return m;const n=strokesOn(t,pk);if(!n)return 0;const c=parseFloat(S.cal);return c>0?n*c:null}
 function usedAll(t){let tot=0;for(const k of new Set([...Object.keys(t.ps),...Object.keys(t.used)])){const u=usedOn(t,k);if(u===null)return null;tot+=u}return tot}
 const pname=k=>k===S.pile.key?S.pile.id:((S.piles.find(p=>p.key===k)||{}).id||'?');
+// Stage times: anything tapped/typed wins; gaps are filled from the field rules
+// drill start = drill finish − drillMin · grout start = drill finish · reinforce start = grout finish · reinforce finish = reinforce start + reinfMin
+function stages(p=S.pile){const st=p.st||{},D=(S.drillMin||0)*60000,R=(S.reinfMin||0)*60000,o={};
+ const set=(k,v)=>{if(o[k])return;if(st[k])o[k]={t:st[k],est:false};else if(v)o[k]={t:v,est:true}};
+ for(const k in st)if(st[k])o[k]={t:st[k],est:false};
+ for(let i=0;i<3;i++){const g=k=>o[k]&&o[k].t;
+  set('drillFinish',g('groutStart')||(g('drillStart')&&g('drillStart')+D));set('drillStart',g('drillFinish')&&g('drillFinish')-D);set('groutStart',g('drillFinish'));
+  set('groutFinish',g('reinfStart')||(g('reinfFinish')&&g('reinfFinish')-R));set('reinfStart',g('groutFinish')||(g('reinfFinish')&&g('reinfFinish')-R));set('reinfFinish',g('reinfStart')&&g('reinfStart')+R)}
+ return o}
 const hm=ms=>{if(!ms)return'';const d=new Date(ms);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')};
 function cutoff(t){const b=t.batch||t.dispatch;if(!b)return null;const [h,m]=b.split(':').map(Number);const ref=t.arrived||Date.now();const d=new Date(ref);d.setHours(h,m,0,0);
  if(d.getTime()>ref+5*60000)d.setDate(d.getDate()-1); // batched before midnight, arrived after
@@ -166,7 +176,7 @@ const A={
  setT(id,f,v){const t=tk(id);t[f]=v;if(f==='waste'&&v&&!t.wastePk)t.wastePk=S.pile.key;log('edit',{truck:id,field:f,value:v});save();render()},
  setTest(id,i,f,v){tk(id).tests[i][f]=v;save()},
  setDepth(id,v){const e=S.ev.find(x=>x.id===id);e.depth=v===''?null:Number(v);e.source='entered later';e.entered=Date.now();save();render()},
- stage(k){act(()=>{const st=S.pile.st;st[k]=Date.now();if(k==='drillFinish'&&!st.groutStart)st.groutStart=st[k];log('stage',{name:k})})},
+ stage(k){act(()=>{const st=S.pile.st;st[k]=Date.now();log('stage',{name:k})})},
  stageSet(k,v){if(!v){delete S.pile.st[k]}else{const [h,m]=v.split(':').map(Number);const d=new Date();d.setHours(h,m,0,0);S.pile.st[k]=d.getTime();log('stage',{name:k,edited:true})}save();render()},
  pset(f,v){S.pile[f]=v;save();render()},
  cfg(f,v){if(f==='marks'){S.pile.marks=v.split(',').map(x=>x.trim()).filter(x=>x!=='').map(Number).filter(x=>!isNaN(x));S.pile.mi=pev('depth_mark').length}else if(f==='pile')S.pile.id=v;else S[f]=v;save();render()},
@@ -186,8 +196,8 @@ function render(){clearTimeout(rT);
  <button onclick="A.mark()">Mark depth ${nm===undefined?'':nm+' ft'}</button><button class="sec" onclick="A.miss()">Missed this mark</button>
  <button onclick="A.ret()">Grout return</button><button class="sec" onclick="A.next()">Switch to next queued</button></div><button id="undoLast" class="sec" style="width:100%" onclick="A.undoLast()">Undo last action</button>`;
  const SG=[['drillStart','Drill start'],['drillFinish','Drill finish'],['groutStart','Grout start'],['groutFinish','Grout finish'],['reinfStart','Reinforce start'],['reinfFinish','Reinforce finish']];
- const tv=k=>{const v=S.pile.st[k];if(!v)return'';const d=new Date(v);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')};
- h+=`<button style="width:100%;margin-top:8px" onclick="showForm()">View paper form</button><h2>Pile ${esc(S.pile.id)} stages</h2><div class="card">`+SG.map(([k,l])=>`<div class="row"><button class="sec" style="flex:1" onclick="A.stage('${k}')">${l}</button><input id="st-${k}" type="time" style="max-width:130px" value="${tv(k)}" onchange="A.stageSet('${k}',this.value)"></div>`).join('')+`</div>`;
+ const SV=stages(),tv=k=>SV[k]?hm(SV[k].t):'';
+ h+=`<button style="width:100%;margin-top:8px" onclick="showForm()">View paper form</button><h2>Pile ${esc(S.pile.id)} stages</h2><div class="card">`+SG.map(([k,l])=>`<div class="row"><button class="sec" style="flex:1" onclick="A.stage('${k}')">${l}</button><label style="max-width:130px"><input id="st-${k}" type="time" value="${tv(k)}" style="${SV[k]&&SV[k].est?'font-style:italic;color:var(--mut);border-style:dashed':''}" onchange="A.stageSet('${k}',this.value)">${SV[k]&&SV[k].est?'<small>auto · tap to set</small>':''}</label></div>`).join('')+`<small style="color:var(--mut)">Missed times fill in automatically: drill start ${S.drillMin} min before drill finish, grout start at drill finish, reinforce start at grout finish, reinforce finish ${S.reinfMin} min later.</small></div>`;
  h+=`<h2>Trucks</h2>`;
  const here=t=>!t.emptied||pev().some(e=>e.truck===t.id),shown=ts.filter(here),older=ts.length-shown.length;
  if(!shown.length)h+=`<div class="card">No trucks yet. Tap Truck arrival to log one.</div>`;
@@ -213,7 +223,7 @@ function render(){clearTimeout(rT);
  if(gr.length)h+=`<h2>Grout return</h2>`+gr.map(e=>`<div class="row">${ft(e.t)} · strokes ${e.strokes}<input id="gr-${e.id}" placeholder="Depth ft (fill later)" inputmode="decimal" value="${e.depth??''}" onchange="A.setDepth('${e.id}',this.value)">${e.depth==null?'<span class=flag>missing</span>':''}</div>`).join('');
  h+=`<h2>Closeout</h2><div class="card"><div>My count <b>${S.strokes}</b></div><div class="row"><input id="f-op" placeholder="Operator count" inputmode="numeric" value="${esc(S.pile.opCount)}" onchange="A.pset('opCount',this.value)"><input id="f-rev" placeholder="Reviewed total" inputmode="numeric" value="${esc(S.pile.reviewed)}" onchange="A.pset('reviewed',this.value)"></div><div class="row"><input id="f-note" placeholder="Explanation" value="${esc(S.pile.note)}" onchange="A.pset('note',this.value)"></div>${S.pile.opCount&&Number(S.pile.opCount)!==S.strokes?'<div class=flag>Counts differ by '+(Number(S.pile.opCount)-S.strokes)+'</div>':''}</div>`;
  h+=`<h2>Review</h2><div class="card">${[
-  ts.filter(t=>!t.emptied).length+' trucks not emptied',SG.filter(([k])=>!S.pile.st[k]).length+' pile stages not stamped',
+  ts.filter(t=>!t.emptied).length+' trucks not emptied',SG.filter(([k])=>!SV[k]).length+' pile stages not stamped',SG.filter(([k])=>SV[k]&&SV[k].est).length?SG.filter(([k])=>SV[k]&&SV[k].est).length+' stage times filled in automatically (dashed)':'',
   iv.filter(r=>r.flag==='MISSING').length+' missing depth marks',
   gr.filter(e=>e.depth==null).length+' grout returns without depth',
   ts.filter(t=>t.fed&&!t.qty).length+' fed trucks without load yd³',
@@ -225,6 +235,8 @@ function render(){clearTimeout(rT);
  h+=`<h2>Settings</h2><div class="card"><div class="row"><input id="s-samp" inputmode="decimal" value="${esc(S.sampleYd)}" onchange="A.cfg('sampleYd',Number(this.value)||0)"><small>yd³ deducted per sample (0 if none)</small></div>
  <div class="row"><input id="s-marks" value="${esc(S.pile.marks.join(','))}" onchange="A.cfg('marks',this.value)"><small>Marks in field order (ft)</small></div>
  <div class="row"><input id="s-cal" placeholder="Pump calibration yd³ per stroke (verify)" inputmode="decimal" value="${esc(S.cal)}" onchange="A.cfg('cal',this.value)"></div>
+ <div class="row"><input id="s-dm" inputmode="numeric" style="max-width:90px" value="${esc(S.drillMin)}" onchange="A.cfg('drillMin',Number(this.value)||0)"><small>Drill minutes (start before finish, used when a time is missed)</small></div>
+ <div class="row"><input id="s-rm" inputmode="numeric" style="max-width:90px" value="${esc(S.reinfMin)}" onchange="A.cfg('reinfMin',Number(this.value)||0)"><small>Reinforce minutes (finish after start, used when a time is missed)</small></div>
  <div class="row"><input id="s-lim" inputmode="numeric" value="${esc(S.limit)}" onchange="A.cfg('limit',Number(this.value)||120)"><small>Cutoff minutes from batch time. Confirm against your spec.</small></div>
  <div class="row"><button onclick="showForm()">View form</button><button onclick="exportX()">Export Excel</button><button class="sec" onclick="backup()">Backup JSON</button><button class="sec" id="rs" onclick="A.reset()">Clear all</button></div></div>`;
  $('app').innerHTML=h}
@@ -237,7 +249,7 @@ function showForm(){
  const used=S.trucks.filter(t=>pev(null).some(e=>e.truck===t.id));
  const ts=[...used];while(ts.length<2)ts.push({seq:'',num:'',tests:[],blank:true});
  const CL={y:'#ffe600',g:'#d3d6da',t:'#f2c27a',b:'#a9b9d3'};
- const one=k=>(t,i)=>i?'':fh(st[k]);
+ const SV=stages(P),anyEst=Object.values(SV).some(x=>x.est);const one=k=>(t,i)=>i||!SV[k]?'':fh(SV[k].t)+(SV[k].est?'*':'');
  const bl=bands().slice().reverse(); // shallow to deep: 0–5, 5–10 …
  const dl=b=>b.replace(' ft','').replace('–','-');
  const rows=[['PILE / DATE',(t,i)=>i?'':[P.id,P.date].filter(Boolean).join(' / '),''],['TRUCK NUMBER',t=>t.seq,''],['TRUCK I.D. #',t=>t.num,''],['BATCH TIME',t=>fs(t.batch||t.dispatch),''],['ARRIVAL TIME',t=>t.blank?'':fh(t.arrived),''],['TRUCK EMPTY',t=>fh(t.emptied),''],
@@ -258,7 +270,7 @@ function showForm(){
  if(L.arr+L.cin)extra.push(['Left on trucks',f2(L.left)]);if(P.wall)extra.push(['Wall',P.wall]);if(P.opCount)extra.push(['My count / operator',S.strokes+' / '+P.opCount]);
  comb.forEach(r=>extra.push(['Missed mark',r.flag.replace('COMBINED: ','')]));
  if(extra.length)h+=`<p style="color:var(--mut);margin:14px 0 0">Not on the paper sheet:</p>`+box(extra);
- h+=`<p style="color:var(--mut)">Blank means not logged yet. ? means a reading is missing. Screenshot this screen to save or share it.</p>`;
+ h+=`<p style="color:var(--mut)">${anyEst?'* Filled in from drill / reinforce timing rules. ':''}Blank means not logged yet. ? means a reading is missing. Screenshot this screen to save or share it.</p>`;
  const el=$('formv');el.innerHTML=h;el.style.display='block'}
 async function offer(filename,data,fallback){let dl=null;try{dl=window.claude&&window.claude.use?await window.claude.use('downloads'):null}catch(e){}
  if(dl){try{await dl.save({filename,data});msg('Saved '+filename)}catch(e){msg(e&&e.code==='declined'?'Save cancelled.':'Could not save the file here. Use View paper form and take a screenshot.')}return}
@@ -268,7 +280,7 @@ function exportX(){if(typeof XLSX==='undefined')return msg('Excel export needs a
  const ev=S.ev.map(e=>({ID:e.id,Type:e.type,EventTime:new Date(e.t).toISOString(),EnteredTime:new Date(e.entered).toISOString(),Pile:e.pile,Truck:tk(e.truck)?.num||e.truck||'',DepthFt:e.depth??'',CumStrokes:e.strokes,Missing:e.missing?'MISSING':''}));
  const tr=S.trucks.map(t=>{const c=calc(t);return{ID:t.id,Seq:t.seq,TruckID:t.num,SampleNo:t.sampleNo||'',LoadYd3:t.qty,Batch:t.batch||t.dispatch,Arrived:new Date(t.arrived).toISOString(),Emptied:t.emptied?new Date(t.emptied).toISOString():'',CutoffEst:cutoff(t)?new Date(cutoff(t)).toISOString():'',Strokes:tStrokes(t),UsedYd3:c.placed??'PENDING',SamplesYd3:c.s,WasteYd3:c.w,LeftOnTruckYd3:c.rem??'UNRESOLVED',Leftover:t.left==='waste'?'WASTED':t.emptied?'':'ON TRUCK',Tests:t.tests.map(x=>x.temp+'F/'+x.flow+'s@'+ft(x.t)).join('; ')}});
  const all=[...S.piles,{...P,strokes:S.strokes}];
- const pr=a=>({Pile:a.id,Wall:a.wall,Date:a.date,LengthFt:a.len,Elev:a.elev,Station:a.station,DrillStart:ex(a.st&&a.st.drillStart),DrillFinish:ex(a.st&&a.st.drillFinish),GroutStart:ex(a.st&&a.st.groutStart),GroutFinish:ex(a.st&&a.st.groutFinish),ReinforceStart:ex(a.st&&a.st.reinfStart),ReinforceFinish:ex(a.st&&a.st.reinfFinish),MyStrokes:a.strokes,OperatorCount:a.opCount,ReviewedTotal:a.reviewed,Explanation:a.note});
+ const pr=a=>{const V=stages(a),x=k=>ex(V[k]&&V[k].t);return{Pile:a.id,Wall:a.wall,Date:a.date,LengthFt:a.len,Elev:a.elev,Station:a.station,DrillStart:x('drillStart'),DrillFinish:x('drillFinish'),GroutStart:x('groutStart'),GroutFinish:x('groutFinish'),ReinforceStart:x('reinfStart'),ReinforceFinish:x('reinfFinish'),AutoFilledStages:Object.keys(V).filter(k=>V[k].est).join(' '),MyStrokes:a.strokes,OperatorCount:a.opCount,ReviewedTotal:a.reviewed,Explanation:a.note}};
  const iv=all.flatMap(p=>intervals(p).map(r=>({Pile:p.id,Band:r.band,CumStrokes:r.cum,Strokes:r.d??'',Flag:r.flag})));
  const wb=XLSX.utils.book_new();[['Events',ev],['Trucks_QC',tr],['Piles',all.map(pr)],['Intervals',iv],['Truck_by_pile',S.trucks.flatMap(t=>[...new Set([...Object.keys(t.ps),...Object.keys(t.used),...Object.keys(t.carryIn)])].map(k=>({Truck:t.num||'#'+t.seq,Pile:pname(k),CarriedInYd3:t.carryIn[k]?(t.carryIn[k].yd??'?'):'',Strokes:strokesOn(t,k),UsedYd3:usedOn(t,k)??'PENDING',UsedSource:num(t.used[k])!==null?'typed':'strokes x cal',WasteYd3:t.wastePk===k?(parseFloat(t.waste)||0):''})))],
  ['Pile_yardage',all.map(p=>{const L=ledger(p.key);return{Pile:p.id,ArrivedYd3:L.arr,CarriedInYd3:L.cin,UsedYd3:L.used??'PENDING',SamplesYd3:L.samp,WasteYd3:L.waste,LeftOnTrucksYd3:L.left??'PENDING'}})]].forEach(([n,d])=>XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(d.length?d:[{}]),n));

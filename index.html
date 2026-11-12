@@ -686,6 +686,8 @@ setInterval(tick,1000);
 async function preload(){const PK='groutTracker.preloaded';let done=[];try{done=JSON.parse(localStorage.getItem(PK)||'[]')}catch(e){}
  try{const r=await fetch('preload.json',{cache:'no-store'});if(!r.ok)return;const J=await r.json();for(const D of (J&&J.list)||[J])await preloadOne(D,done,PK)}catch(e){}}
 async function preloadOne(D,done,PK){try{if(!D||!D.preloadId||done.includes(D.preloadId))return;
+  if(D.renamePiles){const notes=[];for(const [from,to] of D.renamePiles){const all=allPiles(),pf=all.find(x=>x.id===from);if(pf&&!all.some(x=>x.id===to)){pf.id=to;notes.push('pile '+from+' is now pile '+to)}}
+   resortPiles();done.push(D.preloadId);localStorage.setItem(PK,JSON.stringify(done));save();render();msg((notes.join('; ')||'No pile to rename')+(D.note?' '+D.note:'')+'.');return}
   if(D.patch){const notes=[];for(const p of D.trucks||[]){let t=S.trucks.filter(x=>String(x.seq)===String(p.seq)).sort((a,b)=>(b.arrived||0)-(a.arrived||0))[0];
     if(!t&&p.add){A.addTruck();t=S.trucks[S.trucks.length-1];t.seq=p.seq;notes.push('added truck '+p.seq)}
     if(t&&p.batch&&t.batch!==p.batch){notes.push('truck '+p.seq+' batch '+(t.batch||'—')+' → '+p.batch);t.batch=p.batch;log('edit',{truck:t.id,field:'batch',value:p.batch,source:'patch'})}}

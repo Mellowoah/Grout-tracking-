@@ -230,7 +230,11 @@ const A={
  setT(id,f,v){const t=tk(id);t[f]=v;if(f==='waste'&&v&&!t.wastePk)t.wastePk=S.pile.key;log('edit',{truck:id,field:f,value:v});save();render()},
  setTest(id,i,f,v){tk(id).tests[i][f]=v;save()},
  setDepth(id,v){const e=S.ev.find(x=>x.id===id);e.depth=v===''?null:Number(v);e.source='entered later';e.entered=Date.now();save();render()},
- stage(k){act(()=>{const st=S.pile.st;st[k]=Date.now();log('stage',{name:k})})},
+ stage(k){act(()=>{const st=S.pile.st;st[k]=Date.now();log('stage',{name:k})});
+  // Grout start = start pumping (and feed a truck if none is); Grout finish = stop pumping
+  if(k==='groutStart'){if(!tk(S.active)){const open=S.trucks.filter(t=>!t.emptied&&!t.pend);const nx=open.find(t=>t.carryIn[S.pile.key])||open.find(t=>t.fed)||open.find(t=>!t.fed);if(nx)A.sw(nx.id)}
+   if(!S.pumping)A.pump();const t=tk(S.active);msg('Grout started: pumping'+(t?' from truck '+tname(t):'. No truck feeding: tap Feed pump on a truck')+'.')}
+  if(k==='groutFinish'&&S.pumping){A.pump();msg('Grout finished: pumping stopped.')}},
  stageSet(k,v){if(!v){delete S.pile.st[k]}else{const [h,m]=v.split(':').map(Number);const d=new Date();d.setHours(h,m,0,0);S.pile.st[k]=d.getTime();log('stage',{name:k,edited:true})}save();render()},
  pset(f,v){S.pile[f]=v;save();render()},
  cfg(f,v){if(f==='marks'){S.pile.marks=v.split(',').map(x=>x.trim()).filter(x=>x!=='').map(Number).filter(x=>!isNaN(x));S.pile.mi=pev('depth_mark').length}else if(f==='pile')S.pile.id=v;else S[f]=v;save();render()},

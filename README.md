@@ -27,6 +27,11 @@ Open it once with signal; after that it works with no connection. After an updat
 8. **Closeout**: My count, contractor count / agreed total. If no band strokes are entered, the total is split over the depth bands using today's piles of the same length (else by footage), marked * on the form.
 9. **Next pile ▸**: one tap, never blocked. Open trucks carry their leftover to the next pile. 20 s undo.
 
+## Pouring view and grout factor
+- **Pouring view** (opens at Grout start) puts the pour on one screen: feeding truck with yd³ / strokes left, **Switch to truck #** / **Truck empty**, the next depth line with the buzz, **Problem / delay** and **Grout finish**.
+- With the pile diameter (Pile details, or Today's piles) each band's grout is compared with the hole's theoretical volume. A band typed / read below the required factor (Settings, default 1.15×, confirm against your spec) buzzes, shows a red **UNDER** alert, and is flagged in strokes by depth, on the form and at End day. Auto-filled bands are shown but not flagged.
+- A counter reading typed at a line also updates the app's stroke count, so truck yardage and hand-off follow along.
+
 ## Depth lines (buzz)
 - Opens by itself at **Grout start** (or tap **Depth lines** under the pile steps). Shows the next line in big numbers, about where your counter should be (from 0 at grout start), and a countdown to when the line should come up.
 - The phone buzzes (beeps and flashes on iPhone, which can't vibrate from a web app) 10 s before each line is expected, based on how fast today's piles came up and how this pile is going. The screen stays awake while it's open.

@@ -30,7 +30,7 @@ Open it once with signal; after that it works with no connection. After an updat
 ## Depth lines (buzz)
 - Opens by itself at **Grout start** (or tap **Depth lines** under the pile steps). Shows the next line in big numbers, about where your counter should be (from 0 at grout start), and a countdown to when the line should come up.
 - The phone buzzes (beeps and flashes on iPhone, which can't vibrate from a web app) 10 s before each line is expected, based on how fast today's piles came up and how this pile is going. The screen stays awake while it's open.
-- Tap **Passed __ ft** at each line. Typing the counter reading is optional: lines left blank fill in by themselves (split by the time each band took, else the expected rate), shown dashed / * on the form. Typed contractor count or agreed total still overrides.
+- Tap **Passed __ ft** at each line. Typing the counter reading is optional: lines left blank fill in by themselves (split by the time each band took, else the expected rate), shown in red (red * on the form). Typed contractor count or agreed total still overrides.
 
 ## Problems & delays
 - **Problem / delay** (under the pile steps): **Stopped now** for a drill or pump breakdown, waiting on trucks, weather or other, with who caused it. It saves the time, strokes and depth band if grouting was under way, pauses the pump and shows a red **Back running** bar until work starts again. **It already happened** adds a stop and you type the times.
@@ -43,6 +43,8 @@ Open it once with signal; after that it works with no connection. After an updat
 - One 1.1 yd³ sample for every 50 yd³ delivered that day: the first truck, then each truck whose load crosses the next 50 (Settings; per-truck override on the truck card).
 - When strokes pass a truck's load, counting moves to the next truck; the first is tagged and you confirm it empty after the next pile starts. Trucks only close when you say so.
 - 2-hour cutoff from batch time: warning only.
+- Missed truck arrival fills in from batch + today's average batch→arrival, else the truck before it + today's average gap between arrivals (never later than when the truck was first used).
+- Anything filled in automatically shows in red in the app and as a red * on the forms; typing over it replaces it.
 
 ## Forms and records
 - **View paper form**: two piles side by side like the field sheet, Arrived / Used / Carry over box between them, Load / Used / Left rows per truck.

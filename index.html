@@ -163,7 +163,7 @@ const A={
   const d=new Date(t[f]||t.arrived||Date.now());d.setHours(h,m,0,0);t[f]=d.getTime();log('edit',{truck:id,field:f,value:v});save();render()},
  remove(id){const t=tk(id);if(!t||t.fed||t.samples.length||t.tests.length)return;if(!twoTap('rm'+id,'rm'+id))return;act(()=>{S.trucks=S.trucks.filter(x=>x!==t);S.ev=S.ev.filter(e=>!(e.type==='truck_arrival'&&e.truck===id));msg('Truck removed')})},
  sample(id){act(()=>{const t=tk(id);const e=log('sample',{truck:id});t.samples.push(e.id)})},
- test(id){act(()=>{const t=tk(id);log('qc_test',{truck:id});t.tests.push({id:uid(),t:Date.now(),temp:'',flow:''})})},
+ test(id){act(()=>{const t=tk(id);log('qc_test',{truck:id});t.tests.push({id:uid(),t:Date.now(),temp:'',flow:''})});setTimeout(()=>{const t=tk(id),e=t&&$('t-'+id+'-tt'+(t.tests.length-1));if(e)e.scrollIntoView({block:'center',behavior:'smooth'})},50)},
  undoLast(){const types=['depth_mark','truck_arrival','truck_empty','truck_waste','sample','grout_return','qc_test'];const e=[...pev()].reverse().find(x=>types.includes(x.type));if(!e)return msg('Nothing to undo on this pile.');
   const t=tk(e.truck),name=e.type.replace('_',' ');
   if(e.type==='truck_arrival'&&t&&(t.fed||t.samples.length||t.tests.length))return msg('Truck '+tname(t)+' already has data, so its arrival can\'t be undone.');
@@ -183,10 +183,14 @@ const A={
  stageSet(k,v){if(!v){delete S.pile.st[k]}else{const [h,m]=v.split(':').map(Number);const d=new Date();d.setHours(h,m,0,0);S.pile.st[k]=d.getTime();log('stage',{name:k,edited:true})}save();render()},
  pset(f,v){S.pile[f]=v;save();render()},
  cfg(f,v){if(f==='marks'){S.pile.marks=v.split(',').map(x=>x.trim()).filter(x=>x!=='').map(Number).filter(x=>!isNaN(x));S.pile.mi=pev('depth_mark').length}else if(f==='pile')S.pile.id=v;else S[f]=v;save();render()},
+ // Flow cone stopwatch: Start when the cone is released, Stop when the flow breaks
+ fcStart(id,i){fc={id,i,start:Date.now()};vib();clearInterval(fcT);fcT=setInterval(()=>{const b=$('fc-'+fc.id+'-'+fc.i);if(b)b.innerHTML='Stop · <span class="num">'+fcSec()+'</span> s'},100);render()},
+ fcStop(){if(!fc)return;const t=tk(fc.id),sec=fcSec();clearInterval(fcT);if(t&&t.tests[fc.i]){t.tests[fc.i].flow=sec;t.tests[fc.i].timed=true;log('flow_cone',{truck:t.id,value:sec})}fc=null;vib();save();render();msg('Flow cone '+sec+' s saved')},
  scan(id){scanFor=id;const i=$('camIn');i.value='';i.click()},
  reset(){if(!twoTap('reset','rs','Tap again to delete everything'))return;try{localStorage.removeItem(KEY)}catch(e){}location.reload()}
 };
-let pend=false;
+let pend=false,fc=null,fcT=null;
+const fcSec=()=>fc?((Date.now()-fc.start)/1000).toFixed(1):'0.0';
 function render(){clearTimeout(rT);
  $('cnt').textContent=S.strokes;$('tp').textContent=S.pile.id;tray();
  const ts=S.trucks,sum=f=>ts.reduce((a,t)=>a+f(t),0);
@@ -219,7 +223,9 @@ function render(){clearTimeout(rT);
   ${c.rem!==null&&c.rem<-0.05?`<div class=flag>Used more than the load by ${(-c.rem).toFixed(1)} yd³. Check the load or used amount.</div>`:''}
   <div class="row"><button class="sec" onclick="A.sw('${t.id}')">Feed pump</button><button class="sec" onclick="A.sample('${t.id}')">Sample taken</button><button class="sec" onclick="A.test('${t.id}')">QC test</button><button class="sec" onclick="A.empty('${t.id}')">Empty</button>${canRm?`<button class="sec" id="rm${t.id}" onclick="A.remove('${t.id}')">Remove</button>`:''}</div>
   <div class="row"><input id="t-${t.id}-sn" placeholder="Sample #" value="${esc(t.sampleNo)}" onchange="A.setT('${t.id}','sampleNo',this.value)"><input id="t-${t.id}-waste" placeholder="Waste yd³" inputmode="decimal" value="${esc(t.waste)}" onchange="A.setT('${t.id}','waste',this.value)"></div>
-  ${t.tests.map((x,i)=>`<div class="row">Test ${ft(x.t)}<input id="t-${t.id}-tt${i}" placeholder="°F" inputmode="decimal" value="${esc(x.temp)}" onchange="A.setTest('${t.id}',${i},'temp',this.value)"><input id="t-${t.id}-tf${i}" placeholder="Flow s" inputmode="decimal" value="${esc(x.flow)}" onchange="A.setTest('${t.id}',${i},'flow',this.value)"></div>`).join('')}</div>`}
+  ${t.tests.map((x,i)=>{const run=fc&&fc.id===t.id&&fc.i===i;return `<div class="card" style="background:var(--bg);border:1px solid var(--line)"><b>QC test ${i+1}</b> <small style="color:var(--mut)">${ft(x.t)}</small>
+  <div class="row"><label style="flex:1"><small>Grout temp °F</small><input id="t-${t.id}-tt${i}" inputmode="decimal" value="${esc(x.temp)}" onchange="A.setTest('${t.id}',${i},'temp',this.value)"></label><label style="flex:1"><small>Flow cone (sec)</small><input id="t-${t.id}-tf${i}" inputmode="decimal" value="${esc(x.flow)}" onchange="A.setTest('${t.id}',${i},'flow',this.value)"></label></div>
+  <button id="fc-${t.id}-${i}" style="width:100%;min-height:72px;font-size:26px;${run?'background:var(--red);color:#fff':''}" onclick="${run?'A.fcStop()':`A.fcStart('${t.id}',${i})`}">${run?'Stop · <span class="num">'+fcSec()+'</span> s':x.flow?'Retime flow cone':'Start flow cone timer'}</button></div>`}).join('')}</div>`}
  if(older)h+=`<div style="color:var(--mut);font-size:14px">${older} emptied truck${older>1?'s':''} from earlier piles are kept in the Excel export.</div>`;
  const L=ledger(),f1=v=>v===null?'<span class=flag>?</span>':r1(v);
  h+=`<div class="card"><b>Pile ${esc(S.pile.id)} yardage (yd³)</b><br>Arrived ${L.arr.toFixed(1)} + carried in ${L.cin.toFixed(1)} − used ${f1(L.used)} − samples ${L.samp.toFixed(1)} − waste ${L.waste.toFixed(1)} = <b>left on trucks ${f1(L.left)}</b>${L.used===null?'<div class=flag>Type used yd³ on each truck, or set pump calibration</div>':''}${S.orphan?`<div class=flag>${S.orphan} strokes not on any truck</div>`:''}</div>`;

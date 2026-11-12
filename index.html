@@ -210,7 +210,7 @@ const A={
    if(e.type==='depth_mark')S.pile.mi=Math.max(0,S.pile.mi-1);
    if(e.type==='truck_arrival')S.trucks=S.trucks.filter(x=>x!==t);
    if(e.type==='truck_empty'&&t)t.emptied=null;
-   if(e.type==='truck_waste'&&t){t.waste=e.prevWaste||'';t.wastePk=e.prevPk||undefined;t.emptied=e.prevEmptied||null;t.left='';if(e.prevActive){S.active=t.id;S.segStart=S.strokes}}
+   if(e.type==='truck_waste'&&t){if(e.cutoff)t.noCut=t.batch||t.dispatch;t.waste=e.prevWaste||'';t.wastePk=e.prevPk||undefined;t.emptied=e.prevEmptied||null;t.left='';if(e.prevActive){S.active=t.id;S.segStart=S.strokes}}
    if(e.type==='sample'&&t)t.samples=t.samples.filter(x=>x!==e.id);
    if(e.type==='qc_test'&&t)t.tests.pop();
    msg('Undid '+name+(e.type==='truck_empty'?'. Tap Feed pump if it is still feeding.':''))})},
@@ -407,7 +407,16 @@ async function putPhoto(id,blob){const db=await pdb();return new Promise((res,re
 async function getPhoto(id){const db=await pdb();return new Promise((res,rej)=>{const q=db.transaction('p').objectStore('p').get(id);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)})}
 async function viewPhoto(id){let b=null;try{b=await getPhoto(id)}catch(_){}const t=tk(id);
  scanShow(`<div class="row"><button onclick="scanClose()">Close</button></div><h2>Ticket · truck ${esc(tname(t))}</h2>${b?'<img id="scimg" style="width:100%;border-radius:8px" alt="Ticket photo">':'<div class="card flag">Photo not found on this phone.</div>'}`);if(b)$('scimg').src=URL.createObjectURL(b)}
+// At the cutoff the truck is done: what's left on board becomes waste, empty is stamped at the cutoff time, next queued truck takes over
+function cutTruck(t,co){const here=S.active===t.id||!!t.carryIn[S.pile.key]||pev(null,S.pile.key).some(e=>e.truck===t.id);
+ const pk=here?S.pile.key:(orderKeys().filter(k=>pev(null,k).some(e=>e.truck===t.id)).pop()||t.pk0);const c=calc(t),was=S.active===t.id;
+ log('truck_waste',{truck:t.id,yd:c.rem,prevWaste:t.waste,prevPk:t.wastePk||null,prevEmptied:t.emptied,prevActive:was,cutoff:true,pk});
+ if(was){closeSeg();S.active=null}if(c.rem!==null&&c.rem>0){t.waste=String(+((parseFloat(t.waste)||0)+c.rem).toFixed(2));t.wastePk=pk}t.left='waste';t.emptied=co;
+ let m='Truck '+tname(t)+' hit cutoff '+ft(co)+': emptied'+(c.rem>0?', '+r1(c.rem)+' yd³ to waste':'')+'.';
+ if(was){const nx=S.trucks.find(x=>!x.fed&&!x.emptied&&x!==t);if(nx){A.sw(nx.id);m+=' Now feeding truck '+tname(nx)+'.'}else m+=' No truck queued.'}
+ save();render();msg(m);vib()}
 function tick(){const now=Date.now();let worst=null;
+ for(const t of S.trucks){if(t.emptied||t.noCut===(t.batch||t.dispatch))continue;const co=cutoff(t);if(co&&co<=now)cutTruck(t,co)}
  for(const t of S.trucks){if(t.emptied)continue;const co=cutoff(t);if(!co)continue;const r=co-now;if(r<=600000&&(!worst||r<worst.r))worst={t,r,co}}
  const a=$('alert');if(!worst){a.style.display='none';return}
  a.style.display='block';

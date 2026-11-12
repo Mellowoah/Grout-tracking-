@@ -386,7 +386,7 @@ function formHTML(pk,pair){
  ['LOAD YD³',t=>t.blank?'':(t.carryIn&&t.carryIn[P.key]?(cyd(t,P.key)==null?'?':r1(cyd(t,P.key)))+' carried':(t.qty||'')),'u'],
  ['USED THIS PILE',t=>{if(t.blank)return'';const u=usedOn(t,P.key);return u===null?'?':r1(u)},'u'],
  ['LEFT FOR NEXT',t=>{if(t.blank)return'';const la=leftAfter(t,P.key);if(la===null)return'?';if(t.wastePk===P.key)return '0 (waste '+r1(parseFloat(t.waste)||0)+')';return emptyHere(t)&&la>0.05?r1(la)+' (emptied)':r1(la)},'u'],
- ['TOTAL STROKES',(t,i)=>{if(i)return'';const mine=myCount({...P,strokes:PS});return mine||P.opCount||P.reviewed||''},'b'],
+ ['TOTAL STROKES',(t,i)=>{if(i)return'';const m=num(P.myCount);return m!==null?m:(PS||P.opCount||P.reviewed||bandSum(P)||'')},'b'],
  ...bl.map((b,bi)=>['DEPTH '+dl(b),(t,i)=>{if(i)return'';const r=iv.find(r=>r.band===b);const bv=(P.bandIn||{})[dl(b)];return bv!=null?bv:r?(r.flag?'?':r.d):''},bi===bl.length-1?'t':'b'])];
  const cell='border:1px solid #6b7c99;height:34px;padding:2px 6px;font-size:18px';
  const lab=c=>`${cell};background:${CL[c]||'#fff'};font:700 13px Barlow,system-ui,sans-serif;white-space:nowrap`;

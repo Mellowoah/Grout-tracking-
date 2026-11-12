@@ -20,6 +20,7 @@ html,body,button,a,label,summary{touch-action:manipulation}input,select,textarea
 body{background:var(--bg);color:var(--ink);font:500 16px/1.35 Barlow,system-ui,sans-serif;padding-bottom:calc(320px + env(safe-area-inset-bottom,0px))}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--bg);z-index:10}
 .num{font-family:"Barlow Condensed",system-ui,sans-serif;font-weight:800}
+button:disabled{opacity:.4}
 header{position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);z-index:9;padding:8px 12px;border-bottom:2px solid var(--ink)}
 .stat{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .stat div{background:var(--card);padding:6px 8px;border-radius:6px}.stat small{color:var(--mut);display:block}.stat b{font-size:22px}
@@ -64,7 +65,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v88';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v89';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -80,6 +81,7 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const uid=()=>Math.random().toString(36).slice(2,8);
 const today=()=>new Date().toLocaleDateString([],{month:'numeric',day:'numeric',year:'2-digit'});
 const blankPile=()=>({key:uid(),id:'',wall:'',date:today(),elev:'',station:'',st:{},opCount:'',reviewed:'',note:'',marks:[20,15,10,5,0],mi:0,len:23});
+let rawAtLoad=null;try{rawAtLoad=localStorage.getItem('groutTracker.v1'+(PROF?':'+PROF:''))}catch(e){}
 let S={pile:blankPile(),strokes:0,segStart:0,pumping:false,active:null,trucks:[],ev:[],piles:[],cal:'',limit:120,sampleYd:1.1,drillMin:3,reinfMin:15,warned:{},orphan:0};
 try{const r=localStorage.getItem(KEY);if(r)S=Object.assign(S,JSON.parse(r))}catch(e){}
 S.pile=Object.assign(blankPile(),{key:''},S.pile||{});S.pile.st=S.pile.st||{};
@@ -98,7 +100,22 @@ const $=id=>document.getElementById(id);
 // Next pile number: 42 → 43, P-09 → P-10; blank if the last one had no number
 const nextId=id=>{const m=String(id||'').match(/^(.*?)(\d+)$/);if(!m)return'';const n=String(+m[2]+1);return m[1]+n.padStart(m[2].length,'0')};
 const ft=ms=>ms?new Date(ms).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'}):'—';
-function save(){const j=JSON.stringify(S);let ok=false;try{localStorage.setItem(KEY,j);ok=true}catch(e){}
+// ---- Undo / redo: every change is a step you can take back, as many times as you need (kept through reloads)
+const HK='hist'+(PROF?':'+PROF:''),HMAX=80;let hist=[],fut=[],lastJ=null,histAt=0,noHist=false,histT;
+const EVN={depth_mark:'depth mark',truck_arrival:'truck arrival',truck_onsite:'truck arrival',truck_empty:'truck empty',truck_waste:'leftover waste',sample:'sample',grout_return:'grout return',qc_test:'QC test',new_pile:'new pile',truck_carry:'carry over',stage:'step time',edit:'edit',truck_reject:'truck sent back'};
+function histNote(j){if(lastJ===null||j===lastJ){lastJ=j;return}
+ if(noHist){noHist=false;lastJ=j;return}
+ const now=Date.now(),e=S.ev[S.ev.length-1],lab=histLabel||(e&&e.t>histAt&&now-e.t<3000?(EVN[e.type]||e.type.replace(/_/g,' ')):'edit');histLabel='';
+ if(!(hist.length&&now-histAt<1200&&lab==='edit'&&hist[hist.length-1].lab==='edit'))hist.push({j:lastJ,lab,t:now});
+ if(hist.length>HMAX)hist.shift();fut=[];histAt=now;lastJ=j;histSave()}
+let histLabel='';
+function histSave(){clearTimeout(histT);histT=setTimeout(()=>{try{pdb().then(db=>db.transaction('s','readwrite').objectStore('s').put({cur:lastJ,hist,fut},HK))}catch(e){}},800)}
+function histLoad(){try{pdb().then(db=>{const q=db.transaction('s').objectStore('s').get(HK);q.onsuccess=()=>{const v=q.result;if(v&&(v.cur===lastJ||v.cur===rawAtLoad)&&!hist.length){hist=v.hist||[];fut=v.fut||[];render()}}})}catch(e){}}
+function undoAll(){const h=hist.pop();if(!h)return msg('Nothing left to undo.');fut.push({j:lastJ,lab:h.lab});histRestore(h.j);msg('Undid '+h.lab+'. '+(hist.length?hist.length+' more step'+(hist.length>1?'s':'')+' you can undo.':'That was the last one.'))}
+function redoAll(){const h=fut.pop();if(!h)return msg('Nothing to redo.');hist.push({j:lastJ,lab:h.lab,t:Date.now()});histRestore(h.j);msg('Redid '+h.lab+'.')}
+function histRestore(j){if(typeof fc!=='undefined'&&fc){clearInterval(fcT);fc=null}S=JSON.parse(j);lastJ=j;histAt=0;undoSnap=null;$('undoNP').hidden=true;try{localStorage.setItem(KEY,j)}catch(e){}save();histSave();render();if($('depv').style.display!=='none')depthRender()}
+function undoRow(){return `<div class="row"><button id="undoLast" class="sec" style="flex:2;min-height:48px" onclick="undoAll()"${hist.length?'':' disabled'}>↶ Undo${hist.length?' '+esc(hist[hist.length-1].lab)+' ('+hist.length+')':''}</button><button class="sec" style="flex:1;min-height:48px" onclick="redoAll()"${fut.length?'':' disabled'}>Redo ↷</button></div>`}
+function save(){const j=JSON.stringify(S);histNote(j);let ok=false;try{localStorage.setItem(KEY,j);ok=true}catch(e){}
  mirror(j);$('save').textContent=(PROF?'['+PROF+' profile] ':'')+(ok?'Saved on this phone '+ft(Date.now())+' · '+(S.piles.length+1)+' piles':'Not saved to main storage. Backup copy only: export now')}
 let mirT;function mirror(j){clearTimeout(mirT);mirT=setTimeout(()=>{try{pdb().then(db=>{const tx=db.transaction('s','readwrite');tx.objectStore('s').put({t:Date.now(),j},'state'+(PROF?':'+PROF:''))})}catch(e){}},300)}
 let undoSnap=null,undoT;function showUndoPile(){const u=$('undoNP');u.hidden=false;clearTimeout(undoT);undoT=setTimeout(()=>{u.hidden=true;undoSnap=null},20000)}
@@ -274,18 +291,6 @@ const A={
  remove(id){const t=tk(id);if(!t||t.fed||t.samples.length||t.tests.length)return;if(!twoTap('rm'+id,'rm'+id))return;act(()=>{S.trucks=S.trucks.filter(x=>x!==t);S.ev=S.ev.filter(e=>!(e.type==='truck_arrival'&&e.truck===id));msg('Truck removed')})},
  sample(id){act(()=>{const t=tk(id);const e=log('sample',{truck:id});t.samples.push(e.id)})},
  test(id){act(()=>{const t=tk(id);log('qc_test',{truck:id});t.tests.push({id:uid(),t:Date.now(),temp:'',flow:'',pk:S.pile.key})});setTimeout(()=>{const t=tk(id),e=t&&$('t-'+id+'-tt'+(t.tests.length-1));if(e)e.scrollIntoView({block:'center',behavior:'smooth'})},50)},
- undoLast(){const types=['depth_mark','truck_arrival','truck_onsite','truck_empty','truck_waste','sample','grout_return','qc_test'];const e=[...pev()].reverse().find(x=>types.includes(x.type));if(!e)return msg('Nothing to undo on this pile.');
-  const t=tk(e.truck),name=e.type.replace('_',' ');
-  if((e.type==='truck_arrival'||e.type==='truck_onsite')&&t&&(t.fed||t.samples.length||t.tests.length))return msg('Truck '+tname(t)+' already has data, so its arrival can\'t be undone.');
-  if(!twoTap('undo','undoLast','Tap again: undo '+name))return;
-  act(()=>{S.ev=S.ev.filter(x=>x!==e);
-   if(e.type==='depth_mark')S.pile.mi=Math.max(0,S.pile.mi-1);
-   if(e.type==='truck_arrival'||e.type==='truck_onsite')S.trucks=S.trucks.filter(x=>x!==t);
-   if(e.type==='truck_empty'&&t)t.emptied=null;
-   if(e.type==='truck_waste'&&t){if(e.cutoff)t.noCut=t.batch||t.dispatch;t.waste=e.prevWaste||'';t.wastePk=e.prevPk||undefined;t.emptied=e.prevEmptied||null;t.left='';if(e.prevActive){S.active=t.id;S.segStart=S.strokes}}
-   if(e.type==='sample'&&t)t.samples=t.samples.filter(x=>x!==e.id);
-   if(e.type==='qc_test'&&t)t.tests.pop();
-   msg('Undid '+name+(e.type==='truck_empty'?'. Tap Feed pump if it is still feeding.':''))})},
  setT(id,f,v){const t=tk(id);t[f]=v;if(f==='waste'&&v&&!t.wastePk)t.wastePk=S.pile.key;log('edit',{truck:id,field:f,value:v});save();render()},
  setTest(id,i,f,v){tk(id).tests[i][f]=v;save()},
  setDepth(id,v){const e=S.ev.find(x=>x.id===id);e.depth=v===''?null:Number(v);e.source='entered later';e.entered=Date.now();save();render()},
@@ -332,7 +337,10 @@ const A={
    S.piles=S.piles.filter(p=>p.key!==k);for(const t of S.trucks)if(t.pk0===into||t.carryIn[into]){const oo=orderKeys(),ii=oo.indexOf(into);if(t.pk0!==into&&oo.indexOf(t.pk0)>=ii)delete t.carryIn[into]}
    resortPiles();msg('Pile '+(P.id||'?')+' deleted. Its entries moved to pile '+pname(into)+'.')})},
  scan(id){scanFor=id;const i=$('camIn');i.value='';i.click()},
- reset(){if(!twoTap('reset','rs','Tap again to delete everything'))return;try{localStorage.removeItem(KEY)}catch(e){}location.reload()}
+ reset(){if(!twoTap('reset','rs','Tap again to clear today'))return;if(fc){clearInterval(fcT);fc=null}
+  const keep={};for(const k of ['cal','calUnit','limit','sampleYd','sampleEvery','defLoad','drillMin','groutMin','reinfMin','hideIntro','aiModel','planDef','gFactor','beep','relMin'])if(S[k]!==undefined)keep[k]=S[k];
+  histLabel='Clear all';S={pile:blankPile(),strokes:0,segStart:0,pumping:false,active:null,trucks:[],ev:[],piles:[],warned:{},orphan:0,plan:[],...keep};undoSnap=null;$('undoNP').hidden=true;
+  save();render();scrollTo(0,0);msg('Today cleared. Settings kept. Tap Undo to bring it all back.')}
 };
 let pend=false,fc=null,fcT=null;
 const fcSec=()=>fc?((Date.now()-fc.start)/1000).toFixed(1):'0.0';
@@ -360,7 +368,7 @@ function render(){clearTimeout(rT);
  const anyOnSite=S.trucks.some(t=>!t.emptied&&(t.pk0||t.onsite)),firstToday=!S.trucks.some(t=>t.arrived&&new Date(t.arrived).toDateString()===new Date().toDateString());
  // no truck there yet: nothing can grout, so the truck comes first
  if(!anyOnSite)h+=`<button style="width:100%;min-height:72px;font-size:24px;margin:10px 0 4px" onclick="A.arrive()">${firstToday?'First truck arrived':'Truck arrived'}</button><div style="color:var(--mut);font-size:14px;margin-bottom:6px">${firstToday?'Start the day here: tap when the first truck pulls up.':'No truck on site. Tap when the next one pulls up.'}</div>`;
- {const L=PL(),i=L.findIndex(e=>e.id===S.pile.id);h+=`<h2>Pile ${esc(S.pile.id)}${i>=0?` <small style="font-size:16px;color:var(--mut)">· ${i+1} of ${L.length} on today's list</small>`:''}</h2>`}h+=`<div class="card" style="${anyOnSite?'':'opacity:.45'}">${anyOnSite?'':'<div style="font-size:14px;margin-bottom:4px">Waiting for a truck. These still work if you need them.</div>'}`+SG.map(([k,l])=>`<div class="row"><button class="sec" style="flex:1" onclick="A.stage('${k}')">${l}</button><label style="max-width:130px"><input id="st-${k}" type="time" value="${tv(k)}" style="${SV[k]&&SV[k].est?'font-style:italic;color:var(--red);border:2px dashed var(--red)':''}" onchange="A.stageSet('${k}',this.value)"></label></div>`).join('')+`<div class="row" style="margin-top:6px"><button style="flex:1" onclick="A.arrive()">Truck arrival</button><button style="flex:1" onclick="A.ret()">Grout return</button></div><button style="width:100%;margin-top:6px" onclick="depthOpen()">Pouring view${nextLine(S.pile)!=null?' · next line '+nextLine(S.pile)+' ft':' · lines done'}</button><button class="sec" style="width:100%;margin-top:6px;border-color:var(--red)" onclick="issOpen()">${oi?'Stopped · Back running / send a truck back':'Problem / delay'}</button><button id="undoLast" class="sec" style="width:100%;min-height:44px;margin-top:6px" onclick="A.undoLast()">Undo last action</button><small style="color:var(--mut)"><span style="color:var(--red)">Red times</span> were filled in automatically; tap to set.</small></div>`+issH(S.pile.key);
+ {const L=PL(),i=L.findIndex(e=>e.id===S.pile.id);h+=`<h2>Pile ${esc(S.pile.id)}${i>=0?` <small style="font-size:16px;color:var(--mut)">· ${i+1} of ${L.length} on today's list</small>`:''}</h2>`}h+=`<div class="card" style="${anyOnSite?'':'opacity:.45'}">${anyOnSite?'':'<div style="font-size:14px;margin-bottom:4px">Waiting for a truck. These still work if you need them.</div>'}`+SG.map(([k,l])=>`<div class="row"><button class="sec" style="flex:1" onclick="A.stage('${k}')">${l}</button><label style="max-width:130px"><input id="st-${k}" type="time" value="${tv(k)}" style="${SV[k]&&SV[k].est?'font-style:italic;color:var(--red);border:2px dashed var(--red)':''}" onchange="A.stageSet('${k}',this.value)"></label></div>`).join('')+`<div class="row" style="margin-top:6px"><button style="flex:1" onclick="A.arrive()">Truck arrival</button><button style="flex:1" onclick="A.ret()">Grout return</button></div><button style="width:100%;margin-top:6px" onclick="depthOpen()">Pouring view${nextLine(S.pile)!=null?' · next line '+nextLine(S.pile)+' ft':' · lines done'}</button><button class="sec" style="width:100%;margin-top:6px;border-color:var(--red)" onclick="issOpen()">${oi?'Stopped · Back running / send a truck back':'Problem / delay'}</button>${undoRow()}<small style="color:var(--mut)"><span style="color:var(--red)">Red times</span> were filled in automatically; tap to set.</small></div>`+issH(S.pile.key);
  h+=sec('pile','Pile '+esc(S.pile.id||'?')+' details'+(S.pile.station?' · Sta '+esc(S.pile.station):'')+' · scan / type a form',setupH);
  h+=`<h2>Trucks</h2><div class="row" style="margin-bottom:6px"><button class="sec" style="flex:1" onclick="A.addTruck()">+ Add a truck</button><button class="sec" style="flex:1" onclick="A.scan('new')">+ Scan a ticket</button></div>`;
  const loose=ts.filter(t=>!t.pk0&&!t.onsite&&!t.rejected),here=t=>!t.rejected&&((!t.pk0&&t.onsite&&!t.emptied)||t.pk0&&(!t.emptied||pev().some(e=>e.truck===t.id&&e.type!=='edit'))),shown=ts.filter(here),olderL=ts.filter(t=>t.pk0&&!here(t)).sort((a,b)=>(a.seq||0)-(b.seq||0)),older=olderL.length;
@@ -435,7 +443,7 @@ function render(){clearTimeout(rT);
  <div class="row"><input id="s-gf" inputmode="decimal" style="max-width:90px" value="${esc(gF())}" onchange="A.cfg('gFactor',Number(this.value)||1.15)"><small>Minimum grout factor per band (× theoretical volume). Confirm against your spec.</small></div>
  <div class="row"><input id="s-rel" inputmode="decimal" style="max-width:90px" value="${esc(relMin())}" onchange="A.cfg('relMin',Number(this.value)||0.8)"><small>Without a diameter: flag a band under this share of today's typical strokes per foot</small></div>
  <div class="row"><input id="s-lim" inputmode="numeric" value="${esc(S.limit)}" onchange="A.cfg('limit',Number(this.value)||120)"><small>Cutoff minutes from batch time. Confirm against your spec.</small></div>
- <div class="row"><button onclick="showForm()">View form</button><button onclick="exportX()">Export Excel</button><button class="sec" onclick="backup()">Backup JSON</button><button class="sec" onclick="reportOpen()">Report a problem</button><button class="sec" onclick="pastDaysOpen()">Past days</button><button class="sec" onclick="$('impIn').value='';$('impIn').click()">Import file</button><button class="sec" id="rs" onclick="A.reset()">Clear all</button></div></div>`;
+ <div class="row"><button onclick="showForm()">View form</button><button onclick="exportX()">Export Excel</button><button class="sec" onclick="backup()">Backup JSON</button><button class="sec" onclick="reportOpen()">Report a problem</button><button class="sec" onclick="pastDaysOpen()">Past days</button><button class="sec" onclick="$('impIn').value='';$('impIn').click()">Import file</button><button class="sec" id="rs" onclick="A.reset()">Clear all</button></div>${undoRow().replace('id="undoLast" ','')}</div>`;
  h=h.slice(0,g4)+sec('settings','Settings & backup',h.slice(g4));
  $('app').innerHTML=h}
 document.addEventListener('focusout',()=>setTimeout(()=>{if(pend)render()},0));
@@ -1085,7 +1093,7 @@ function endDayTrucks(){let n=0;for(const t of S.trucks.filter(t=>!t.emptied&&(t
   if(v==='waste'&&c.rem!==null&&c.rem>0.005){log('truck_waste',{truck:t.id,yd:c.rem,prevWaste:t.waste,prevPk:t.wastePk||null,prevEmptied:t.emptied,prevActive:false,endOfDay:true});t.waste=String(+((parseFloat(t.waste)||0)+c.rem).toFixed(3));t.wastePk=S.pile.key;t.left='waste'}
   else log('truck_empty',{truck:t.id,endOfDay:true});t.emptied=t.emptied||Date.now();delete t.pend;if(el)el.value='keep';n++}
  if(n){S.pumping=false;save();render()}return n}
-async function endDayGo(){if(!twoTap('endday','edGo','Tap again: end the day and start fresh'))return;endDayTrucks();
+async function endDayGo(){if(!twoTap('endday','edGo','Tap again: end the day and start fresh'))return;endDayTrucks();histLabel='End day';
  const j=JSON.stringify(S),sm=daySummary(),last=allPiles().slice(-1)[0];
  try{const db=await pdb();await new Promise((res,rej)=>{const tx=db.transaction('s','readwrite');tx.objectStore('s').put({t:Date.now(),date:today(),piles:sm.piles.map(p=>p.id),used:sm.used,j},DAYK+Date.now());tx.oncomplete=res;tx.onerror=()=>rej(tx.error)})}
  catch(e){logErr(e,'end day');scanShow('<div class="card flag">Couldn\'t save the day on this phone, so nothing was cleared. Use Save backup first.</div><button onclick="scanClose()">Close</button>');return}
@@ -1108,13 +1116,13 @@ function tick(){const now=Date.now();let worst=null;
  a.style.display='block';a.onclick=()=>issOpen(worst.t.id);
  if(worst.r<=0)a.textContent='▲ Truck '+tname(worst.t)+' — Cutoff reached ('+ft(worst.co)+')'+(usedAll(worst.t)>0.005?'':' · tap to send it back');
  else{const m=Math.floor(worst.r/60000),s=Math.floor(worst.r/1000)%60;a.textContent='▲ Truck '+tname(worst.t)+' — '+m+':'+String(s).padStart(2,'0')+' left · cutoff '+ft(worst.co)}
- if(!S.warned[worst.t.id]){S.warned[worst.t.id]=1;vib();save()}}
+ if(!S.warned[worst.t.id]){S.warned[worst.t.id]=1;vib();noHist=true;save()}}
 setInterval(tick,1000);
 // If main storage came back empty but the backup copy has records, restore them
 (async()=>{let had=false;try{had=!!localStorage.getItem(KEY)}catch(e){}
  if(!had){try{const db=await pdb();const b=await new Promise(r=>{const q=db.transaction('s').objectStore('s').get('state'+(PROF?':'+PROF:''));q.onsuccess=()=>r(q.result);q.onerror=()=>r(null)});
   if(b&&b.j){localStorage.setItem(KEY,b.j);location.reload();return}}catch(e){}}
- render();tick();save();preload();if(errList().length){const b=$('errb');if(b)b.hidden=false}})();
+ render();tick();save();histLoad();preload();if(errList().length){const b=$('errb');if(b)b.hidden=false}})();
 async function preload(){const PK='groutTracker.preloaded'+(PROF?':'+PROF:'');let done=[];try{done=JSON.parse(localStorage.getItem(PK)||'[]')}catch(e){}
  try{const r=await fetch('preload.json',{cache:'no-store'});if(!r.ok)return;const J=await r.json();for(const D of (J&&J.list)||[J])await preloadOne(D,done,PK)}catch(e){}}
 async function preloadOne(D,done,PK){try{if(!D||!D.preloadId||done.includes(D.preloadId))return;

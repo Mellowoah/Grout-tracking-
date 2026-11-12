@@ -93,13 +93,13 @@ function usedOn(t,pk){const m=num(t.used[pk]);if(m!==null)return m;const n=strok
 function usedAll(t){let tot=0;for(const k of new Set([...Object.keys(t.ps),...Object.keys(t.used)])){const u=usedOn(t,k);if(u===null)return null;tot+=u}return tot}
 const pname=k=>k===S.pile.key?S.pile.id:((S.piles.find(p=>p.key===k)||{}).id||'?');
 // Stage times: anything tapped/typed wins; gaps are filled from the field rules
-// drill start = drill finish − drillMin · grout start = drill finish · reinforce start = grout finish · reinforce finish = reinforce start + reinfMin
+// drill start = drill finish − drillMin · grout start = drill finish · reinforce start = grout finish + reinfMin (no rule for reinforce finish)
 function stages(p=S.pile){const st=p.st||{},D=(S.drillMin||0)*60000,R=(S.reinfMin||0)*60000,o={};
  const set=(k,v)=>{if(o[k])return;if(st[k])o[k]={t:st[k],est:false};else if(v)o[k]={t:v,est:true}};
  for(const k in st)if(st[k])o[k]={t:st[k],est:false};
  for(let i=0;i<3;i++){const g=k=>o[k]&&o[k].t;
   set('drillFinish',g('groutStart')||(g('drillStart')&&g('drillStart')+D));set('drillStart',g('drillFinish')&&g('drillFinish')-D);set('groutStart',g('drillFinish'));
-  set('groutFinish',g('reinfStart')||(g('reinfFinish')&&g('reinfFinish')-R));set('reinfStart',g('groutFinish')||(g('reinfFinish')&&g('reinfFinish')-R));set('reinfFinish',g('reinfStart')&&g('reinfStart')+R)}
+  set('groutFinish',g('reinfStart')&&g('reinfStart')-R);set('reinfStart',g('groutFinish')&&g('groutFinish')+R)}
  return o}
 const hm=ms=>{if(!ms)return'';const d=new Date(ms);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')};
 function cutoff(t){const b=t.batch||t.dispatch;if(!b)return null;const [h,m]=b.split(':').map(Number);const ref=t.arrived||Date.now();const d=new Date(ref);d.setHours(h,m,0,0);
@@ -197,7 +197,7 @@ function render(){clearTimeout(rT);
  <button onclick="A.ret()">Grout return</button><button class="sec" onclick="A.next()">Switch to next queued</button></div><button id="undoLast" class="sec" style="width:100%" onclick="A.undoLast()">Undo last action</button>`;
  const SG=[['drillStart','Drill start'],['drillFinish','Drill finish'],['groutStart','Grout start'],['groutFinish','Grout finish'],['reinfStart','Reinforce start'],['reinfFinish','Reinforce finish']];
  const SV=stages(),tv=k=>SV[k]?hm(SV[k].t):'';
- h+=`<button style="width:100%;margin-top:8px" onclick="showForm()">View paper form</button><h2>Pile ${esc(S.pile.id)} stages</h2><div class="card">`+SG.map(([k,l])=>`<div class="row"><button class="sec" style="flex:1" onclick="A.stage('${k}')">${l}</button><label style="max-width:130px"><input id="st-${k}" type="time" value="${tv(k)}" style="${SV[k]&&SV[k].est?'font-style:italic;color:var(--mut);border-style:dashed':''}" onchange="A.stageSet('${k}',this.value)">${SV[k]&&SV[k].est?'<small>auto · tap to set</small>':''}</label></div>`).join('')+`<small style="color:var(--mut)">Missed times fill in automatically: drill start ${S.drillMin} min before drill finish, grout start at drill finish, reinforce start at grout finish, reinforce finish ${S.reinfMin} min later.</small></div>`;
+ h+=`<button style="width:100%;margin-top:8px" onclick="showForm()">View paper form</button><h2>Pile ${esc(S.pile.id)} stages</h2><div class="card">`+SG.map(([k,l])=>`<div class="row"><button class="sec" style="flex:1" onclick="A.stage('${k}')">${l}</button><label style="max-width:130px"><input id="st-${k}" type="time" value="${tv(k)}" style="${SV[k]&&SV[k].est?'font-style:italic;color:var(--mut);border-style:dashed':''}" onchange="A.stageSet('${k}',this.value)">${SV[k]&&SV[k].est?'<small>auto · tap to set</small>':''}</label></div>`).join('')+`<small style="color:var(--mut)">Missed times fill in automatically: drill start ${S.drillMin} min before drill finish, grout start at drill finish, reinforce start ${S.reinfMin} min after grout finish.</small></div>`;
  h+=`<h2>Trucks</h2>`;
  const here=t=>!t.emptied||pev().some(e=>e.truck===t.id),shown=ts.filter(here),older=ts.length-shown.length;
  if(!shown.length)h+=`<div class="card">No trucks yet. Tap Truck arrival to log one.</div>`;
@@ -236,7 +236,7 @@ function render(){clearTimeout(rT);
  <div class="row"><input id="s-marks" value="${esc(S.pile.marks.join(','))}" onchange="A.cfg('marks',this.value)"><small>Marks in field order (ft)</small></div>
  <div class="row"><input id="s-cal" placeholder="Pump calibration yd³ per stroke (verify)" inputmode="decimal" value="${esc(S.cal)}" onchange="A.cfg('cal',this.value)"></div>
  <div class="row"><input id="s-dm" inputmode="numeric" style="max-width:90px" value="${esc(S.drillMin)}" onchange="A.cfg('drillMin',Number(this.value)||0)"><small>Drill minutes (start before finish, used when a time is missed)</small></div>
- <div class="row"><input id="s-rm" inputmode="numeric" style="max-width:90px" value="${esc(S.reinfMin)}" onchange="A.cfg('reinfMin',Number(this.value)||0)"><small>Reinforce minutes (finish after start, used when a time is missed)</small></div>
+ <div class="row"><input id="s-rm" inputmode="numeric" style="max-width:90px" value="${esc(S.reinfMin)}" onchange="A.cfg('reinfMin',Number(this.value)||0)"><small>Minutes from grout finish to reinforce start (used when a time is missed)</small></div>
  <div class="row"><input id="s-lim" inputmode="numeric" value="${esc(S.limit)}" onchange="A.cfg('limit',Number(this.value)||120)"><small>Cutoff minutes from batch time. Confirm against your spec.</small></div>
  <div class="row"><button onclick="showForm()">View form</button><button onclick="exportX()">Export Excel</button><button class="sec" onclick="backup()">Backup JSON</button><button class="sec" id="rs" onclick="A.reset()">Clear all</button></div></div>`;
  $('app').innerHTML=h}

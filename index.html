@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0d1b2a">
 <meta name="apple-mobile-web-app-title" content="Grout">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -15,6 +15,8 @@
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0b1118;--ink:#f4f6f8;--mut:#9fb0bf;--line:#2b3946;--card:#16212b;--red:#ff5a5a;color-scheme:dark}}
 :root[data-theme="dark"]{--bg:#0b1118;--ink:#f4f6f8;--mut:#9fb0bf;--line:#2b3946;--card:#16212b;--red:#ff5a5a;color-scheme:dark}
 *{box-sizing:border-box}html,body{margin:0}
+/* no double-tap zoom when tapping fast (iPhone); inputs at 16px+ so typing doesn't zoom either */
+html,body,button,a,label,summary{touch-action:manipulation}input,select,textarea{font-size:max(16px,1em)!important}#pv-tap,#plus{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 body{background:var(--bg);color:var(--ink);font:500 16px/1.35 Barlow,system-ui,sans-serif;padding-bottom:calc(320px + env(safe-area-inset-bottom,0px))}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--bg);z-index:10}
 .num{font-family:"Barlow Condensed",system-ui,sans-serif;font-weight:800}
@@ -62,7 +64,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v87';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v88';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)

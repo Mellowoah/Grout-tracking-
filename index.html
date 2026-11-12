@@ -137,8 +137,13 @@ function seqAlloc(pk){const all=feedOrder(pk),c=confStrokes(pk).n,cy=calYd(),out
  ids.forEach((id,i)=>{const cap=cy>0?onBoard(tk(id),pk)/cy:Infinity,take=i===ids.length-1?rest:Math.min(rest,cap);out[id]=Math.max(0,take);rest-=out[id]});return out}
 function usedOn(t,pk){const m=num(t.used[pk]);if(m!==null)return m;const n=confOn(t,pk);if(!n)return 0;const c=calYd();return c>0?n*c:null}
 // Grout left on a truck at the end of a given pile (piles in the order worked)
-function leftAfter(t,pk){const order=orderKeys(),idx=order.indexOf(pk),q=parseFloat(t.qty);if(idx<0||!(q>=0))return null;let u=0;
- for(const k of order.slice(0,idx+1)){const x=usedOn(t,k);if(x===null)return null;u+=x}const wi=order.indexOf(t.wastePk);return q-u-sy(t)-(wi>=0&&wi<=idx?(parseFloat(t.waste)||0):0)}
+// Field rule: grout a truck carries on to the next pile is rounded to 0.001 and taken down by 0.001
+// (9 − 1.1 − 5.797 = 2.103 → 2.102 carried). Not applied on the pile where the truck is emptied.
+const emptyOn=(t,k)=>pev(null,k).some(e=>e.truck===t.id&&(e.type==='truck_empty'||e.type==='truck_waste'));
+function leftAfter(t,pk){const order=orderKeys(),idx=order.indexOf(pk),q=parseFloat(t.qty);if(idx<0||!(q>=0))return null;let rem=q-sy(t);
+ for(const k of order.slice(0,idx+1)){const x=usedOn(t,k);if(x===null)return null;rem-=x;if(t.wastePk===k)rem-=parseFloat(t.waste)||0;
+  if(x>0&&rem>0.001&&!emptyOn(t,k))rem=Math.round((rem-0.001)*1000)/1000}
+ return rem}
 const pileTrucks=pk=>S.trucks.filter(t=>pev(null,pk).some(e=>e.truck===t.id));
 function usedAll(t){let tot=0;for(const k of orderKeys()){const u=usedOn(t,k);if(u===null)return null;tot+=u}return tot}
 const pname=k=>k===S.pile.key?S.pile.id:((S.piles.find(p=>p.key===k)||{}).id||'?');
@@ -158,14 +163,16 @@ function cutoff(t){const b=t.batch||t.dispatch;if(!b)return null;const [h,m]=b.s
  return d.getTime()+S.limit*60000}
 function calc(t){const q=parseFloat(t.qty),placed=usedAll(t);
  const s=sy(t),w=parseFloat(t.waste)||0;
- const rem=(placed!==null&&q>=0)?q-placed-s-w:null;return{placed,s,w,rem,q}}
+ const la=leftAfter(t,S.pile.key),rem=la!==null?la:((placed!==null&&q>=0)?q-placed-s-w:null);return{placed,s,w,rem,q}}
 // This pile's yardage: arrived + carried in − used − samples − waste = left on trucks
 function ledger(pk=S.pile.key){const sum=f=>S.trucks.reduce((a,t)=>a+f(t),0);let pend=false;
  const counts=t=>t.pk0===pk&&(!Object.values(t.carryIn).some(c=>c.from===pk)||(usedOn(t,pk)||0)>0);
  const arr=sum(t=>counts(t)?(parseFloat(t.qty)||0):0),cin=sum(t=>(cyd(t,pk))||0);
  const used=sum(t=>{const u=usedOn(t,pk);if(u===null){pend=true;return 0}return u});
  const samp=S.trucks.filter(counts).reduce((a,t)=>a+sy(t),0),waste=sum(t=>t.wastePk===pk?(parseFloat(t.waste)||0):0);
- return{arr,cin,used:pend?null:used,samp,waste,left:pend?null:arr+cin-used-samp-waste}}
+ // left on trucks = what each truck on this pile has left after it (same carry-over rule as the truck rows)
+ let left=0,lp=pend;for(const t of S.trucks.filter(t=>counts(t)||t.carryIn[pk])){const la=leftAfter(t,pk);if(la===null){lp=true;break}left+=la}
+ return{arr,cin,used:pend?null:used,samp,waste,left:lp?null:left}}
 function nextMark(){return S.pile.marks[S.pile.mi]}
 function flash(el){el.style.outline='4px solid #fff';setTimeout(()=>el.style.outline='',120)}
 function act(fn){fn();save();render()}

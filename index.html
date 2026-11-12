@@ -48,10 +48,10 @@ label small{display:block;color:var(--mut)}
 </head><body>
 
 <div id="alert"></div>
-<header><div class="stat" id="stat"></div><div id="save">Loading…</div><div id="msg" hidden></div><button id="undoNP" class="sec" hidden style="width:100%;margin-top:6px;min-height:44px" onclick="A.undoPile()">Undo new pile</button></header>
+<header><button id="allF" style="width:100%;min-height:44px;margin-bottom:6px;font-size:17px" onclick="showForm(allPiles()[0].key)">View all pile forms</button><div class="stat" id="stat"></div><div id="save">Loading…</div><div id="msg" hidden></div><button id="undoNP" class="sec" hidden style="width:100%;margin-top:6px;min-height:44px" onclick="A.undoPile()">Undo new pile</button></header>
 <main id="app"></main>
 <div id="tray"><div class="top"><div><small>Pile <span id="tp"></span> · strokes</small><div class="num" id="cnt">0</div></div>
-<div class="row" style="flex-wrap:nowrap"><button class="sec" style="font-size:15px;padding:6px 8px;white-space:nowrap" onclick="showForm(allPiles()[0].key)">All forms</button><button class="sec" id="npTray" style="font-size:15px;padding:6px 8px;white-space:nowrap" onclick="A.newPile()" aria-label="Finish pile and start next">Next pile ▸</button><button class="sec" style="padding:6px 10px" id="fold" aria-label="Fold counter">▾</button></div></div>
+<div class="row" style="flex-wrap:nowrap"><button class="sec" id="npTray" style="font-size:15px;padding:6px 8px;white-space:nowrap" onclick="A.newPile()" aria-label="Finish pile and start next">Next pile ▸</button><button class="sec" style="padding:6px 10px" id="fold" aria-label="Fold counter">▾</button></div></div>
 <div id="tnone" class="trayw" hidden>No truck feeding: these strokes won't count toward any truck</div>
 <div id="trayBody"><div style="margin-top:6px"><small id="tint"></small></div></div></div>
 <input type="file" id="camIn" accept="image/*" hidden><input type="file" id="formIn" accept="image/*" hidden><input type="file" id="impIn" accept=".json,application/json" hidden>

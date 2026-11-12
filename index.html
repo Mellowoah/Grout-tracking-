@@ -275,18 +275,19 @@ function render(){clearTimeout(rT);
  <div class="row"><button onclick="showForm()">View form</button><button onclick="exportX()">Export Excel</button><button class="sec" onclick="backup()">Backup JSON</button><button class="sec" id="rs" onclick="A.reset()">Clear all</button></div></div>`;
  $('app').innerHTML=h}
 document.addEventListener('focusout',()=>setTimeout(()=>{if(pend)render()},0));
-function showForm(pk){
+function formHTML(pk){
  const fh=ms=>{if(!ms)return'';const d=new Date(ms);return (d.getHours()%12||12)+':'+String(d.getMinutes()).padStart(2,'0')};
  const fs=s=>{if(!s)return'';const [h,m]=s.split(':').map(Number);return (h%12||12)+':'+String(m).padStart(2,'0')};
  const cur=!pk||pk===S.pile.key,P=cur?S.pile:S.piles.find(p=>p.key===pk),PS=cur?S.strokes:(P.strokes||0),iv=intervals(P),gr=pev('grout_return',P.key)[0];
  // Same layout as the paper sheet: always at least two truck columns, blank where nothing is logged yet
+ const carriedTo=t=>{const k=Object.keys(t.carryIn).find(k=>t.carryIn[k].from===P.key);return k?'→ pile '+pname(k):''};
  const used=pileTrucks(P.key),emptyHere=t=>pev(null,P.key).some(e=>e.truck===t.id&&(e.type==='truck_empty'||e.type==='truck_waste'));
  const ts=[...used];while(ts.length<2)ts.push({seq:'',num:'',tests:[],blank:true});
  const CL={y:'#ffe600',g:'#d3d6da',t:'#f2c27a',b:'#a9b9d3'};
  const SV=stages(P),anyEst=Object.values(SV).some(x=>x.est);const one=k=>(t,i)=>i||!SV[k]?'':fh(SV[k].t)+(SV[k].est?'*':'');
  const bl=bands(P).slice().reverse(); // shallow to deep: 0–5, 5–10 …
  const dl=b=>b.replace(' ft','').replace('–','-');
- const rows=[['PILE / DATE',(t,i)=>i?'':[P.id,P.date].filter(Boolean).join(' / '),''],['TRUCK NUMBER',t=>t.seq,''],['TRUCK I.D. #',t=>t.num,''],['BATCH TIME',t=>fs(t.batch||t.dispatch),''],['ARRIVAL TIME',t=>t.blank?'':fh(t.arrived),''],['TRUCK EMPTY',t=>t.blank||!emptyHere(t)?'':fh(t.emptied),''],
+ const rows=[['PILE / DATE',(t,i)=>i?'':[P.id,P.date].filter(Boolean).join(' / '),''],['TRUCK NUMBER',t=>t.seq+(t.carryIn&&t.carryIn[P.key]?' (from '+pname(t.carryIn[P.key].from)+')':''),''],['TRUCK I.D. #',t=>t.num,''],['BATCH TIME',t=>fs(t.batch||t.dispatch),''],['ARRIVAL TIME',t=>t.blank?'':fh(t.arrived),''],['TRUCK EMPTY',t=>t.blank?'':!emptyHere(t)?carriedTo(t):fh(t.emptied),''],
  ['DRILL START',one('drillStart'),'y'],['DRILL FINISH',one('drillFinish'),'y'],['GROUT / HOLE START',one('groutStart'),'g'],['GROUT / HOLE FINISH',one('groutFinish'),'g'],
  ['GROUT RETURN',(t,i)=>i?'':(gr?(gr.depth!=null?gr.depth:'?'):''),''],['REINFORCE START',one('reinfStart'),'t'],['REINFORCE FINISH',one('reinfFinish'),'t'],
  ['GROUT TEMP',t=>(t.tests&&t.tests[0]||{}).temp,''],['FLOW CONE TIME',t=>(t.tests&&t.tests[0]||{}).flow,''],['SAMPLE #',t=>t.sampleNo,''],
@@ -294,19 +295,23 @@ function showForm(pk){
  ...bl.map((b,bi)=>['DEPTH '+dl(b),(t,i)=>{if(i)return'';const r=iv.find(r=>r.band===b);return r?(r.flag?'?':r.d):''},bi===bl.length-1?'t':'b'])];
  const cell='border:1px solid #6b7c99;height:34px;padding:2px 6px;font-size:18px';
  const lab=c=>`${cell};background:${CL[c]||'#fff'};font:700 13px Barlow,system-ui,sans-serif;white-space:nowrap`;
- let h=`<div class="row"><button onclick="document.getElementById('formv').style.display='none'">Close</button><button class="sec" onclick="showForm(${cur?'':`'${P.key}'`})">Refresh</button></div>${cur?'':`<div class="card"><b>Finished pile ${esc(P.id)}</b></div>`}<div class="wrap"><table style="background:#fff;color:#0d1b2a;min-width:320px">`;
+ let h=`<h2 id="fp-${P.key}" style="margin-top:20px">Pile ${esc(P.id||'?')}${cur?' (current)':''}</h2><div class="wrap"><table style="background:#fff;color:#0d1b2a;min-width:320px">`;
  for(const [l,f,c] of rows)h+=`<tr><td style="${lab(c)}">${esc(l)}</td>`+ts.map((t,i)=>`<td style="${cell};min-width:84px">${esc(f(t,i))}</td>`).join('')+'</tr>';
  const L=ledger(P.key),f2=v=>v===null?'?':r1(v);
  const box=(r)=>`<table style="background:#fff;color:#0d1b2a;margin-top:12px">`+r.map(([l,v])=>`<tr><td style="${lab('g')};text-align:center;min-width:90px;font-weight:600">${esc(l)}</td><td style="${cell};min-width:100px">${esc(v)}</td></tr>`).join('')+`</table>`;
  h+=`</table></div>`+box([['ARRIVED',L.arr+L.cin?(L.arr+L.cin).toFixed(1):''],['USED',L.used?f2(L.used):''],['ELEV',P.elev],['STATION',P.station]]);
  const comb=iv.filter(r=>r.flag.startsWith('COMBINED')),extra=[];
  for(const t of used){const ci=t.carryIn[P.key];if(ci)extra.push(['Truck '+tname(t)+' carried in from pile '+pname(ci.from),ci.yd==null?'?':r1(ci.yd)])}
- for(const t of used){const u=usedOn(t,P.key),la=leftAfter(t,P.key),wasted=t.wastePk===P.key;extra.push(['Truck '+tname(t)+' used on this pile',u===null?'?':r1(u)]);extra.push(['Truck '+tname(t)+' left'+(wasted?' (wasted)':la!==null&&la>0.05?' (carried to next pile)':''),la===null?'?':r1(la)])}if(L.samp)extra.push(['Samples',L.samp.toFixed(1)]);if(L.waste)extra.push(['Waste',L.waste.toFixed(1)]);
+ for(const t of used){const u=usedOn(t,P.key),la=leftAfter(t,P.key),wasted=t.wastePk===P.key;extra.push(['Truck '+tname(t)+' used on this pile',u===null?'?':r1(u)]);extra.push(['Truck '+tname(t)+' left'+(wasted?' (wasted)':la!==null&&la>0.05?(emptyHere(t)?' when emptied, not logged as waste':' (carried to next pile)'):''),la===null?'?':r1(la)])}if(L.samp)extra.push(['Samples',L.samp.toFixed(1)]);if(L.waste)extra.push(['Waste',L.waste.toFixed(1)]);
  if(L.arr+L.cin)extra.push(['Left on trucks',f2(L.left)]);if(P.wall)extra.push(['Wall',P.wall]);if(P.opCount)extra.push(['My count / contractor',PS+' / '+P.opCount]);
  comb.forEach(r=>extra.push(['Missed mark',r.flag.replace('COMBINED: ','')]));
  if(extra.length)h+=`<p style="color:var(--mut);margin:14px 0 0">Not on the paper sheet:</p>`+box(extra);
  h+=`<p style="color:var(--mut)">${anyEst?'* Filled in from drill / reinforce timing rules. ':''}Blank means not logged yet. ? means a reading is missing. Screenshot this screen to save or share it.</p>`;
- const el=$('formv');el.innerHTML=h;el.style.display='block'}
+ return h}
+// All piles' forms run one after another (like the two-up field sheet); a truck that feeds two piles shows on both
+function showForm(pk){const keys=[...S.piles.map(p=>p.key),S.pile.key];const go=pk||S.pile.key;
+ const el=$('formv');el.innerHTML=`<div class="row" style="position:sticky;top:0;background:var(--bg);padding:4px 0;z-index:2"><button onclick="document.getElementById('formv').style.display='none'">Close</button><button class="sec" onclick="showForm('${go}')">Refresh</button></div>`+keys.map(formHTML).join('<hr style="margin:20px 0;border:0;border-top:2px dashed var(--line)">');
+ el.style.display='block';const a=$('fp-'+go);if(a)setTimeout(()=>a.scrollIntoView({block:'start'}),0)}
 async function offer(filename,data,fallback){let dl=null;try{dl=window.claude&&window.claude.use?await window.claude.use('downloads'):null}catch(e){}
  if(dl){try{await dl.save({filename,data});msg('Saved '+filename)}catch(e){msg(e&&e.code==='declined'?'Save cancelled.':'Could not save the file here. Use View paper form and take a screenshot.')}return}
  try{fallback()}catch(e){msg('Could not save the file here. Use View paper form and take a screenshot.')}}

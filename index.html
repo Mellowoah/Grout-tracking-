@@ -215,9 +215,10 @@ $('fold').onclick=()=>{$('tray').classList.toggle('min');$('fold').textContent=$
 const armed={};
 function twoTap(k,btnId,label){if(Date.now()-(armed[k]||0)>4000){armed[k]=Date.now();const b=$(btnId);if(b)b.textContent=label||'Tap again to confirm';setTimeout(render,4200);return false}armed[k]=0;return true}
 const A={
- newPile(){if(!isLatest()){const L=latestPile();A.openPile(L.key);return}undoSnap=JSON.stringify(S);if(fc){clearInterval(fcT);fc=null}let done='';act(()=>{closeSeg();const ok=S.pile.key;done='Pile '+(S.pile.id||'?')+' done: '+(pileTrucks(ok).map(t=>'truck '+tname(t)+' '+(usedOn(t,ok)===null?'?':r1(usedOn(t,ok)))+' yd³').join(', ')||'no trucks')+'. ';const open=S.trucks.filter(t=>!t.emptied).map(t=>{const c=calc(t);return[t,c.rem!==null?c.rem:(c.q>=0&&usedAll(t)===0?c.q:null)]});
+ newPile(){if(!isLatest()){const L=latestPile();A.openPile(L.key);return}undoSnap=JSON.stringify(S);if(fc){clearInterval(fcT);fc=null}let done='';act(()=>{closeSeg();const ok=S.pile.key;done='Pile '+(S.pile.id||'?')+' done: '+(pileTrucks(ok).map(t=>'truck '+tname(t)+' '+(usedOn(t,ok)===null?'?':r1(usedOn(t,ok)))+' yd³').join(', ')||'no trucks')+'. ';const loose=S.trucks.filter(t=>!t.emptied&&!t.pk0&&(!arrOf(t)||arrOf(t)<=Date.now()));const open=S.trucks.filter(t=>!t.emptied&&t.pk0).map(t=>{const c=calc(t);return[t,c.rem!==null?c.rem:(c.q>=0&&usedAll(t)===0?c.q:null)]});
   S.piles.push({...S.pile,strokes:S.strokes,done:Date.now()});const p=S.pile;S.pile={...blankPile(),n:maxN()+1,id:nextId(p.id),wall:p.wall,station:p.station,marks:p.marks,len:p.len};S.strokes=0;S.segStart=0;log('new_pile');
   for(const [t,yd] of open){t.carryIn[S.pile.key]={from:p.key,yd};t.left='';log('truck_carry',{truck:t.id,yd})}
+  for(const t of loose)attach(t,S.pile.key);
   msg(done+'Pile '+(S.pile.id||'')+' started.'+(open.length?' '+open.map(([t,yd])=>'Truck '+tname(t)+': '+(yd==null?'?':r1(yd))+' yd³ left').join(', '):''))});showUndoPile()},
  undoPile(){if(!undoSnap)return;S=JSON.parse(undoSnap);undoSnap=null;$('undoNP').hidden=true;save();render();msg('Back on pile '+S.pile.id+'. Nothing was lost.')},
  pump(){act(()=>{S.pumping=!S.pumping;log(S.pumping?'pump_start':'pump_pause')})},
@@ -231,7 +232,7 @@ const A={
  mark(){act(()=>{const d=nextMark();if(d===undefined)return msg('All depth marks for this pile are done.');log('depth_mark',{depth:d,truck:S.active});S.pile.mi++;vib()})},
  miss(){act(()=>{const d=nextMark();if(d===undefined)return;log('depth_mark',{depth:d,missing:true,truck:S.active});S.pile.mi++})},
  ret(){act(()=>{log('grout_return',{depth:null,source:''})})},
- sw(id){const t=tk(id);if(!t)return msg('No truck waiting. Tap Truck arrival first.');act(()=>{const o=tk(S.active);closeSeg();S.active=id;S.segStart=S.strokes;t.fed=true;log('truck_switch',{truck:id,from:o?o.id:null,depth:nextMark()??null})})},
+ sw(id){const t=tk(id);if(!t)return msg('No truck waiting. Tap Truck arrival first.');act(()=>{attach(t,S.pile.key);const o=tk(S.active);closeSeg();S.active=id;S.segStart=S.strokes;t.fed=true;log('truck_switch',{truck:id,from:o?o.id:null,depth:nextMark()??null})})},
  next(){const t=S.trucks.find(t=>!t.fed&&!t.emptied);if(!t)return msg('No truck waiting. Tap Truck arrival first.');A.sw(t.id)},
  empty(id){act(()=>{const t=tk(id);if(S.active===id){closeSeg();S.active=null}t.emptied=Date.now();log('truck_empty',{truck:id})})},
  // Leftover on truck dumped: becomes waste on this pile and the truck is done
@@ -240,9 +241,10 @@ const A={
    if(S.active===id){closeSeg();S.active=null}t.waste=String(+((parseFloat(t.waste)||0)+c.rem).toFixed(2));t.wastePk=S.pile.key;t.left='waste';if(!t.emptied)t.emptied=Date.now();msg(r1(c.rem)+' yd³ logged as waste on truck '+(tname(t)))})},
  carry(id){act(()=>{const t=tk(id);t.left=t.left==='carry'?'':'carry';if(t.left==='carry')msg('Truck '+tname(t)+' stays open. Its leftover moves to the next pile when you tap Start new pile.')})},
  setUsed(id,v){const t=tk(id);if(v==='')delete t.used[S.pile.key];else t.used[S.pile.key]=v;log('edit',{truck:id,field:'used',value:v});save();render()},
- setTime(id,f,v){const t=tk(id);if(!v){save();render();return}const [h,m]=v.split(':').map(Number);
+ setTime(id,f,v){const t=tk(id);if(!v){save();render();return}const [h,m]=v.split(':').map(Number);const wasLoose=!t.pk0;
   if(f==='emptied'&&!t.emptied){if(S.active===id){closeSeg();S.active=null}log('truck_empty',{truck:id})}
-  const d=new Date(t[f]||t.arrived||Date.now());d.setHours(h,m,0,0);t[f]=d.getTime();log('edit',{truck:id,field:f,value:v});save();render()},
+  const d=new Date(t[f]||t.arrived||Date.now());d.setHours(h,m,0,0);t[f]=d.getTime();log('edit',{truck:id,field:f,value:v});
+  if(wasLoose&&f==='arrived'){const k=pileByArrival(t.arrived);if(k){A.movePile(id,k);return}}save();render()},
  remove(id){const t=tk(id);if(!t||t.fed||t.samples.length||t.tests.length)return;if(!twoTap('rm'+id,'rm'+id))return;act(()=>{S.trucks=S.trucks.filter(x=>x!==t);S.ev=S.ev.filter(e=>!(e.type==='truck_arrival'&&e.truck===id));msg('Truck removed')})},
  sample(id){act(()=>{const t=tk(id);const e=log('sample',{truck:id});t.samples.push(e.id)})},
  test(id){act(()=>{const t=tk(id);log('qc_test',{truck:id});t.tests.push({id:uid(),t:Date.now(),temp:'',flow:'',pk:S.pile.key})});setTimeout(()=>{const t=tk(id),e=t&&$('t-'+id+'-tt'+(t.tests.length-1));if(e)e.scrollIntoView({block:'center',behavior:'smooth'})},50)},
@@ -284,9 +286,9 @@ const A={
  setBand(k,v){const P=S.pile;P.bandIn=P.bandIn||{};if(v===''||v==null)delete P.bandIn[k];else P.bandIn[k]=Number(v);log('edit',{field:'band '+k,value:v});save();render()},
  // Key in a truck after the fact: no times stamped, you type batch / arrival / empty
  sampleRep(id,v){act(()=>{const t=tk(id);t.sampleRep={v,t:Date.now(),pk:S.pile.key};if(v==='taken'){const e=log('sample',{truck:id});t.samples.push(e.id)}else log('sample_not_taken',{truck:id});msg('Sample on truck '+tname(t)+' reported: '+(v==='taken'?'taken':'not taken')+'.')})},
- addTruck(){act(()=>{const t={id:uid(),seq:S.trucks.length?Math.max(...S.trucks.map(x=>+x.seq||0))+1:1,num:'',sampleNo:'',qty:S.defLoad?String(S.defLoad):'',batch:'',dispatch:'',arrived:null,emptied:null,strokes:0,samples:[],waste:'',tests:[],pk0:S.pile.key,ps:{},used:{},carryIn:{},left:''};S.trucks.push(t);log('truck_arrival',{truck:t.id,keyed:true});msg('Truck '+t.seq+' added to pile '+(S.pile.id||'?')+'. Type its times on its card.')})},
+ addTruck(){act(()=>{const t={id:uid(),seq:S.trucks.length?Math.max(...S.trucks.map(x=>+x.seq||0))+1:1,num:'',sampleNo:'',qty:S.defLoad?String(S.defLoad):'',batch:'',dispatch:'',arrived:null,emptied:null,strokes:0,samples:[],waste:'',tests:[],pk0:null,ps:{},used:{},carryIn:{},left:''};S.trucks.push(t);msg('Truck '+t.seq+' added. It joins a pile when you type its arrival time, it feeds the pump, or you move to the next pile.')})},
  // Which pile a truck first came on; moving it re-works yardage on every pile
- movePile(id,k){const t=tk(id);if(!t||!k||t.pk0===k)return;act(()=>{const o=orderKeys(),ni=o.indexOf(k);t.pk0=k;
+ movePile(id,k){const t=tk(id);if(!t||!k||t.pk0===k)return;if(!t.pk0){act(()=>{attach(t,k);const o=orderKeys(),ni=o.indexOf(k);o.forEach((c,i)=>{if(i>ni&&!t.carryIn[c]&&pev(null,c).some(e=>e.truck===t.id&&e.type!=='edit'))t.carryIn[c]={from:o[i-1],yd:null}});msg('Truck '+tname(t)+' is on pile '+pname(k)+'.')});return}act(()=>{const o=orderKeys(),ni=o.indexOf(k);t.pk0=k;
   const a=S.ev.find(e=>e.type==='truck_arrival'&&e.truck===id);if(a)a.pk=k;else log('truck_arrival',{truck:id,pk:k});
   for(const c of Object.keys(t.carryIn))if(o.indexOf(c)<=ni)delete t.carryIn[c];
   S.ev=S.ev.filter(e=>!(e.truck===id&&e.type==='truck_carry'&&o.indexOf(e.pk)<=ni)); // it wasn't on those earlier piles
@@ -329,16 +331,18 @@ function render(){clearTimeout(rT);
  const SV=stages(),tv=k=>SV[k]?hm(SV[k].t):'';
  h+=`<h2>Pile ${esc(S.pile.id)}</h2><div class="card">`+SG.map(([k,l])=>`<div class="row"><button class="sec" style="flex:1" onclick="A.stage('${k}')">${l}</button><label style="max-width:130px"><input id="st-${k}" type="time" value="${tv(k)}" style="${SV[k]&&SV[k].est?'font-style:italic;color:var(--mut);border-style:dashed':''}" onchange="A.stageSet('${k}',this.value)"></label></div>`).join('')+`<div class="row" style="margin-top:6px"><button style="flex:1" onclick="A.arrive()">Truck arrival</button><button style="flex:1" onclick="A.ret()">Grout return</button></div><button id="undoLast" class="sec" style="width:100%;min-height:44px;margin-top:6px" onclick="A.undoLast()">Undo last action</button><small style="color:var(--mut)">Dashed times are estimates from today's piles; tap to set.</small></div>`;
  h+=sec('pile','Pile '+esc(S.pile.id||'?')+' details'+(S.pile.station?' · Sta '+esc(S.pile.station):'')+' · scan / type a form',setupH);
- h+=`<h2>Trucks</h2><div class="row" style="margin-bottom:6px"><button class="sec" style="flex:1" onclick="A.addTruck()">+ Add a truck</button><button class="sec" style="flex:1" onclick="A.addTruck();A.scan(S.trucks[S.trucks.length-1].id)">+ Scan a ticket</button></div>`;
- const here=t=>!t.emptied||pev().some(e=>e.truck===t.id),shown=ts.filter(here),olderL=ts.filter(t=>!here(t)).sort((a,b)=>(a.seq||0)-(b.seq||0)),older=olderL.length;
- if(!shown.length)h+=`<div class="card">No trucks yet. Tap Truck arrival when one pulls up, or Add a truck to key one in later.</div>`;
- const list=[...shown,...olderL];
- for(const t of list){if(older&&t===olderL[0])h+=`<details data-s="older" ${secOpen.older?'open':''} ontoggle="secT(this)" style="margin-top:10px"><summary class="sum">Earlier trucks today (${older})</summary>`;
-  if(olderL.includes(t)){const on=orderKeys().filter(k=>pev(null,k).some(e=>e.truck===t.id)),c=calc(t),tt=(t.tests||[]).filter(x=>x.temp||x.flow);
-   h+=`<div class="card"><div class="row"><b>Truck ${esc(t.seq||'')}</b>${pilePick(t)}<input id="t-${t.id}-num" placeholder="Truck I.D. #" value="${esc(t.num)}" onchange="A.setT('${t.id}','num',this.value)"><small>Load ${esc(t.qty||'?')} yd³</small></div>
+ h+=`<h2>Trucks</h2><div class="row" style="margin-bottom:6px"><button class="sec" style="flex:1" onclick="A.addTruck()">+ Add a truck</button><button class="sec" style="flex:1" onclick="A.scan('new')">+ Scan a ticket</button></div>`;
+ const loose=ts.filter(t=>!t.pk0),here=t=>t.pk0&&(!t.emptied||pev().some(e=>e.truck===t.id&&e.type!=='edit')),shown=ts.filter(here),olderL=ts.filter(t=>t.pk0&&!here(t)).sort((a,b)=>(a.seq||0)-(b.seq||0)),older=olderL.length;
+ const compact=t=>{const on=orderKeys().filter(k=>pev(null,k).some(e=>e.truck===t.id)),c=calc(t),tt=(t.tests||[]).filter(x=>x.temp||x.flow);
+   return `<div class="card"><div class="row"><b>Truck ${esc(t.seq||'')}</b>${pilePick(t)}<input id="t-${t.id}-num" placeholder="Truck I.D. #" value="${esc(t.num)}" onchange="A.setT('${t.id}','num',this.value)"><small>Load ${esc(t.qty||'?')} yd³</small></div>
    <div class="row"><label style="flex:1;min-width:95px"><small>Batch</small><input id="t-${t.id}-batch" type="time" ${tIn(t,'batch')} onchange="A.setT('${t.id}','batch',this.value)"></label><label style="flex:1;min-width:95px"><small>Arrived</small><input id="t-${t.id}-arr" type="time" ${tIn(t,'arrived')} onchange="A.setTime('${t.id}','arrived',this.value)"></label><label style="flex:1;min-width:95px"><small>Empty</small><input id="t-${t.id}-emp" type="time" ${tIn(t,'emptied')} onchange="A.setTime('${t.id}','emptied',this.value)"></label></div>
    ${on.map(k=>{const u=usedOn(t,k),la=leftAfter(t,k);return `<div>Pile <b>${esc(pname(k))}</b>: used ${u===null?'?':r1(u)} yd³ · left ${la===null?'?':r1(la)}</div>`}).join('')}
-   <div style="color:var(--mut);font-size:14px">${t.sampleNo?'Sample '+esc(t.sampleNo)+' · ':''}${tt.map(x=>esc(x.temp||'?')+'°F / '+esc(x.flow||'?')+' s').join(' · ')}${t.left==='waste'?' · leftover wasted':''}</div></div>`;continue}const c=calc(t),co=cutoff(t),canRm=!t.fed&&!t.samples.length&&!t.tests.length,pk=S.pile.key,ci=t.carryIn[pk],u=usedOn(t,pk),man=num(t.used[pk])!==null;
+   <div style="color:var(--mut);font-size:14px">${t.sampleNo?'Sample '+esc(t.sampleNo)+' · ':''}${tt.map(x=>esc(x.temp||'?')+'°F / '+esc(x.flow||'?')+' s').join(' · ')}${t.left==='waste'?' · leftover wasted':''}</div></div>`;};
+ if(loose.length)h+=`<div class="card" style="border:2px dashed var(--line)"><b>Trucks not on a pile yet (${loose.length})</b><div style="color:var(--mut);font-size:14px">Type the arrival time and the app puts it on the right pile, or it joins the pile it feeds / the next pile you start.</div>${loose.map(compact).join('')}</div>`;
+ if(!shown.length&&!loose.length)h+=`<div class="card">No trucks yet. Tap Truck arrival when one pulls up, or Add a truck to key one in later.</div>`;
+ const list=[...shown,...olderL];
+ for(const t of list){if(older&&t===olderL[0])h+=`<details data-s="older" ${secOpen.older?'open':''} ontoggle="secT(this)" style="margin-top:10px"><summary class="sum">Earlier trucks today (${older})</summary>`;
+  if(olderL.includes(t)){h+=compact(t);continue}const c=calc(t),co=cutoff(t),canRm=!t.fed&&!t.samples.length&&!t.tests.length,pk=S.pile.key,ci=t.carryIn[pk],u=usedOn(t,pk),man=num(t.used[pk])!==null;
   const autoU=(()=>{const n=confOn(t,pk),cl=calYd();return n&&cl>0?r1((n*cl)):''})();
   h+=`<div class="card"><div class="row"><b>#${t.seq||''}</b>${pilePick(t)}<input id="t-${t.id}-num" placeholder="Truck I.D. #" value="${esc(t.num)}" onchange="A.setT('${t.id}','num',this.value)"><label style="flex:1;min-width:90px"><small>Load yd³ (ticket)</small><input id="t-${t.id}-qty" inputmode="decimal" value="${esc(t.qty)}" onchange="A.setT('${t.id}','qty',this.value)"></label></div>
   ${sy(t)>0&&!t.sampleRep?`<div class="card" style="border:2px solid var(--acc);margin:6px 0"><b>Sample due on this truck</b> <small>(1 every ${esc(S.sampleEvery)} yd³ · ${r1(sy(t))} yd³)</small><div class="row"><button style="flex:1" onclick="A.sampleRep('${t.id}','taken')">Taken</button><button class="sec" style="flex:1" onclick="A.sampleRep('${t.id}','not taken')">Not taken</button></div></div>`:t.sampleRep?`<div style="font-size:14px">Sample ${t.sampleRep.v} · ${ft(t.sampleRep.t)}</div>`:''}
@@ -415,7 +419,11 @@ function estBands(P){const all=bands(P),bi=P.bandIn||{};if(!all.length||interval
  let w;if(pats.length){w=ix.map(i=>pats.reduce((a,p)=>a+p[i],0)/pats.length);const sw=w.reduce((a,b)=>a+b,0)||1;w=w.map(x=>x/sw)}else{const L=bl.map(b=>{const [x,y]=b.replace(' ft','').split('–').map(Number);return Math.abs(y-x)});const s=L.reduce((a,b)=>a+b,0);w=L.map(x=>x/s)}
  const raw=w.map(x=>x*tot),fl=raw.map(Math.floor);let left=tot-fl.reduce((a,b)=>a+b,0);raw.map((x,i)=>[x-fl[i],i]).sort((a,b)=>b[0]-a[0]).slice(0,left).forEach(([,i])=>fl[i]++);
  const out={};bl.forEach((b,i)=>out[b]=fl[i]);out._src=pats.length?'pattern of '+pats.length+' pile'+(pats.length>1?'s':''):'footage';return out}
-function pilePick(t){return `<label style="min-width:84px"><small>First pile</small><select id="t-${t.id}-pk" style="font:600 16px Barlow,system-ui,sans-serif;padding:7px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink)" onchange="A.movePile('${t.id}',this.value)">${allPiles().map(p=>`<option value="${p.key}"${p.key===t.pk0?' selected':''}>${esc(p.id||'?')}</option>`).join('')}</select></label>`}
+// Trucks belong to the day; a truck joins a pile when it's used there, carried there, or (keyed in later) by its arrival time
+function attach(t,pk){if(t.pk0)return;t.pk0=pk;log('truck_arrival',{truck:t.id,pk,attached:true})}
+// first pile whose grout started at/after the arrival (a truck that pulls up mid-pile waits for the next one); a pile not started yet takes it
+function pileByArrival(ms){for(const p of allPiles()){const g=stages(p).groutStart;if(!g)return p.key;if(g.t>=ms-60000)return p.key}return null}
+function pilePick(t){return `<label style="min-width:84px"><small>First pile</small><select id="t-${t.id}-pk" style="font:600 16px Barlow,system-ui,sans-serif;padding:7px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink)" onchange="A.movePile('${t.id}',this.value)">${t.pk0?'':'<option value="" selected>—</option>'}${allPiles().map(p=>`<option value="${p.key}"${p.key===t.pk0?' selected':''}>${esc(p.id||'?')}</option>`).join('')}</select></label>`}
 // Truck times: typed/stamped wins; missing ones estimated from today's average batch→arrival, and empty = grout finish of the pile its grout ran out on
 function lagMs(){const l=S.trucks.filter(t=>t.batch&&t.arrived).map(t=>{const [h,m]=t.batch.split(':').map(Number),d=new Date(t.arrived);d.setHours(h,m,0,0);return t.arrived-d.getTime()}).filter(x=>x>0&&x<4*3600000);return l.length?l.reduce((a,b)=>a+b,0)/l.length:null}
 // arrival time, or batch + today's average lag when it wasn't keyed (no yardage maths here, so samples can use it)
@@ -543,12 +551,12 @@ function parseTicket(text){const L=text.toUpperCase().split(/\n+/).map(x=>x.repl
 const SCF=[['num','Truck I.D. #',''],['qty','Load yd³','decimal'],['batch','Batch time','time'],['ticketNo','Ticket #',''],['mix','Mix',''],['sampleNo','Sample #','']];
 function scanShow(h){const el=$('scanv');el.innerHTML=h;el.style.display='block'}
 function scanClose(){$('scanv').style.display='none';$('scanv').innerHTML='';scanRes=null;render()}
-$('camIn').onchange=async e=>{const f=e.target.files&&e.target.files[0],t=tk(scanFor);if(!f||!t)return;
+$('camIn').onchange=async e=>{const f=e.target.files&&e.target.files[0],t=scanFor==='new'?{id:uid(),seq:'(new)',num:'',qty:'',batch:'',ticketNo:'',mix:'',sampleNo:'',_new:true}:tk(scanFor);if(!f||!t)return;
  scanShow(`<h2>Reading ticket for truck ${esc(tname(t))}</h2><div class="card" id="scanst">Preparing photo…</div>`);
  let prep;try{prep=await prepImage(f)}catch(_){scanShow(`<div class="card flag">Couldn't open that photo. Try again.</div><button onclick="scanClose()">Close</button>`);return}
- const id=t.id;try{await putPhoto(id,prep.photo);t.photo=true;save()}catch(_){}
+ const id=t.id;try{await putPhoto(id,prep.photo);if(!t._new){t.photo=true;save()}}catch(_){}
  let text='',err='';try{const w=await ocrWorker(p=>{const s=$('scanst');if(s)s.textContent='Reading ticket… '+p+'%'});const st=$('scanst');if(st)st.textContent='Reading ticket…';const r=await w.recognize(prep.ocr);text=r.data.text||''}catch(x){err=navigator.onLine?'Couldn\'t read the ticket.':'Reading tickets needs signal the first time, to load the reader onto this phone.'}
- const {out,src}=text?parseTicket(text):{out:{},src:{}};scanRes={id,out};
+ const {out,src}=text?parseTicket(text):{out:{},src:{}};scanRes={id,out,newT:t._new?t:null};
  const n=Object.keys(out).length;
  scanShow(`<h2>Ticket for truck ${esc(tname(t))}</h2>${err?`<div class="card flag">${err} The photo is saved. Type the numbers below.</div>`:`<div class="card">${n?`Found ${n} item${n>1?'s':''}. Check each one, fix anything wrong, then tap Use these.`:'Couldn\'t pick out any values. The photo is saved. Type the numbers below, or retake the photo flatter and closer.'}</div>`}
  ${SCF.map(([k,l,ty])=>{const cur=t[k]||'',v=out[k]??cur;return `<div class="card"><label><small>${l}${src[k]?' · found on ticket':cur?' · already entered':''}</small><input id="sc-${k}" ${ty==='time'?'type="time"':ty==='decimal'?'inputmode="decimal"':''} value="${esc(v)}" style="${src[k]?'border:2px solid var(--acc)':''}"></label>${src[k]?`<small style="color:var(--mut)">“${esc(src[k])}”</small>`:''}${out[k]!=null&&cur&&cur!==out[k]?`<small class="flag"> Was ${esc(cur)}</small>`:''}</div>`}).join('')}
@@ -556,7 +564,14 @@ $('camIn').onchange=async e=>{const f=e.target.files&&e.target.files[0],t=tk(sca
  <img id="scimg" style="width:100%;margin-top:10px;border-radius:8px" alt="Ticket photo">
  ${text?`<details style="margin-top:8px"><summary>Text read from the ticket</summary><pre style="white-space:pre-wrap;font-size:13px">${esc(text)}</pre></details>`:''}`);
  $('scimg').src=URL.createObjectURL(prep.photo)};
-function scanApply(){const t=scanRes&&tk(scanRes.id);if(!t)return scanClose();
+function scanApply(){if(scanRes&&scanRes.newT){const val=k=>$('sc-'+k).value.trim(),num=val('num'),tn=val('ticketNo');
+  // same truck already in the app (by truck I.D. or ticket #)? fill that one; otherwise add the truck, not on a pile yet
+  let t=S.trucks.find(x=>tn&&x.ticketNo===tn)||S.trucks.find(x=>num&&x.num===num&&!x.emptied)||S.trucks.find(x=>num&&x.num===num);const isNew=!t;
+  if(!t){t={id:scanRes.newT.id,seq:S.trucks.length?Math.max(...S.trucks.map(x=>+x.seq||0))+1:1,num:'',sampleNo:'',qty:S.defLoad?String(S.defLoad):'',batch:'',dispatch:'',arrived:null,emptied:null,strokes:0,samples:[],waste:'',tests:[],pk0:null,ps:{},used:{},carryIn:{},left:''};S.trucks.push(t)}
+  else getPhoto(scanRes.newT.id).then(b=>b&&putPhoto(t.id,b)).catch(()=>{});
+  t.photo=true;scanRes={id:t.id,out:scanRes.out};const r=_scanApply();msg(isNew?'Truck '+t.seq+' added from ticket'+(t.pk0?'':'. It joins a pile when its arrival time is known, it feeds the pump, or you start the next pile')+'.':'Ticket matched truck '+tname(t)+' and was added to it.');return r}
+ return _scanApply()}
+function _scanApply(){const t=scanRes&&tk(scanRes.id);if(!t)return scanClose();
  for(const [k] of SCF){const v=$('sc-'+k).value.trim();if(v!==(t[k]||'')){t[k]=v;log('edit',{truck:t.id,field:k,value:v,source:'ticket scan'})}}
  log('ticket_scan',{truck:t.id});save();msg('Ticket saved to truck '+tname(t));scanClose()}
 function pdb(){return new Promise((res,rej)=>{const r=indexedDB.open('groutPhotos',2);r.onupgradeneeded=()=>{const d=r.result;if(!d.objectStoreNames.contains('p'))d.createObjectStore('p');if(!d.objectStoreNames.contains('s'))d.createObjectStore('s')};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
@@ -665,6 +680,7 @@ function formApply(chain){const g=id=>{const e=$(id);return e?e.value.trim():''}
   if(!t&&v('num'))t=S.trucks.find(x=>x.num===v('num')&&!x.emptied)||pt.find(x=>x.num===v('num'))||null;
   if(!t&&!tno){const anyNo=[0,1].some(j=>g('fg-tno-'+j));if(anyNo)continue;t=pt[i]||null}
   if(!t){A.arrive();t=S.trucks[S.trucks.length-1];if(tno)t.seq=+tno||tno;t.arrived=null}
+  if(!t.pk0)attach(t,pk);
   // truck that came over from the previous pile: record what it brought
   if(t.pk0!==pk&&!t.carryIn[pk]&&prevK&&t.pk0!==undefined&&order.indexOf(t.pk0)<order.indexOf(pk)){t.carryIn[pk]={from:prevK,yd:leftAfter(t,prevK)}}
   if(!pev(null,pk).some(e=>e.truck===t.id))log('form_import',{truck:t.id});

@@ -287,8 +287,20 @@ const A={
  movePile(id,k){const t=tk(id);if(!t||!k||t.pk0===k)return;act(()=>{const o=orderKeys(),ni=o.indexOf(k);t.pk0=k;
   const a=S.ev.find(e=>e.type==='truck_arrival'&&e.truck===id);if(a)a.pk=k;else log('truck_arrival',{truck:id,pk:k});
   for(const c of Object.keys(t.carryIn))if(o.indexOf(c)<=ni)delete t.carryIn[c];
+  S.ev=S.ev.filter(e=>!(e.truck===id&&e.type==='truck_carry'&&o.indexOf(e.pk)<=ni)); // it wasn't on those earlier piles
   o.forEach((c,i)=>{if(i>ni&&!t.carryIn[c]&&pev(null,c).some(e=>e.truck===id))t.carryIn[c]={from:o[i-1],yd:null}});
   msg('Truck '+tname(t)+' now starts on pile '+pname(k)+'. Yardage re-worked.')})},
+ // Remove a pile (e.g. a skipped number). Anything logged on it moves to the next pile (or the previous if it was last).
+ dropPile(k,into){const o=orderKeys();if(o.length<2)return msg('This is the only pile.');const i=o.indexOf(k);if(i<0)return;into=into||o[i+1]||o[i-1];
+  const P=pileRec(k),Q=k===S.pile.key?null:S.piles.find(p=>p.key===k);
+  if(!into)return;if(!twoTap('dp'+k,'dp-'+k,'Tap again: delete pile '+(P.id||'?')))return;
+  act(()=>{if(k===S.pile.key){A.openPile(into)}const T=into===S.pile.key?S.pile:S.piles.find(p=>p.key===into);
+   for(const f of ['station','elev','wall','opCount','reviewed','myCount'])if((T[f]===''||T[f]==null)&&P[f])T[f]=P[f];T.st=Object.assign({},P.st||{},T.st||{});
+   S.ev.forEach(e=>{if(e.pk===k&&!['new_pile','open_pile'].includes(e.type))e.pk=into});S.ev=S.ev.filter(e=>e.pk!==k);
+   for(const t of S.trucks){if(t.pk0===k)t.pk0=into;delete t.carryIn[k];if(t.used[k]!=null&&t.used[into]==null)t.used[into]=t.used[k];delete t.used[k];if(t.ps[k]){t.ps[into]=(t.ps[into]||0)+t.ps[k];delete t.ps[k]}
+    for(const c of Object.keys(t.carryIn))if(t.carryIn[c].from===k)t.carryIn[c].from=o[i-1]||into;if(t.wastePk===k)t.wastePk=into;(t.tests||[]).forEach(x=>{if(x.pk===k)x.pk=into})}
+   S.piles=S.piles.filter(p=>p.key!==k);for(const t of S.trucks)if(t.pk0===into||t.carryIn[into]){const oo=orderKeys(),ii=oo.indexOf(into);if(t.pk0!==into&&oo.indexOf(t.pk0)>=ii)delete t.carryIn[into]}
+   resortPiles();msg('Pile '+(P.id||'?')+' deleted. Its entries moved to pile '+pname(into)+'.')})},
  scan(id){scanFor=id;const i=$('camIn');i.value='';i.click()},
  reset(){if(!twoTap('reset','rs','Tap again to delete everything'))return;try{localStorage.removeItem(KEY)}catch(e){}location.reload()}
 };
@@ -362,7 +374,7 @@ function render(){clearTimeout(rT);
  ].filter(Boolean).map(x=>'<div>'+x+'</div>').join('')}</div>`;
  h+=`<h2>Pile ${esc(S.pile.id)} timeline</h2>`+[...pev()].reverse().map(e=>`<div class="tl">${ft(e.t)} · ${e.type.replace('_',' ')}${e.name?' '+e.name:''}${e.depth!=null?' @ '+e.depth+' ft':''} · strokes ${e.strokes}${e.truck?' · '+esc(tname(tk(e.truck))||'truck'):''}${e.missing?' <span class=flag>missed</span>':''}</div>`).join('');
  if(S.piles.length)h+=`<h2>Other piles</h2>`+allPiles().filter(p=>p!==S.pile).reverse().map(p=>{const tr=pileTrucks(p.key),L=ledger(p.key);return `<div class="card"><div class="row"><b style="flex:1">Pile ${esc(p.id||'?')}</b><small>${esc(p.date)} · ${confStrokes(p.key).n} strokes</small></div>${tr.map(t=>{const u=usedOn(t,p.key),la=leftAfter(t,p.key);return `<div>Truck <b>${esc(tname(t))}</b> · used ${u===null?'?':r1(u)} yd³ · left ${la===null?'?':r1(la)}<br><small style="color:var(--mut)">batch ${t.batch?esc(t.batch):'—'} · arrived ${t.arrived?hm(t.arrived):'—'} · empty ${t.emptied&&pev(null,p.key).some(e=>e.truck===t.id&&(e.type==='truck_empty'||e.type==='truck_waste'))?hm(t.emptied):'—'}</small></div>`}).join('')||'<div style="color:var(--mut)">No trucks</div>'}
-  <div class="row"><input id="op-${p.key}" placeholder="Contractor count" inputmode="numeric" value="${esc(p.opCount)}" onchange="A.oldSet('${p.key}','opCount',this.value)"><input id="rv-${p.key}" placeholder="Agreed total" inputmode="numeric" value="${esc(p.reviewed)}" onchange="A.oldSet('${p.key}','reviewed',this.value)"></div><div class="row"><button style="flex:1" onclick="A.openPile('${p.key}')">Open pile ${esc(p.id||'')}</button><button class="sec" style="flex:1" onclick="showForm('${p.key}',true)">View form</button></div></div>`}).join('');
+  <div class="row"><input id="op-${p.key}" placeholder="Contractor count" inputmode="numeric" value="${esc(p.opCount)}" onchange="A.oldSet('${p.key}','opCount',this.value)"><input id="rv-${p.key}" placeholder="Agreed total" inputmode="numeric" value="${esc(p.reviewed)}" onchange="A.oldSet('${p.key}','reviewed',this.value)"></div><div class="row"><button style="flex:1" onclick="A.openPile('${p.key}')">Open pile ${esc(p.id||'')}</button><button class="sec" style="flex:1" onclick="showForm('${p.key}',true)">View form</button></div><button class="sec" id="dp-${p.key}" style="width:100%;min-height:40px;font-size:15px" onclick="A.dropPile('${p.key}')">Delete pile ${esc(p.id||'')} (skipped / mistake)</button></div>`}).join('');
  h+=`<h2>Settings</h2><div class="card"><div class="row"><label style="flex:1"><small>Anthropic API key for reading handwritten sheets (kept on this phone only, not in backups)</small><input id="s-ai" type="password" autocomplete="off" placeholder="${aiKey()?'Saved ••••'+esc(aiKey().slice(-4)):'sk-ant-…'}" onchange="setAiKey(this.value)"></label>${aiKey()?'<button class="sec" style="min-height:44px;margin-top:16px" onclick="setAiKey(\'\')">Remove</button>':''}</div>
  <div class="row"><input id="s-def" inputmode="decimal" style="max-width:90px" value="${esc(S.defLoad)}" onchange="A.cfg('defLoad',Number(this.value)||0)"><small>Default load yd³ for each new truck (scan or type to change one truck)</small></div>
  <div class="row"><input id="s-samp" inputmode="decimal" value="${esc(S.sampleYd)}" onchange="A.cfg('sampleYd',Number(this.value)||0)"><small>yd³ per sample</small></div>
@@ -694,6 +706,8 @@ async function preloadOne(D,done,PK){try{if(!D||!D.preloadId||done.includes(D.pr
   if(D.sheetFill){const ids=[];for(const p of D.sheetFill){const v=aiToGrid(p);gotoPile(v.pid[0]);if(v.len){const L=parseFloat(v.len[0]);if(L>0)setLen(S.pile,L)}formGrid(v,'(read by Claude)','',null);formApply(false);ids.push(v.pid[0])}
    for(const [seq,pid] of D.moveTrucks||[]){const t=S.trucks.filter(x=>String(x.seq)===String(seq)).pop(),pp=allPiles().find(x=>x.id===pid);if(t&&pp)A.movePile(t.id,pp.key)}
    const L=latestPile();if(L.key!==S.pile.key)A.openPile(L.key);done.push(D.preloadId);localStorage.setItem(PK,JSON.stringify(done));save();render();msg('Loaded your sheet: piles '+ids.join(', ')+'. Now on pile '+(S.pile.id||'?')+'.');return}
+  if(D.dropPiles){const notes=[];for(const [id,into] of D.dropPiles){const all=allPiles(),a=all.find(x=>x.id===id),b=all.find(x=>x.id===into);if(a&&b){armed['dp'+a.key]=Date.now();A.dropPile(a.key,b.key);notes.push('pile '+id+' removed (folded into '+into+')')}}
+   done.push(D.preloadId);localStorage.setItem(PK,JSON.stringify(done));save();render();if(notes.length)msg(notes.join('; ')+'.');return}
   if(D.renamePiles){const notes=[];for(const [from,to] of D.renamePiles){const all=allPiles(),pf=all.find(x=>x.id===from);if(pf&&!all.some(x=>x.id===to)){pf.id=to;notes.push('pile '+from+' is now pile '+to)}}
    resortPiles();done.push(D.preloadId);localStorage.setItem(PK,JSON.stringify(done));save();render();msg((notes.join('; ')||'No pile to rename')+(D.note?' '+D.note:'')+'.');return}
   if(D.patch){const notes=[];for(const p of D.trucks||[]){let t=S.trucks.filter(x=>String(x.seq)===String(p.seq)).sort((a,b)=>(b.arrived||0)-(a.arrived||0))[0];

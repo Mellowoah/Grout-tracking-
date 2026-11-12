@@ -53,7 +53,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <header><button id="allF" style="width:100%;min-height:44px;margin-bottom:6px;font-size:17px" onclick="showForm(allPiles()[0].key)">View all pile forms</button><div class="stat" id="stat"></div><div id="save">Loading…</div><div id="msg" hidden></div><button id="undoNP" class="sec" hidden style="width:100%;margin-top:6px;min-height:44px" onclick="A.undoPile()">Undo new pile</button></header>
 <main id="app"></main>
 <div id="tray"><div class="top"><div><b style="font-size:20px">Pile <span id="tp"></span></b><div class="num" id="cnt">0</div></div>
-<div class="row" style="flex-wrap:nowrap"><button class="sec" id="npTray" style="font-size:15px;padding:6px 8px;white-space:nowrap" onclick="A.newPile()" aria-label="Finish pile and start next">Next pile ▸</button><button class="sec" style="padding:6px 10px" id="fold" aria-label="Fold counter">▾</button></div></div>
+<div class="row" style="flex-wrap:nowrap"><button class="sec" style="font-size:15px;padding:6px 8px;white-space:nowrap" onclick="endDayOpen()">End day</button><button class="sec" id="npTray" style="font-size:15px;padding:6px 8px;white-space:nowrap" onclick="A.newPile()" aria-label="Finish pile and start next">Next pile ▸</button><button class="sec" style="padding:6px 10px" id="fold" aria-label="Fold counter">▾</button></div></div>
 <div id="tnone" class="trayw" hidden>No truck feeding: these strokes won't count toward any truck</div>
 <div id="trayBody"><div style="margin-top:6px"><small id="tint"></small></div></div></div>
 <input type="file" id="camIn" accept="image/*" hidden><input type="file" id="formIn" accept="image/*" hidden><input type="file" id="impIn" accept=".json,application/json" hidden>
@@ -62,7 +62,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v78';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v79';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -84,6 +84,7 @@ S.pile=Object.assign(blankPile(),{key:''},S.pile||{});S.pile.st=S.pile.st||{};
 if(S.drillMin==null)S.drillMin=3;if(S.groutMin==null)S.groutMin=7;if(S.defLoad==null)S.defLoad=9;if(S.sampleEvery==null)S.sampleEvery=50;if(!S.calUnit){S.calUnit='ft3';if(S.cal==='')S.cal='0.86'}
 // Pump output per stroke in yd³ (setting can be entered in ft³ or yd³)
 const calYd=()=>{const c=parseFloat(S.cal);return c>0?(S.calUnit==='ft3'?c/27:c):NaN};if(S.reinfMin==null)S.reinfMin=15;
+if(S.pile&&S.pile.dayStart&&!(S.piles||[]).length&&!(S.trucks||[]).length)S.pile.date=today();
 S.piles=S.piles||[];S.piles.forEach((p,i)=>{if(p.n==null)p.n=i});if(S.pile&&S.pile.n==null)S.pile.n=S.piles.length;S.ev=S.ev||[];S.trucks=S.trucks||[];S.orphan=S.orphan||0;S.warned=S.warned||{};
 // Older records: tag each event with the pile it belongs to (piles are separated by new_pile events)
 if(!S.pile.key||S.ev.some(e=>!e.pk)){let n=0;for(const e of S.ev){if(e.type==='new_pile')n++;if(!e.pk)e.pk='p'+n}S.piles.forEach((p,i)=>{if(!p.key)p.key='p'+i});if(!S.pile.key)S.pile.key='p'+n}
@@ -424,7 +425,7 @@ function render(){clearTimeout(rT);
  <div class="row"><input id="s-gm" inputmode="numeric" style="max-width:90px" value="${esc(S.groutMin)}" onchange="A.cfg('groutMin',Number(this.value)||0)"><small>Grout minutes until today's piles show otherwise (today: ${learnMin('groutStart','groutFinish','groutMin')})</small></div>
  <div class="row"><input id="s-rm" inputmode="numeric" style="max-width:90px" value="${esc(S.reinfMin)}" onchange="A.cfg('reinfMin',Number(this.value)||0)"><small>Reinforce minutes until today's piles show otherwise (today: ${learnMin('reinfStart','reinfFinish','reinfMin')})</small></div>
  <div class="row"><input id="s-lim" inputmode="numeric" value="${esc(S.limit)}" onchange="A.cfg('limit',Number(this.value)||120)"><small>Cutoff minutes from batch time. Confirm against your spec.</small></div>
- <div class="row"><button onclick="showForm()">View form</button><button onclick="exportX()">Export Excel</button><button class="sec" onclick="backup()">Backup JSON</button><button class="sec" onclick="reportOpen()">Report a problem</button><button class="sec" onclick="$('impIn').value='';$('impIn').click()">Import file</button><button class="sec" id="rs" onclick="A.reset()">Clear all</button></div></div>`;
+ <div class="row"><button onclick="showForm()">View form</button><button onclick="exportX()">Export Excel</button><button class="sec" onclick="backup()">Backup JSON</button><button class="sec" onclick="reportOpen()">Report a problem</button><button class="sec" onclick="pastDaysOpen()">Past days</button><button class="sec" onclick="$('impIn').value='';$('impIn').click()">Import file</button><button class="sec" id="rs" onclick="A.reset()">Clear all</button></div></div>`;
  h=h.slice(0,g4)+sec('settings','Settings & backup',h.slice(g4));
  $('app').innerHTML=h}
 document.addEventListener('focusout',()=>setTimeout(()=>{if(pend)render()},0));
@@ -765,6 +766,41 @@ async function reportSend(kind){const body=reportText(($('rp-note')||{}).value||
  const b=body.length>1800?body.slice(0,1800)+'\n…(cut short; use Copy report for all of it)':body;
  location.href=kind==='email'?'mailto:'+encodeURIComponent(REPORT_TO)+'?subject='+encodeURIComponent(sub)+'&body='+encodeURIComponent(b):'sms:?&body='+encodeURIComponent(sub+'\n'+b);
  try{localStorage.removeItem(ERRK)}catch(_){}errNew=0;const eb=$('errb');if(eb)eb.hidden=true;scanClose()}
+// ---- End of day: close out trucks, send the forms, save the day, start fresh for tomorrow
+const DAYK='day:'+(PROF?PROF+':':'');
+function daySummary(){const ps=allPiles(),strokes=ps.reduce((a,p)=>a+(confStrokes(p.key).n||0),0);let used=0,waste=0;ps.forEach(p=>{const L=ledger(p.key);used+=L.used||0;waste+=L.waste||0});
+ return{piles:ps.filter(p=>p.id||confStrokes(p.key).n),strokes,used,waste,trucks:S.trucks.length}}
+function endDayOpen(){const sm=daySummary(),open=S.trucks.filter(t=>!t.emptied&&(t.pk0||t.onsite)),d=diagnose();
+ scanShow(`<h2>End of day · ${esc(today())}</h2>
+ <div class="card"><b>${sm.piles.length} pile${sm.piles.length===1?'':'s'}</b> (${esc(sm.piles.map(p=>p.id||'?').join(', ')||'none')}) · ${sm.trucks} truck${sm.trucks===1?'':'s'}<br>Strokes ${sm.strokes} · used <b>${r1(sm.used)} yd³</b> · waste ${r1(sm.waste)} yd³</div>
+ ${open.length?`<div class="card"><b>Trucks still open</b><div style="color:var(--mut);font-size:14px">Their leftover won't carry into tomorrow. Choose for each:</div>${open.map(t=>{const c=calc(t),left=c.rem!==null&&c.rem>0.005?r1(c.rem):null;return `<div class="row"><span style="flex:1">Truck <b>${esc(tname(t))}</b>${left?' · '+left+' yd³ left':''}</span><select id="ed-${t.id}" style="padding:7px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:600 15px Barlow,system-ui,sans-serif">${left?'<option value="waste" selected>Leftover is waste</option>':''}<option value="empty"${left?'':' selected'}>Mark empty</option><option value="keep">Leave open</option></select></div>`}).join('')}</div>`:''}
+ ${d.length?`<div class="card"><b>Check before you finish</b>${d.map(x=>`<div>• ${esc(x)}</div>`).join('')}</div>`:''}
+ <div class="row"><button style="flex:1" onclick="endDayTrucks();showForm(allPiles()[0].key)">Send forms (Email / Text)</button></div>
+ <div class="row"><button class="sec" style="flex:1" onclick="endDayTrucks();exportX()">Export Excel</button><button class="sec" style="flex:1" onclick="endDayTrucks();backup()">Save backup</button></div>
+ <button id="edGo" style="width:100%;min-height:60px;margin-top:10px" onclick="endDayGo()">End day &amp; start fresh</button>
+ <div style="color:var(--mut);font-size:14px;margin-top:4px">The day is saved under Settings &amp; backup → Past days, where you can open it again. Settings stay; the pile number continues.</div>
+ <button class="sec" style="width:100%;margin-top:10px" onclick="scanClose()">Not yet</button>`)}
+function endDayTrucks(){let n=0;for(const t of S.trucks.filter(t=>!t.emptied&&(t.pk0||t.onsite))){const el=$('ed-'+t.id),v=el?el.value:'keep';if(v==='keep')continue;
+  if(S.active===t.id){closeSeg();S.active=null}if(!t.pk0)attach(t,S.pile.key);const c=calc(t);
+  if(v==='waste'&&c.rem!==null&&c.rem>0.005){log('truck_waste',{truck:t.id,yd:c.rem,prevWaste:t.waste,prevPk:t.wastePk||null,prevEmptied:t.emptied,prevActive:false,endOfDay:true});t.waste=String(+((parseFloat(t.waste)||0)+c.rem).toFixed(3));t.wastePk=S.pile.key;t.left='waste'}
+  else log('truck_empty',{truck:t.id,endOfDay:true});t.emptied=t.emptied||Date.now();delete t.pend;if(el)el.value='keep';n++}
+ if(n){S.pumping=false;save();render()}return n}
+async function endDayGo(){if(!twoTap('endday','edGo','Tap again: end the day and start fresh'))return;endDayTrucks();
+ const j=JSON.stringify(S),sm=daySummary(),last=allPiles().slice(-1)[0];
+ try{const db=await pdb();await new Promise((res,rej)=>{const tx=db.transaction('s','readwrite');tx.objectStore('s').put({t:Date.now(),date:today(),piles:sm.piles.map(p=>p.id),used:sm.used,j},DAYK+Date.now());tx.oncomplete=res;tx.onerror=()=>rej(tx.error)})}
+ catch(e){logErr(e,'end day');scanShow('<div class="card flag">Couldn\'t save the day on this phone, so nothing was cleared. Use Save backup first.</div><button onclick="scanClose()">Close</button>');return}
+ const keep={};for(const k of ['cal','calUnit','limit','sampleYd','sampleEvery','defLoad','drillMin','groutMin','reinfMin','hideIntro','aiModel'])if(S[k]!==undefined)keep[k]=S[k];
+ const np={...blankPile(),n:0,id:nextId(last&&last.id),len:last?last.len:23,marks:last?last.marks:[20,15,10,5,0],wall:last?last.wall:'',dayStart:true};
+ S={pile:np,strokes:0,segStart:0,pumping:false,active:null,trucks:[],ev:[],piles:[],warned:{},orphan:0,...keep};
+ try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}save();scanClose();scrollTo(0,0);msg('Day saved. Ready for tomorrow'+(np.id?' starting at pile '+np.id:'')+'.')}
+// Past days saved on the phone
+async function pastDays(){try{const db=await pdb();return await new Promise(res=>{const out=[],q=db.transaction('s').objectStore('s').openCursor();q.onsuccess=()=>{const c=q.result;if(!c)return res(out.sort((a,b)=>b.v.t-a.v.t));if(String(c.key).startsWith(DAYK)&&!String(c.key).slice(DAYK.length).includes(':'))out.push({k:c.key,v:c.value});c.continue()};q.onerror=()=>res(out)})}catch(e){return[]}}
+async function pastDaysOpen(){const ds=await pastDays();scanShow(`<h2>Past days</h2>${ds.length?ds.map(d=>`<div class="card"><b>${esc(d.v.date)}</b> · piles ${esc((d.v.piles||[]).join(', ')||'—')} · ${r1(d.v.used||0)} yd³<div class="row"><button class="sec" style="flex:1" onclick="pastDayGet('${d.k}','dl')">Download</button><button class="sec" id="pd-${esc(String(d.k).replace(/\W/g,''))}" style="flex:1" onclick="pastDayGet('${d.k}','open')">Open this day</button></div></div>`).join(''):'<div class="card">No past days yet. They appear here after End day.</div>'}<button class="sec" style="width:100%" onclick="scanClose()">Close</button>`)}
+async function pastDayGet(k,what){const db=await pdb(),d=await new Promise(r=>{const q=db.transaction('s').objectStore('s').get(k);q.onsuccess=()=>r(q.result);q.onerror=()=>r(null)});if(!d)return msg('That day wasn\'t found.');
+ if(what==='dl'){offer('grout-day-'+String(d.date).replace(/\W/g,'-')+'.json',d.j,()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([d.j],{type:'application/json'}));a.download='grout-day.json';a.click()});return}
+ if(!twoTap('pd'+k,'pd-'+String(k).replace(/\W/g,''),'Tap again: open '+d.date+' (today is saved first)'))return;
+ const cur=JSON.stringify(S);if(S.trucks.length||S.piles.length||confStrokes(S.pile.key).n){await new Promise(r=>{const tx=db.transaction('s','readwrite');tx.objectStore('s').put({t:Date.now(),date:today()+' (before opening '+d.date+')',piles:allPiles().map(p=>p.id),used:daySummary().used,j:cur},DAYK+Date.now());tx.oncomplete=r;tx.onerror=r})}
+ localStorage.setItem(KEY,d.j);location.reload()}
 function tick(){const now=Date.now();let worst=null;
  for(const t of S.trucks){if(t.emptied)continue;const co=cutoff(t);if(!co)continue;const r=co-now;if(r<=600000&&(!worst||r<worst.r))worst={t,r,co}}
  const a=$('alert');if(!worst){a.style.display='none';return}

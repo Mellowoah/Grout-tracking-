@@ -12,8 +12,8 @@ Open it once with signal; after that it works with no connection. After an updat
 
 ## How a pile runs
 1. **Pile setup**: pile #, wall, station, elev, length (next pile # fills in automatically).
-2. **Drill finish**: drill start (−3 min) and grout start fill in if missed.
-3. **Truck arrival**: load defaults to 9 yd³; **Scan ticket** reads truck I.D., load, batch time, ticket #, mix.
+2. **Drill start** when the drill goes down (never blocks anything). **Drill finish** starts the grout and the pump (grout runs about 7 min; finish fills in if missed).
+3. **Truck arrival**: load defaults to 9 yd³; **Scan ticket** reads truck I.D., load, batch time, ticket #, mix. A truck that carries a sample (first truck, then every 50 yd³) shows **Sample due**: report Taken or Not taken. **+ Add a truck** keys in a truck afterwards; **First pile** moves a truck to the pile it really started on and re-works yardage.
 4. **Grout start**: starts pumping and hooks up a truck (carried-over first).
 5. Count strokes on your own counter. Afterwards type them into **strokes by depth** (per band) or **My count** (total). The contractor's count / agreed total still overrides; yardage is split across trucks in the order they fed.
 6. **QC test**: grout temp and flow-cone stopwatch. **Sample taken** logs the sample.

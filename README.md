@@ -27,6 +27,11 @@ Open it once with signal; after that it works with no connection. After an updat
 8. **Closeout**: My count, contractor count / agreed total. If no band strokes are entered, the total is split over the depth bands using today's piles of the same length (else by footage), marked * on the form.
 9. **Next pile ▸**: one tap, never blocked. Open trucks carry their leftover to the next pile. 20 s undo.
 
+## Depth lines (buzz)
+- Opens by itself at **Grout start** (or tap **Depth lines** under the pile steps). Shows the next line in big numbers, about where your counter should be (from 0 at grout start), and a countdown to when the line should come up.
+- The phone buzzes (beeps and flashes on iPhone, which can't vibrate from a web app) 10 s before each line is expected, based on how fast today's piles came up and how this pile is going. The screen stays awake while it's open.
+- Tap **Passed __ ft** at each line. Typing the counter reading is optional: lines left blank fill in by themselves (split by the time each band took, else the expected rate), shown dashed / * on the form. Typed contractor count or agreed total still overrides.
+
 ## Problems & delays
 - **Problem / delay** (under the pile steps): **Stopped now** for a drill or pump breakdown, waiting on trucks, weather or other, with who caused it. It saves the time, strokes and depth band if grouting was under way, pauses the pump and shows a red **Back running** bar until work starts again. **It already happened** adds a stop and you type the times.
 - Stops list on the pile (edit kind, cause, times, what was done), on the form, in the Excel export (**Problems_delays**) and at End day with total down minutes by cause.

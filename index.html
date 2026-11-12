@@ -57,12 +57,12 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <div id="tnone" class="trayw" hidden>No truck feeding: these strokes won't count toward any truck</div>
 <div id="trayBody"><div style="margin-top:6px"><small id="tint"></small></div></div></div>
 <input type="file" id="camIn" accept="image/*" hidden><input type="file" id="formIn" accept="image/*" hidden><input type="file" id="impIn" accept=".json,application/json" hidden>
-<div id="scanv" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:31;overflow:auto;padding:calc(16px + env(safe-area-inset-top,0px)) 12px 24px"></div>
+<div id="depv" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:32;overflow:auto;padding:calc(12px + env(safe-area-inset-top,0px)) 12px 24px;transition:background .1s"></div><div id="scanv" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:31;overflow:auto;padding:calc(16px + env(safe-area-inset-top,0px)) 12px 24px"></div>
 <div id="formv" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:30;overflow:auto;padding:calc(16px + env(safe-area-inset-top,0px)) 8px 24px"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v81';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v82';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -135,7 +135,11 @@ const isLatest=()=>(S.pile.n??0)>=maxN();
 const latestPile=()=>allPiles().slice(-1)[0];
 const pileRec=pk=>pk===S.pile.key?{...S.pile,strokes:S.strokes}:(S.piles.find(p=>p.key===pk)||{});
 const bandSum=r=>{const v=Object.values(r.bandIn||{}).filter(x=>x!==''&&x!=null).map(Number);return v.length?v.reduce((a,b)=>a+b,0):null};
-const myCount=r=>{const m=num(r.myCount);return m!==null?m:(bandSum(r)??(r.strokes||0))};
+// From the depth lines: last counter reading + expected strokes for lines passed after it (auto when no reading was typed)
+function lineTotal(r){const L=r.lines||[];if(!L.length)return null;const all=bands(r),bi=r.bandIn||{};if(all.length&&all.every(b=>bi[dl2(b)]!=null))return null;
+ const last=L[L.length-1],withC=L.filter(l=>l.c!=null),lc=withC[withC.length-1];if(lc&&lc===last)return lc.c;const spf=spfOf(r);if(!spf)return lc?lc.c:null;
+ return Math.round(lc?lc.c+spf*(lc.d-last.d):spf*((Number(r.len)||0)-last.d))}
+const myCount=r=>{const m=num(r.myCount);if(m!==null)return m;const lt=lineTotal(r);return lt!=null?lt:(bandSum(r)??(r.strokes||0))};
 function confStrokes(pk){const r=pileRec(pk),a=num(r.reviewed),o=num(r.opCount);return a!==null?{n:a,src:'agreed total'}:o!==null?{n:o,src:'contractor count'}:{n:myCount(r),src:'my count'}}
 // Each truck's share of the pile = its strokes on my counter, scaled to the confirmed total
 function confOn(t,pk){const n=strokesOn(t,pk),my=pileRec(pk).strokes||0,cs=confStrokes(pk);
@@ -287,7 +291,7 @@ const A={
   // Grout start = start pumping (and feed a truck if none is); Grout finish = stop pumping
   if(k==='drillFinish'&&!S.pile.st.groutStart){S.pile.st.groutStart=S.pile.st.drillFinish;k='groutStart'}
   if(k==='groutStart'){if(!tk(S.active)){const open=S.trucks.filter(t=>!t.emptied&&!t.pend);const nx=open.find(t=>t.carryIn[S.pile.key])||open.find(t=>t.fed)||open.find(t=>!t.fed);if(nx)A.sw(nx.id)}
-   if(!S.pumping)A.pump();const t=tk(S.active);msg('Grout started: pumping'+(t?' from truck '+tname(t):'. No truck feeding: tap Feed pump on a truck')+'.')}
+   if(!S.pumping)A.pump();if($('depv').style.display!=='block')setTimeout(depthOpen,50);const t=tk(S.active);msg('Grout started: pumping'+(t?' from truck '+tname(t):'. No truck feeding: tap Feed pump on a truck')+'.')}
   if(k==='groutFinish'&&S.pumping){A.pump();msg('Grout finished: pumping stopped.')}},
  stageSet(k,v){if(!v){delete S.pile.st[k]}else{const [h,m]=v.split(':').map(Number);const d=new Date();d.setHours(h,m,0,0);S.pile.st[k]=d.getTime();log('stage',{name:k,edited:true})}save();render()},
  pset(f,v){S.pile[f]=v;save();render()},
@@ -354,7 +358,7 @@ function render(){clearTimeout(rT);
  const anyOnSite=S.trucks.some(t=>!t.emptied&&(t.pk0||t.onsite)),firstToday=!S.trucks.some(t=>t.arrived&&new Date(t.arrived).toDateString()===new Date().toDateString());
  // no truck there yet: nothing can grout, so the truck comes first
  if(!anyOnSite)h+=`<button style="width:100%;min-height:72px;font-size:24px;margin:10px 0 4px" onclick="A.arrive()">${firstToday?'First truck arrived':'Truck arrived'}</button><div style="color:var(--mut);font-size:14px;margin-bottom:6px">${firstToday?'Start the day here: tap when the first truck pulls up.':'No truck on site. Tap when the next one pulls up.'}</div>`;
- {const L=PL(),i=L.findIndex(e=>e.id===S.pile.id);h+=`<h2>Pile ${esc(S.pile.id)}${i>=0?` <small style="font-size:16px;color:var(--mut)">· ${i+1} of ${L.length} on today's list</small>`:''}</h2>`}h+=`<div class="card" style="${anyOnSite?'':'opacity:.45'}">${anyOnSite?'':'<div style="font-size:14px;margin-bottom:4px">Waiting for a truck. These still work if you need them.</div>'}`+SG.map(([k,l])=>`<div class="row"><button class="sec" style="flex:1" onclick="A.stage('${k}')">${l}</button><label style="max-width:130px"><input id="st-${k}" type="time" value="${tv(k)}" style="${SV[k]&&SV[k].est?'font-style:italic;color:var(--mut);border-style:dashed':''}" onchange="A.stageSet('${k}',this.value)"></label></div>`).join('')+`<div class="row" style="margin-top:6px"><button style="flex:1" onclick="A.arrive()">Truck arrival</button><button style="flex:1" onclick="A.ret()">Grout return</button></div><button class="sec" style="width:100%;margin-top:6px;border-color:var(--red)" onclick="issOpen()">${oi?'Stopped · Back running / send a truck back':'Problem / delay'}</button><button id="undoLast" class="sec" style="width:100%;min-height:44px;margin-top:6px" onclick="A.undoLast()">Undo last action</button><small style="color:var(--mut)">Dashed times are estimates from today's piles; tap to set.</small></div>`+issH(S.pile.key);
+ {const L=PL(),i=L.findIndex(e=>e.id===S.pile.id);h+=`<h2>Pile ${esc(S.pile.id)}${i>=0?` <small style="font-size:16px;color:var(--mut)">· ${i+1} of ${L.length} on today's list</small>`:''}</h2>`}h+=`<div class="card" style="${anyOnSite?'':'opacity:.45'}">${anyOnSite?'':'<div style="font-size:14px;margin-bottom:4px">Waiting for a truck. These still work if you need them.</div>'}`+SG.map(([k,l])=>`<div class="row"><button class="sec" style="flex:1" onclick="A.stage('${k}')">${l}</button><label style="max-width:130px"><input id="st-${k}" type="time" value="${tv(k)}" style="${SV[k]&&SV[k].est?'font-style:italic;color:var(--mut);border-style:dashed':''}" onchange="A.stageSet('${k}',this.value)"></label></div>`).join('')+`<div class="row" style="margin-top:6px"><button style="flex:1" onclick="A.arrive()">Truck arrival</button><button style="flex:1" onclick="A.ret()">Grout return</button></div><button style="width:100%;margin-top:6px" onclick="depthOpen()">Depth lines${nextLine(S.pile)!=null?' · next '+nextLine(S.pile)+' ft':' · done'}</button><button class="sec" style="width:100%;margin-top:6px;border-color:var(--red)" onclick="issOpen()">${oi?'Stopped · Back running / send a truck back':'Problem / delay'}</button><button id="undoLast" class="sec" style="width:100%;min-height:44px;margin-top:6px" onclick="A.undoLast()">Undo last action</button><small style="color:var(--mut)">Dashed times are estimates from today's piles; tap to set.</small></div>`+issH(S.pile.key);
  h+=sec('pile','Pile '+esc(S.pile.id||'?')+' details'+(S.pile.station?' · Sta '+esc(S.pile.station):'')+' · scan / type a form',setupH);
  h+=`<h2>Trucks</h2><div class="row" style="margin-bottom:6px"><button class="sec" style="flex:1" onclick="A.addTruck()">+ Add a truck</button><button class="sec" style="flex:1" onclick="A.scan('new')">+ Scan a ticket</button></div>`;
  const loose=ts.filter(t=>!t.pk0&&!t.onsite&&!t.rejected),here=t=>!t.rejected&&((!t.pk0&&t.onsite&&!t.emptied)||t.pk0&&(!t.emptied||pev().some(e=>e.truck===t.id&&e.type!=='edit'))),shown=ts.filter(here),olderL=ts.filter(t=>t.pk0&&!here(t)).sort((a,b)=>(a.seq||0)-(b.seq||0)),older=olderL.length;
@@ -437,14 +441,16 @@ function testFor(t,pk){const ts=t.tests||[];if(!ts.length)return{};const here=ts
 // Split a pile's total strokes over its depth bands when no depths were marked:
 // copy the pattern of other piles with the same bands that have readings, else split by footage. Returns {band:count} or null.
 function bandCounts(q){const bl=bands(q),iv=intervals(q),bi=q.bandIn||{};const a=bl.map(b=>{const r=iv.find(r=>r.band===b);return r&&r.d!=null?r.d:(bi[dl2(b)]??null)});return a.every(x=>x!=null&&x>=0)&&a.reduce((x,y)=>x+y,0)>0?a:null}
-function estBands(P){const all=bands(P),bi=P.bandIn||{};if(!all.length||intervals(P).length)return null;
- const bl=all.filter(b=>bi[dl2(b)]==null);if(!bl.length)return null; // only the bands left blank
- const tot=Math.round((confStrokes(P.key).n||0)-all.filter(b=>bi[dl2(b)]!=null).reduce((a,b)=>a+Number(bi[dl2(b)]),0));if(!(tot>0))return null;
- const ix=bl.map(b=>all.indexOf(b));const sig=JSON.stringify(bl);
+function estBands(P){const all=bands(P),bi=P.bandIn||{},ba=P.bandAuto||{};if(!all.length||intervals(P).length)return null;
+ const blank=all.filter(b=>bi[dl2(b)]==null);if(!blank.length)return null; // only the bands left blank
+ // stretches split from a later counter reading (depth lines) are already worked out
+ const fixed=blank.filter(b=>ba[dl2(b)]!=null),bl=blank.filter(b=>ba[dl2(b)]==null),pre={};fixed.forEach(b=>pre[b]=ba[dl2(b)]);if(!bl.length)return{...pre,_src:'counter readings at the lines'};
+ const tot=Math.round((confStrokes(P.key).n||0)-all.filter(b=>bi[dl2(b)]!=null).reduce((a,b)=>a+Number(bi[dl2(b)]),0)-fixed.reduce((a,b)=>a+Number(ba[dl2(b)]),0));if(!(tot>0)){const spf=lines(P).length?spfOf(P):null;if(!spf)return null;const o={};bl.forEach(b=>{const[x,y]=b.replace(' ft','').split('–').map(Number);o[b]=Math.round(spf*Math.abs(y-x))});o._src='expected rate (no count yet)';return{...pre,...o}}
+ const ix=bl.map(b=>all.indexOf(b));const btw=bandW(P,bl);const sig=JSON.stringify(bl);
  const pats=allPiles().filter(q=>q.key!==P.key&&JSON.stringify(bands(q))===JSON.stringify(all)).map(bandCounts).filter(Boolean).map(a=>{const s=a.reduce((x,y)=>x+y,0);return a.map(x=>x/s)});
- let w;if(pats.length){w=ix.map(i=>pats.reduce((a,p)=>a+p[i],0)/pats.length);const sw=w.reduce((a,b)=>a+b,0)||1;w=w.map(x=>x/sw)}else{const L=bl.map(b=>{const [x,y]=b.replace(' ft','').split('–').map(Number);return Math.abs(y-x)});const s=L.reduce((a,b)=>a+b,0);w=L.map(x=>x/s)}
+ let w;if(btw){const sw=btw.reduce((a,b)=>a+b,0);w=btw.map(x=>x/sw)}else if(pats.length){w=ix.map(i=>pats.reduce((a,p)=>a+p[i],0)/pats.length);const sw=w.reduce((a,b)=>a+b,0)||1;w=w.map(x=>x/sw)}else{const L=bl.map(b=>{const [x,y]=b.replace(' ft','').split('–').map(Number);return Math.abs(y-x)});const s=L.reduce((a,b)=>a+b,0);w=L.map(x=>x/s)}
  const raw=w.map(x=>x*tot),fl=raw.map(Math.floor);let left=tot-fl.reduce((a,b)=>a+b,0);raw.map((x,i)=>[x-fl[i],i]).sort((a,b)=>b[0]-a[0]).slice(0,left).forEach(([,i])=>fl[i]++);
- const out={};bl.forEach((b,i)=>out[b]=fl[i]);out._src=pats.length?'pattern of '+pats.length+' pile'+(pats.length>1?'s':''):'footage';return out}
+ const out={...pre};bl.forEach((b,i)=>out[b]=fl[i]);out._src=btw?'time each band took':pats.length?'pattern of '+pats.length+' pile'+(pats.length>1?'s':''):'footage';return out}
 // Trucks belong to the day; a truck joins a pile when it's used there, carried there, or (keyed in later) by its arrival time
 function attach(t,pk){if(t.pk0)return;t.pk0=pk;log('truck_arrival',{truck:t.id,pk,attached:true})}
 // first pile whose grout started at/after the arrival (a truck that pulls up mid-pile waits for the next one); a pile not started yet takes it
@@ -579,6 +585,77 @@ function rejectedH(){const R=S.trucks.filter(t=>t.rejected);if(!R.length)return'
 // Day totals for End day and the export
 function issDay(){const L=ISS().filter(x=>x.start),by={};let tot=0;for(const x of L){const m=issMin(x);if(m==null)continue;tot+=m;const k=x.by||'Not set';by[k]=(by[k]||0)+m}
  return{L,tot,by,rej:S.trucks.filter(t=>t.rejected)}}
+// ---- Depth lines while grouting: a big "next line" screen, where the counter should be at the next line,
+// and a buzz (vibrate + beep + flash) just before the line should come up. Tap as each line passes; the counter
+// reading is optional. Bands with no reading are filled in automatically (by the time each band took, see estBands).
+const lines=P=>P.lines||(P.lines=[]);
+const lineMarks=P=>{const L=Number(P.len)||0,out=[];let prev=L;for(const m of P.marks){if(m!==prev)out.push(m);prev=m}return out};
+const nextLine=P=>lineMarks(P)[lines(P).length];
+const bandOf=(P,d)=>{const ms=lineMarks(P),i=ms.indexOf(d);return band(i>0?ms[i-1]:Number(P.len)||0,d)};
+const gStart=P=>{const g=(P.st||{}).groutStart;return g||null};
+// Strokes per foot expected: this pile's own readings so far, else today's piles, else diameter × how today's piles ran
+let spfGuard=0;
+function spfOf(P){const len=Number(P.len)||0,withC=lines(P).filter(l=>l.c!=null);
+ if(withC.length){const l=withC[withC.length-1],ft=len-l.d;if(ft>0&&l.c>0)return l.c/ft}
+ if(!spfGuard){spfGuard++;try{let n=0,f=0;for(const q of S.piles){if(q.key===P.key)continue;const c=confStrokes(q.key).n,L=Number(q.len)||0;if(c>0&&L>0){n+=c;f+=L}}if(f>0)return n/f}finally{spfGuard--}}
+ const e=planOf(P.id)||{},th=theoYd(P.dia||e.dia,1);return th&&calYd()>0?th*(planEst().ratio||1)/calYd():null}
+// Seconds per foot of pulling up: this pile so far, else today's piles' line times, else today's grout times, else the grout minutes setting
+function spsOf(P){const len=Number(P.len)||0,g=gStart(P),done=lines(P).filter(l=>l.t);
+ if(g&&done.length){const l=done[done.length-1],ft=len-l.d;if(ft>0&&l.t>g)return (l.t-g)/1000/ft}
+ let s=0,f=0;for(const q of S.piles){const g2=gStart(q),L=Number(q.len)||0,ls=lines(q).filter(l=>l.t);if(g2&&ls.length){const l=ls[ls.length-1];if(l.t>g2&&L-l.d>0){s+=(l.t-g2)/1000;f+=L-l.d;continue}}
+  const gf=(q.st||{}).groutFinish;if(g2&&gf&&gf>g2&&L>0){s+=(gf-g2)/1000;f+=L}}
+ if(f>0)return s/f;const m=learnMin('groutStart','groutFinish','groutMin');return len>0&&m>0?m*60/len:null}
+// When the next line should come up, and where the counter (from 0 at grout start) should be
+function linePredict(P){const d=nextLine(P);if(d==null)return null;const len=Number(P.len)||0,L=lines(P),last=L[L.length-1],from=last?last.d:len,ft=from-d;
+ const sps=spsOf(P),spf=spfOf(P),lastT=last?last.t:gStart(P),withC=L.filter(l=>l.c!=null),lc=withC[withC.length-1];
+ const at=lastT&&sps?lastT+ft*sps*1000:null,ctr=spf?Math.round(lc?lc.c+spf*(lc.d-d):spf*(len-d)):null;
+ return{d,at,ctr,band:bandOf(P,d),spf}}
+let depT=null,depBuzzed=null,depAC=null,depWL=null;
+function depthOpen(){const P=S.pile;if(!lineMarks(P).length)return msg('Set the pile length first.');$('depv').style.display='block';
+ try{depAC=depAC||new (window.AudioContext||window.webkitAudioContext)();depAC.resume&&depAC.resume()}catch(e){}
+ try{navigator.wakeLock&&navigator.wakeLock.request('screen').then(w=>depWL=w).catch(()=>{})}catch(e){}
+ clearInterval(depT);depT=setInterval(depthTick,500);depthRender()}
+function depthClose(){$('depv').style.display='none';clearInterval(depT);depT=null;try{depWL&&depWL.release()}catch(e){}depWL=null;render()}
+function buzz(){try{navigator.vibrate&&navigator.vibrate([250,120,250,120,400])}catch(e){}
+ if(S.beep!==false)try{const a=depAC;if(a){[0,0.25,0.5].forEach(o=>{const os=a.createOscillator(),g=a.createGain();os.frequency.value=1250;g.gain.value=0.25;os.connect(g);g.connect(a.destination);os.start(a.currentTime+o);os.stop(a.currentTime+o+0.16)})}}catch(e){}
+ const v=$('depv');v.style.background='var(--acc)';setTimeout(()=>v.style.background='',350);setTimeout(()=>v.style.background='var(--acc)',700);setTimeout(()=>v.style.background='',1050)}
+const BUZZ_AHEAD=10; // seconds before the line is expected
+function depthTick(){if($('depv').style.display==='none')return;const P=S.pile,p=linePredict(P);
+ if(p&&p.at){const key=P.key+':'+p.d;if(depBuzzed!==key&&Date.now()>=p.at-BUZZ_AHEAD*1000){depBuzzed=key;buzz()}}
+ const c=$('dl-cd');if(c&&p)c.innerHTML=cdText(p)}
+function cdText(p){if(!p.at)return gStart(S.pile)?'':'Tap <b>Grout start</b> to start the timing';const s=Math.round((p.at-Date.now())/1000);
+ return s>0?'Expected in <b class="num" style="font-size:28px">'+Math.floor(s/60)+':'+String(s%60).padStart(2,'0')+'</b>':'<b>Should be here now'+(s<-20?' ('+Math.floor(-s/60)+':'+String(-s%60).padStart(2,'0')+' late)':'')+'</b>'}
+function depthRender(){const P=S.pile,p=linePredict(P),L=lines(P),done=!p;
+ $('depv').innerHTML=`<div class="row" style="justify-content:space-between"><b style="font-size:20px">Pile ${esc(P.id||'?')} · depth lines</b><button class="sec" style="min-height:44px" onclick="depthClose()">Close</button></div>
+ ${done?`<div class="card" style="text-align:center"><div style="font:800 40px 'Barlow Condensed',system-ui,sans-serif">All lines done</div></div><button style="width:100%;min-height:80px;font-size:24px" onclick="A.stage('groutFinish');depthClose()">Grout finish · pump off</button>`:`
+ <div class="card" style="text-align:center"><small style="color:var(--mut)">Next line</small><div class="num" style="font-size:96px;line-height:1">${p.d} ft</div>
+ ${p.ctr!=null?`<div style="font-size:22px">Counter about <b class="num" style="font-size:40px">${p.ctr}</b></div><small style="color:var(--mut)">strokes from 0 at grout start · ~${(p.spf*5).toFixed(0)} per 5 ft</small>`:'<small style="color:var(--mut)">Counter estimate shows after the first reading, or once today\'s piles or a diameter give a rate.</small>'}
+ <div id="dl-cd" style="margin-top:8px;font-size:20px">${cdText(p)}</div></div>
+ ${gStart(P)?'':`<button style="width:100%;margin-bottom:8px" onclick="A.stage('groutStart');depthRender()">Grout start · pump on</button>`}
+ <label><small>Counter at this line (leave blank and it fills in by itself)</small><input id="dl-c" type="number" inputmode="numeric" style="font-size:28px;padding:10px" placeholder="${p.ctr!=null?'≈ '+p.ctr:''}"></label>
+ <button style="width:100%;min-height:120px;font-size:34px;margin-top:8px" onclick="linePass()">Passed ${p.d} ft</button>
+ <div class="row"><button class="sec" style="flex:1" onclick="linePass(true)">Missed it</button><button class="sec" style="flex:1" onclick="lineUndo()"${L.length?'':' disabled'}>Undo last line</button></div>`}
+ ${L.length?`<div class="card">${L.slice().reverse().map(l=>{const b=bandOf(P,l.d),v=(P.bandIn||{})[dl2(b)];return `<div>${esc(b)} · ${l.t?ft(l.t):'missed'} · ${v!=null?'<b>'+v+'</b> strokes':'auto'}</div>`}).join('')}</div>`:''}
+ <div class="row"><button class="sec" style="flex:1;min-height:44px" onclick="S.beep=S.beep===false;save();depthRender()">Beep ${S.beep===false?'off':'on'}</button><button class="sec" style="flex:1;min-height:44px" onclick="buzz()">Test buzz</button></div>
+ <small style="color:var(--mut)">Buzzes ${BUZZ_AHEAD} s before each line is expected (from how fast today's piles came up). Keep this screen open; the phone stays awake.${navigator.vibrate?'':' This phone can\'t vibrate from a web app: it beeps and flashes instead.'}</small>`}
+function linePass(missed){const P=S.pile,d=nextLine(P);if(d==null)return;const el=$('dl-c'),v=el&&!missed?el.value.trim():'',c=v===''?null:Number(v),L=lines(P);
+ const l={d,t:missed?null:Date.now(),c:c!=null&&c>=0?c:null};
+ // a reading gives this band's strokes when the line before it had one too (or this is the first line, counting from 0)
+ L.push(l);
+ if(l.c!=null){let j=L.length-2;while(j>=0&&L[j].c==null)j--;const pc=j>=0?L[j].c:0,seg=L.slice(j+1).map(x=>bandOf(P,x.d));
+  if(l.c>=pc){if(seg.length===1){P.bandIn=P.bandIn||{};P.bandIn[dl2(seg[0])]=l.c-pc;l.set=true}
+   else{// lines in between had no reading: split this stretch by the time each band took (else by footage)
+    const tw=bandW(P,seg)||seg.map(b=>{const[x,y]=b.replace(' ft','').split('–').map(Number);return Math.abs(y-x)}),sw=tw.reduce((a,b)=>a+b,0)||1,raw=tw.map(x=>x/sw*(l.c-pc)),fl=raw.map(Math.floor);
+    let left=(l.c-pc)-fl.reduce((a,b)=>a+b,0);raw.map((x,i)=>[x-fl[i],i]).sort((a,b)=>b[0]-a[0]).slice(0,left).forEach(([,i])=>fl[i]++);
+    P.bandAuto=P.bandAuto||{};l.auto=seg.map((b,i)=>{P.bandAuto[dl2(b)]=fl[i];return dl2(b)})}}}log('line',{depth:d,missed:!!missed,reading:l.c});vib();depBuzzed=null;save();depthRender();if(!nextLine(P))msg('All depth lines done on pile '+(P.id||'?')+'.')}
+function lineUndo(){const P=S.pile,L=lines(P),l=L.pop();if(!l)return;if(l.set&&P.bandIn)delete P.bandIn[dl2(bandOf(P,l.d))];(l.auto||[]).forEach(k=>{if(P.bandAuto)delete P.bandAuto[k]});depBuzzed=null;save();depthRender()}
+// Time each band took (from the line taps), for splitting a total over bands with no reading
+// Weights for splitting strokes over bands: mostly the time each took, partly footage (so a late tap can't zero a band)
+function bandW(P,bl){const fz=bl.map(b=>{const[x,y]=b.replace(' ft','').split('–').map(Number);return Math.abs(y-x)}),sf=fz.reduce((a,b)=>a+b,0)||1,tw=bandTimes(P,bl);
+ if(!tw)return null;const st=tw.reduce((a,b)=>a+b,0)||1;return tw.map((x,i)=>0.7*x/st+0.3*fz[i]/sf)}
+function bandTimes(P,bl){const g=gStart(P),len=Number(P.len)||0,L=lines(P),tAt=d=>d===len?g:((L.find(l=>l.d===d)||{}).t||null);
+ const out=bl.map(b=>{const[x,y]=b.replace(' ft','').split('–').map(Number),hi=Math.max(x,y),lo=Math.min(x,y),a=tAt(hi),z=tAt(lo);return a&&z&&z>a?z-a:null});
+ return out.every(x=>x!=null)?out:null}
 function pilePick(t){return `<label style="min-width:84px"><small>First pile</small><select id="t-${t.id}-pk" style="font:600 16px Barlow,system-ui,sans-serif;padding:7px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink)" onchange="A.movePile('${t.id}',this.value)">${t.pk0?'':'<option value="" selected>—</option>'}${allPiles().map(p=>`<option value="${p.key}"${p.key===t.pk0?' selected':''}>${esc(p.id||'?')}</option>`).join('')}</select></label>`}
 // Truck times: typed/stamped wins; missing ones estimated from today's average batch→arrival, and empty = grout finish of the pile its grout ran out on
 function lagMs(){const l=S.trucks.filter(t=>t.batch&&t.arrived).map(t=>{const [h,m]=t.batch.split(':').map(Number),d=new Date(t.arrived);d.setHours(h,m,0,0);return t.arrived-d.getTime()}).filter(x=>x>0&&x<4*3600000);return l.length?l.reduce((a,b)=>a+b,0)/l.length:null}

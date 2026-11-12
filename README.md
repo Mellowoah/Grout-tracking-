@@ -18,7 +18,7 @@ Open it once with signal; after that it works with no connection. After an updat
 5. Strokes come from the physical counter: at each mark type the **counter reading** and tap **Mark depth**. Each band shows strokes and yd³ (× 0.86 ft³). Header shows yd³ and ~strokes left on the feeding truck.
 6. **QC test**: grout temp and flow-cone stopwatch. **Sample taken** logs the sample.
 7. **Grout return**, then **Grout finish** (stops pumping; reinforce start = grout finish, finish +15 min if missed).
-8. **Closeout**: contractor count / agreed total. This always overrides my count for yardage.
+8. **Closeout**: My count (total strokes), contractor count / agreed total. The contractor's count always overrides mine. If no depths were marked, the total is split over the depth bands using today's piles of the same length (else by footage), marked * on the form.
 9. **Next pile ▸**: one tap, never blocked. Open trucks carry their leftover to the next pile. 20 s undo.
 
 ## Yardage rules

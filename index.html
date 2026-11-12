@@ -320,11 +320,11 @@ function render(){clearTimeout(rT);
  if(older)h+=`</details>`;
  const L=ledger(),f1=v=>v===null?'<span class=flag>?</span>':r1(v);
  h+=`<div class="card"><b>Pile ${esc(S.pile.id)} yardage (yd³)</b><br>Arrived ${r1(L.arr)} + carried in ${r1(L.cin)} − used ${f1(L.used)} − samples ${r1(L.samp)} − waste ${r1(L.waste)} = <b>left on trucks ${f1(L.left)}</b>${L.used===null?'<div class=flag>Type used yd³ on each truck, or set pump calibration</div>':''}${S.orphan?`<div class=flag>${S.orphan} strokes not on any truck</div>`:''}</div>`;
- const iv=intervals();
- h+=`<h2>Pile ${esc(S.pile.id)} intervals · total ${S.strokes}</h2><div class="wrap"><table><tr><th>Band</th><th>Counter</th><th>Strokes</th><th>yd³ (×${esc(S.cal)} ${S.calUnit==='ft3'?'ft³':'yd³'})</th><th>Flag</th></tr>${bands().map(b=>{const r=iv.find(r=>r.band===b);return `<tr><td>${b}</td><td>${r?r.cum:''}</td><td>${r&&r.d!=null?r.d:''}</td><td>${r&&r.d!=null&&calYd()>0?r1(r.d*calYd()):''}</td><td class="flag">${r?esc(r.flag):''}</td></tr>`}).join('')}<tr><td><b>Total</b></td><td></td><td><b>${S.strokes}</b></td><td><b>${calYd()>0?r1(S.strokes*calYd()):''}</b></td><td></td></tr></table></div>`;
+ const iv=intervals(),EBs=estBands(S.pile);
+ h+=`<h2>Pile ${esc(S.pile.id)} intervals · total ${S.strokes}</h2><div class="wrap"><table><tr><th>Band</th><th>Counter</th><th>Strokes</th><th>yd³ (×${esc(S.cal)} ${S.calUnit==='ft3'?'ft³':'yd³'})</th><th>Flag</th></tr>${bands().map(b=>{const r=iv.find(r=>r.band===b),e=EBs&&EBs[b];return `<tr><td>${b}</td><td>${r?r.cum:''}</td><td>${r&&r.d!=null?r.d:e!=null?'≈'+e:''}</td><td>${r&&r.d!=null&&calYd()>0?r1(r.d*calYd()):e!=null&&calYd()>0?'≈'+r1(e*calYd()):''}</td><td class="flag">${r?esc(r.flag):''}</td></tr>`}).join('')}<tr><td><b>Total</b></td><td></td><td><b>${S.strokes}</b></td><td><b>${calYd()>0?r1(S.strokes*calYd()):''}</b></td><td></td></tr></table></div>`;
  const gr=pev('grout_return');
  if(gr.length)h+=`<h2>Grout return</h2>`+gr.map(e=>`<div class="row">${ft(e.t)} · strokes ${e.strokes}<input id="gr-${e.id}" placeholder="Depth ft (fill later)" inputmode="decimal" value="${e.depth??''}" onchange="A.setDepth('${e.id}',this.value)">${e.depth==null?'<span class=flag>missing</span>':''}</div>`).join('');
- h+=`<h2>Closeout</h2><div class="card"><div>My count <b>${S.strokes}</b> · used yd³ figured from <b>${confStrokes(S.pile.key).src} (${confStrokes(S.pile.key).n})</b></div><div class="row"><input id="f-op" placeholder="Contractor count" inputmode="numeric" value="${esc(S.pile.opCount)}" onchange="A.pset('opCount',this.value)"><input id="f-rev" placeholder="Agreed total" inputmode="numeric" value="${esc(S.pile.reviewed)}" onchange="A.pset('reviewed',this.value)"></div><div class="row"><input id="f-note" placeholder="Explanation" value="${esc(S.pile.note)}" onchange="A.pset('note',this.value)"></div>${S.pile.opCount&&Number(S.pile.opCount)!==S.strokes?'<div class=flag>Counts differ by '+(Number(S.pile.opCount)-S.strokes)+'</div>':''}</div>`;
+ h+=`<h2>Closeout</h2><div class="card"><div class="row"><label style="flex:1"><small>My count (total strokes on my counter)</small><input id="f-my" type="number" inputmode="numeric" value="${S.strokes||''}" onchange="A.setCounter(this.value)"></label></div><div>Used yd³ figured from <b>${confStrokes(S.pile.key).src} (${confStrokes(S.pile.key).n})</b>${EBs?` · no depths marked, so strokes are split by the ${esc(EBs._src)} (≈ in the table)`:''}</div><div class="row"><input id="f-op" placeholder="Contractor count" inputmode="numeric" value="${esc(S.pile.opCount)}" onchange="A.pset('opCount',this.value)"><input id="f-rev" placeholder="Agreed total" inputmode="numeric" value="${esc(S.pile.reviewed)}" onchange="A.pset('reviewed',this.value)"></div><div class="row"><input id="f-note" placeholder="Explanation" value="${esc(S.pile.note)}" onchange="A.pset('note',this.value)"></div>${S.pile.opCount&&Number(S.pile.opCount)!==S.strokes?'<div class=flag>Counts differ by '+(Number(S.pile.opCount)-S.strokes)+'</div>':''}</div>`;
  h+=`<h2>Review</h2><div class="card">${[
   ts.filter(t=>!t.emptied).length+' trucks not emptied',SG.filter(([k])=>!SV[k]).length+' pile stages not stamped',SG.filter(([k])=>SV[k]&&SV[k].est).length?SG.filter(([k])=>SV[k]&&SV[k].est).length+' stage times filled in automatically (dashed)':'',
   iv.filter(r=>r.flag==='MISSING').length+' missing depth marks',
@@ -352,6 +352,15 @@ document.addEventListener('focusout',()=>setTimeout(()=>{if(pend)render()},0));
 // QC test shown for a truck on a pile: one run on that pile, else its latest from an earlier pile
 function testFor(t,pk){const ts=t.tests||[];if(!ts.length)return{};const here=ts.filter(x=>x.pk===pk);if(here.length)return here[0];const o=orderKeys(),i=o.indexOf(pk);
  const before=ts.filter(x=>!x.pk||o.indexOf(x.pk)<i);return before.length?before[before.length-1]:{}}
+// Split a pile's total strokes over its depth bands when no depths were marked:
+// copy the pattern of other piles with the same bands that have readings, else split by footage. Returns {band:count} or null.
+function bandCounts(q){const bl=bands(q),iv=intervals(q),bi=q.bandIn||{};const a=bl.map(b=>{const r=iv.find(r=>r.band===b);return r&&r.d!=null?r.d:(bi[dl2(b)]??null)});return a.every(x=>x!=null&&x>=0)&&a.reduce((x,y)=>x+y,0)>0?a:null}
+function estBands(P){const bl=bands(P);if(!bl.length||intervals(P).length||Object.keys(P.bandIn||{}).length)return null;
+ const tot=Math.round(confStrokes(P.key).n||0);if(!tot)return null;const sig=JSON.stringify(bl);
+ const pats=allPiles().filter(q=>q.key!==P.key&&JSON.stringify(bands(q))===sig).map(bandCounts).filter(Boolean).map(a=>{const s=a.reduce((x,y)=>x+y,0);return a.map(x=>x/s)});
+ let w;if(pats.length)w=bl.map((_,i)=>pats.reduce((a,p)=>a+p[i],0)/pats.length);else{const L=bl.map(b=>{const [x,y]=b.replace(' ft','').split('–').map(Number);return Math.abs(y-x)});const s=L.reduce((a,b)=>a+b,0);w=L.map(x=>x/s)}
+ const raw=w.map(x=>x*tot),fl=raw.map(Math.floor);let left=tot-fl.reduce((a,b)=>a+b,0);raw.map((x,i)=>[x-fl[i],i]).sort((a,b)=>b[0]-a[0]).slice(0,left).forEach(([,i])=>fl[i]++);
+ const out={};bl.forEach((b,i)=>out[b]=fl[i]);out._src=pats.length?'pattern of '+pats.length+' pile'+(pats.length>1?'s':''):'footage';return out}
 function formHTML(pk,pair){
  const fh=ms=>{if(!ms)return'';const d=new Date(ms);return (d.getHours()%12||12)+':'+String(d.getMinutes()).padStart(2,'0')};
  const fs=s=>{if(!s)return'';const [h,m]=s.split(':').map(Number);return (h%12||12)+':'+String(m).padStart(2,'0')};
@@ -362,7 +371,7 @@ function formHTML(pk,pair){
  const ts=[...used];while(ts.length<2)ts.push({seq:'',num:'',tests:[],blank:true});
  const CL={y:'#ffe600',g:'#d3d6da',t:'#f2c27a',b:'#a9b9d3',u:'#cfe8d4'};
  const SV=stages(P),anyEst=Object.values(SV).some(x=>x.est);const one=k=>(t,i)=>i||!SV[k]?'':fh(SV[k].t)+(SV[k].est?'*':'');
- const bl=bands(P).slice().reverse(); // shallow to deep: 0–5, 5–10 …
+ const bl=bands(P).slice().reverse(),EB=estBands(P); // shallow to deep: 0–5, 5–10 …
  const dl=b=>b.replace(' ft','').replace('–','-');
  const rows=[['PILE / DATE',(t,i)=>i?'':[P.id,P.date].filter(Boolean).join(' / '),''],['TRUCK NUMBER',t=>t.seq+(t.carryIn&&t.carryIn[P.key]?' (from '+pname(t.carryIn[P.key].from)+')':''),''],['TRUCK I.D. #',t=>t.num,''],['BATCH TIME',t=>fs(t.batch||t.dispatch),''],['ARRIVAL TIME',t=>t.blank?'':fh(t.arrived),''],['TRUCK EMPTY',t=>t.blank?'':!emptyHere(t)?carriedTo(t):fh(t.emptied),''],
  ['DRILL START',one('drillStart'),'y'],['DRILL FINISH',one('drillFinish'),'y'],['GROUT / HOLE START',one('groutStart'),'g'],['GROUT / HOLE FINISH',one('groutFinish'),'g'],
@@ -371,8 +380,8 @@ function formHTML(pk,pair){
  ['LOAD YD³',t=>t.blank?'':(t.carryIn&&t.carryIn[P.key]?(cyd(t,P.key)==null?'?':r1(cyd(t,P.key)))+' carried':(t.qty||'')),'u'],
  ['USED THIS PILE',t=>{if(t.blank)return'';const u=usedOn(t,P.key);return u===null?'?':r1(u)},'u'],
  ['LEFT FOR NEXT',t=>{if(t.blank)return'';const la=leftAfter(t,P.key);if(la===null)return'?';if(t.wastePk===P.key)return '0 (waste '+r1(parseFloat(t.waste)||0)+')';return emptyHere(t)&&la>0.05?r1(la)+' (emptied)':r1(la)},'u'],
- ['TOTAL STROKES',(t,i)=>{if(i)return'';if(!PS)return P.opCount||P.reviewed||'';const s=iv.reduce((a,r)=>a+(r.cnt||0),0);return PS+(iv.length&&s!==PS?' (marks '+s+')':'')},'b'],
- ...bl.map((b,bi)=>['DEPTH '+dl(b),(t,i)=>{if(i)return'';const r=iv.find(r=>r.band===b);return r?(r.flag?'?':r.d):((P.bandIn||{})[dl(b)]??'')},bi===bl.length-1?'t':'b'])];
+ ['TOTAL STROKES',(t,i)=>{if(i)return'';const c=confStrokes(P.key);if(!c.n)return'';const s=iv.reduce((a,r)=>a+(r.cnt||0),0);return c.n+(c.src!=='my count'&&PS&&PS!==c.n?' (mine '+PS+')':'')+(iv.length&&s!==PS?' (marks '+s+')':'')},'b'],
+ ...bl.map((b,bi)=>['DEPTH '+dl(b),(t,i)=>{if(i)return'';const r=iv.find(r=>r.band===b);return r?(r.flag?'?':r.d):((P.bandIn||{})[dl(b)]??(EB?EB[b]+'*':''))},bi===bl.length-1?'t':'b'])];
  const cell='border:1px solid #6b7c99;height:34px;padding:2px 6px;font-size:18px';
  const lab=c=>`${cell};background:${CL[c]||'#fff'};font:700 13px Barlow,system-ui,sans-serif;white-space:nowrap`;
  let h=`<h2 id="fp-${P.key}" style="margin-top:20px">Pile ${esc(P.id||'?')}${cur?' (current)':''}</h2><div class="wrap"><table style="background:#fff;color:#0d1b2a;min-width:320px">`;
@@ -385,7 +394,7 @@ function formHTML(pk,pair){
  if(L.arr+L.cin)extra.push(['Left on trucks',f2(L.left)]);if(P.wall)extra.push(['Wall',P.wall]);if(P.opCount)extra.push(['My count / contractor',PS+' / '+P.opCount]);
  comb.forEach(r=>extra.push(['Missed mark',r.flag.replace('COMBINED: ','')]));
  if(extra.length)h+=`<p style="color:var(--mut);margin:14px 0 0">Not on the paper sheet:</p>`+box(extra);
- h+=`<p style="color:var(--mut)">${anyEst?'* Filled in from drill / reinforce timing rules. ':''}Blank means not logged yet. ? means a reading is missing. Screenshot this screen to save or share it.</p>`;
+ h+=`<p style="color:var(--mut)">${anyEst?'* Times filled in from drill / reinforce timing rules. ':''}${EB?'* Depth strokes split from the total ('+EB._src+'). ':''}Blank means not logged yet. ? means a reading is missing. Screenshot this screen to save or share it.</p>`;
  return h}
 // Forms laid out like the field sheet: two piles side by side, the Arrived / Used box between them (left value = left pile, right value = right pile)
 function midVals(pk){const P=pileRec(pk),L=ledger(pk),f=v=>v===null?'?':r1(v);return{ARRIVED:L.arr+L.cin?r1(L.arr+L.cin):'',USED:f(L.used),'CARRY OVER':f(L.left),ELEV:P.elev||'',STATION:P.station||''}}

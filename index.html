@@ -61,9 +61,11 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <div id="formv" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:30;overflow:auto;padding:calc(16px + env(safe-area-inset-top,0px)) 8px 24px"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
-const KEY='groutTracker.v1';const APPV='grout-v74';
+const KEY='groutTracker.v1';const APPV='grout-v75';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
+// Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
+const REPO_ISSUES='https://github.com/Mellowoah/Grout-tracking-/issues/new';
 // ---- Errors: kept on the phone (last 20) and offered as a one-tap report
 const ERRK='groutTracker.errors';let errNew=0;
 function errList(){try{return JSON.parse(localStorage.getItem(ERRK)||'[]')}catch(e){return[]}}
@@ -751,9 +753,11 @@ function reportOpen(){const d=diagnose();scanShow(`<h2>Report a problem</h2><div
  <textarea id="rp-note" rows="4" style="width:100%;font:500 16px Barlow,system-ui,sans-serif;padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink)" placeholder="e.g. Truck 3 shows the wrong yards on pile 47"></textarea>
  <div class="card"><b>Checks found</b>${d.length?d.map(x=>`<div>• ${esc(x)}</div>`).join(''):'<div>Nothing obvious.</div>'}${errList().length?`<div style="margin-top:6px"><b>${errList().length}</b> error(s) recorded on this phone</div>`:''}</div>
  <div class="row"><button style="flex:1" onclick="reportSend('email')">Send by email</button><button style="flex:1" onclick="reportSend('text')">Send by text</button></div>
+ <button style="width:100%;margin-top:6px" onclick="reportSend('github')">Open on GitHub (needs a GitHub sign-in)</button>
  <div class="row"><button class="sec" style="flex:1" onclick="reportSend('copy')">Copy report</button><button class="sec" style="flex:1" onclick="scanClose()">Close</button></div>`)}
 async function reportSend(kind){const body=reportText(($('rp-note')||{}).value||''),sub='Grout Tracker problem · '+(S.pile.id?'pile '+S.pile.id:'')+' · '+APPV;
  if(kind==='copy'){try{await navigator.clipboard.writeText(body);msg('Report copied. Paste it into an email or text.')}catch(e){msg('Couldn\'t copy on this phone. Use Send by email.')}return}
+ if(kind==='github'){const note=(($('rp-note')||{}).value||'').trim();window.open(REPO_ISSUES+'?labels=app-report&title='+encodeURIComponent('App report: '+(note?note.slice(0,70):'problem on pile '+(S.pile.id||'?')))+'&body='+encodeURIComponent('```\n'+body.slice(0,6000)+'\n```'),'_blank');try{localStorage.removeItem(ERRK)}catch(_){}const eb=$('errb');if(eb)eb.hidden=true;scanClose();return}
  const b=body.length>1800?body.slice(0,1800)+'\n…(cut short; use Copy report for all of it)':body;
  location.href=kind==='email'?'mailto:'+encodeURIComponent(REPORT_TO)+'?subject='+encodeURIComponent(sub)+'&body='+encodeURIComponent(b):'sms:?&body='+encodeURIComponent(sub+'\n'+b);
  try{localStorage.removeItem(ERRK)}catch(_){}errNew=0;const eb=$('errb');if(eb)eb.hidden=true;scanClose()}

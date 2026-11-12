@@ -1,5 +1,5 @@
 // Grout Tracker offline cache. Bump VERSION when you upload a changed index.html.
-const VERSION='grout-v41';
+const VERSION='grout-v43';
 const SHELL=['./','index.html','manifest.webmanifest','icon-180.png','icon-192.png','icon-512.png'];
 const XLSX_URL='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
 self.addEventListener('install',e=>e.waitUntil(caches.open(VERSION).then(async c=>{await c.addAll(SHELL);try{await c.add(new Request(XLSX_URL,{mode:'cors'}))}catch(_){}}).then(()=>self.skipWaiting())));

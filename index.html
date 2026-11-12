@@ -107,7 +107,7 @@ function autoSamples(){const out={},every=Number(S.sampleEvery)||0,day=t=>t.arri
  for(const t of ts){const d=day(t),st=cum[d]||0,q=parseFloat(t.qty)||Number(S.defLoad)||0,en=st+q;cum[d]=en;
   let n=0;if(every>0){for(let k=Math.ceil(st/every)*every;k<en;k+=every)n++}else n=1;out[t.id]=n*(S.sampleYd||0)}return out}
 const sy=t=>{const v=num(t.sampleYd);return v!==null?v:(autoSamples()[t.id]||0)};
-const r1=v=>(Math.abs(v)<0.05?0:v).toFixed(1);
+const r1=v=>(Math.abs(v)<0.005?0:v).toFixed(3); // yd³ shown to 3 decimals like the field sheet
 const num=v=>v===undefined||v===null||v===''?null:(parseFloat(v)||0);
 // Used yd³ on one pile: typed amount wins, else strokes × calibration
 // Strokes confirmed with the contractor: agreed total, else contractor count, else my count
@@ -268,7 +268,7 @@ function render(){clearTimeout(rT);
  const at=tk(S.active),nm=nextMark();
  const atR=at?calc(at).rem:null;$('stat').innerHTML=`<div><small>Truck</small><b class="num">${at?esc(at.num||'#'+at.seq):'none'}</b>${at?`<small style="color:var(--ink)"><b class="num" style="font-size:18px">${atR===null?'?':r1(atR)}</b> yd³ left${sLeft(atR)!==null?' · ~'+sLeft(atR)+' strokes':''}</small>`:''}</div><div><small>Next mark</small><b class="num">${nm===undefined?'done':nm+' ft'}</b></div><div><small>${S.pumping?'Pumping':'Paused'}</small><b class="num">${ts.filter(t=>!t.emptied&&!t.fed).length} queued</b></div>`;
  const ae=document.activeElement;if(ae&&ae.tagName==='INPUT'){pend=true;return}pend=false;
- const sh=v=>v===null?'pending':v.toFixed(1);
+ const sh=v=>v===null?'pending':r1(v);
  const cins=ts.filter(t=>t.carryIn[S.pile.key]),lat=latestPile();
  const onOld=!isLatest();
  const pendT=ts.filter(t=>t.pend&&!t.emptied&&t.pend.pk!==S.pile.key);
@@ -288,18 +288,18 @@ function render(){clearTimeout(rT);
    <div class="row"><label style="flex:1;min-width:95px"><small>Batch</small><input id="t-${t.id}-batch" type="time" value="${esc(t.batch)}" onchange="A.setT('${t.id}','batch',this.value)"></label><label style="flex:1;min-width:95px"><small>Arrived</small><input id="t-${t.id}-arr" type="time" value="${hm(t.arrived)}" onchange="A.setTime('${t.id}','arrived',this.value)"></label><label style="flex:1;min-width:95px"><small>Empty</small><input id="t-${t.id}-emp" type="time" value="${hm(t.emptied)}" onchange="A.setTime('${t.id}','emptied',this.value)"></label></div>
    ${on.map(k=>{const u=usedOn(t,k),la=leftAfter(t,k);return `<div>Pile <b>${esc(pname(k))}</b>: used ${u===null?'?':r1(u)} yd³ · left ${la===null?'?':r1(la)}</div>`}).join('')}
    <div style="color:var(--mut);font-size:14px">${t.sampleNo?'Sample '+esc(t.sampleNo)+' · ':''}${tt.map(x=>esc(x.temp||'?')+'°F / '+esc(x.flow||'?')+' s').join(' · ')}${t.left==='waste'?' · leftover wasted':''}</div></div>`;continue}const c=calc(t),co=cutoff(t),canRm=!t.fed&&!t.samples.length&&!t.tests.length,pk=S.pile.key,ci=t.carryIn[pk],u=usedOn(t,pk),man=num(t.used[pk])!==null;
-  const autoU=(()=>{const n=confOn(t,pk),cl=calYd();return n&&cl>0?(n*cl).toFixed(1):''})();
+  const autoU=(()=>{const n=confOn(t,pk),cl=calYd();return n&&cl>0?r1((n*cl)):''})();
   h+=`<div class="card"><div class="row"><b>#${t.seq||''}</b><input id="t-${t.id}-num" placeholder="Truck I.D. #" value="${esc(t.num)}" onchange="A.setT('${t.id}','num',this.value)"><label style="flex:1;min-width:90px"><small>Load yd³ (ticket)</small><input id="t-${t.id}-qty" inputmode="decimal" value="${esc(t.qty)}" onchange="A.setT('${t.id}','qty',this.value)"></label></div>
   ${t.ticketNo||t.mix?`<div style="color:var(--mut);font-size:14px">${t.ticketNo?'Ticket '+esc(t.ticketNo):''}${t.ticketNo&&t.mix?' · ':''}${t.mix?'Mix '+esc(t.mix):''}</div>`:''}
   <div class="row"><button style="flex:2" onclick="A.scan('${t.id}')">${t.photo?'Rescan ticket':'Scan ticket'}</button>${t.photo?`<button class="sec" style="flex:1" onclick="viewPhoto('${t.id}')">View ticket</button>`:''}</div>
-  ${ci?`<div class="trayw" style="color:var(--mut)">Carried from pile ${esc(pname(ci.from))}: ${cyd(t,pk)==null?'?':cyd(t,pk).toFixed(1)} yd³ on board</div>`:''}
+  ${ci?`<div class="trayw" style="color:var(--mut)">Carried from pile ${esc(pname(ci.from))}: ${cyd(t,pk)==null?'?':r1(cyd(t,pk))} yd³ on board</div>`:''}
   <div class="row"><label style="flex:1;min-width:95px"><small>Batch</small><input id="t-${t.id}-batch" type="time" value="${esc(t.batch)}" onchange="A.setT('${t.id}','batch',this.value)"></label><label style="flex:1;min-width:95px"><small>Arrived</small><input id="t-${t.id}-arr" type="time" value="${hm(t.arrived)}" onchange="A.setTime('${t.id}','arrived',this.value)"></label><label style="flex:1;min-width:95px"><small>Empty</small><input id="t-${t.id}-emp" type="time" value="${hm(t.emptied)}" onchange="A.setTime('${t.id}','emptied',this.value)"></label></div>
   <div>${t.emptied?'Emptied'+(t.left==='waste'?' · leftover wasted':''):t.fed?(S.active===t.id?'<b>Feeding</b>':'Fed earlier'):'Queued'}${t.left==='carry'&&!t.emptied?' · <b>carry to next pile</b>':''}${t.pend&&!t.emptied?' · <b class=flag>looks used up (confirm)</b>':''} · cutoff ${co?ft(co):'<span class=flag>enter batch time</span>'}</div>
   <div class="row" style="text-align:center">${[['Strokes this pile'+(confStrokes(pk).src!=='my count'?' (confirmed)':''),+confOn(t,pk).toFixed(1)],['Used this pile yd³'+(man?' (typed)':''),u===null?'?':r1(u)],['Left for next pile yd³',(()=>{const la=leftAfter(t,pk);return la===null?'?':r1(la)+(sLeft(la)!==null?' <small>~'+sLeft(la)+' str</small>':'')})()]].map(([l,v])=>`<div style="flex:1;min-width:95px;background:var(--bg);border-radius:6px;padding:4px"><small style="color:var(--mut)">${l}</small><div class="num" style="font-size:24px">${v}</div></div>`).join('')}</div>
   <div class="row"><label style="flex:1"><small>Correct used yd³ for pile ${esc(S.pile.id)} (leave blank to use strokes)</small><input id="t-${t.id}-used" inputmode="decimal" placeholder="${autoU?autoU+' from strokes':'Enter yd³'}" value="${man?esc(t.used[pk]):''}" onchange="A.setUsed('${t.id}',this.value)"></label></div>
-  <div>Load ${c.q>=0?c.q.toFixed(1):'<span class=flag>?</span>'} − used ${c.placed===null?'<span class=flag>?</span>':c.placed.toFixed(1)} − sample ${c.s.toFixed(1)} − waste ${c.w.toFixed(1)} = <b>left on truck ${c.rem===null?'<span class=flag>?</span>':r1(c.rem)} yd³${sLeft(c.rem)!==null?' (~'+sLeft(c.rem)+' strokes)':''}</b></div>
+  <div>Load ${c.q>=0?r1(c.q):'<span class=flag>?</span>'} − used ${c.placed===null?'<span class=flag>?</span>':r1(c.placed)} − sample ${r1(c.s)} − waste ${r1(c.w)} = <b>left on truck ${c.rem===null?'<span class=flag>?</span>':r1(c.rem)} yd³${sLeft(c.rem)!==null?' (~'+sLeft(c.rem)+' strokes)':''}</b></div>
   ${c.rem!==null&&c.rem>0.05&&t.left!=='waste'?`<div class="row"><button style="flex:1" onclick="A.waste('${t.id}')">Leftover is waste</button>${t.emptied?'':`<button class="sec" style="flex:1" onclick="A.carry('${t.id}')">${t.left==='carry'?'✓ Carrying to next pile':'Carry to next pile'}</button>`}</div>`:''}
-  ${c.rem!==null&&c.rem<-0.05?`<div class=flag>Used more than the load by ${(-c.rem).toFixed(1)} yd³. Check the load or used amount.</div>`:''}
+  ${c.rem!==null&&c.rem<-0.05?`<div class=flag>Used more than the load by ${r1((-c.rem))} yd³. Check the load or used amount.</div>`:''}
   <div class="row"><button class="sec" onclick="A.sw('${t.id}')">Feed pump</button><button class="sec" onclick="A.sample('${t.id}')">Sample taken</button><button class="sec" onclick="A.test('${t.id}')">QC test</button><button class="sec" onclick="A.empty('${t.id}')">Empty</button>${canRm?`<button class="sec" id="rm${t.id}" onclick="A.remove('${t.id}')">Remove</button>`:''}</div>
   <div class="row"><input id="t-${t.id}-sn" placeholder="Sample #" value="${esc(t.sampleNo)}" onchange="A.setT('${t.id}','sampleNo',this.value)"><input id="t-${t.id}-waste" placeholder="Waste yd³" inputmode="decimal" value="${esc(t.waste)}" onchange="A.setT('${t.id}','waste',this.value)"><label style="flex:1;min-width:90px"><small>Sample yd³ off this truck</small><input id="t-${t.id}-sy" inputmode="decimal" placeholder="${r1(autoSamples()[t.id]||0)} (auto)" value="${esc(t.sampleYd??'')}" onchange="A.setT('${t.id}','sampleYd',this.value)"></label></div>
   ${t.tests.map((x,i)=>{const run=fc&&fc.id===t.id&&fc.i===i;return `<div class="card" style="background:var(--bg);border:1px solid var(--line)"><b>QC test ${i+1}</b> <small style="color:var(--mut)">${ft(x.t)}</small>
@@ -307,7 +307,7 @@ function render(){clearTimeout(rT);
   <button id="fc-${t.id}-${i}" style="width:100%;min-height:72px;font-size:26px;${run?'background:var(--red);color:#fff':''}" onclick="${run?'A.fcStop()':`A.fcStart('${t.id}',${i})`}">${run?'Stop · <span class="num">'+fcSec()+'</span> s':x.flow?'Retime flow cone':'Start flow cone timer'}</button></div>`}).join('')}</div>`}
  if(older)h+=`</details>`;
  const L=ledger(),f1=v=>v===null?'<span class=flag>?</span>':r1(v);
- h+=`<div class="card"><b>Pile ${esc(S.pile.id)} yardage (yd³)</b><br>Arrived ${L.arr.toFixed(1)} + carried in ${L.cin.toFixed(1)} − used ${f1(L.used)} − samples ${L.samp.toFixed(1)} − waste ${L.waste.toFixed(1)} = <b>left on trucks ${f1(L.left)}</b>${L.used===null?'<div class=flag>Type used yd³ on each truck, or set pump calibration</div>':''}${S.orphan?`<div class=flag>${S.orphan} strokes not on any truck</div>`:''}</div>`;
+ h+=`<div class="card"><b>Pile ${esc(S.pile.id)} yardage (yd³)</b><br>Arrived ${r1(L.arr)} + carried in ${r1(L.cin)} − used ${f1(L.used)} − samples ${r1(L.samp)} − waste ${r1(L.waste)} = <b>left on trucks ${f1(L.left)}</b>${L.used===null?'<div class=flag>Type used yd³ on each truck, or set pump calibration</div>':''}${S.orphan?`<div class=flag>${S.orphan} strokes not on any truck</div>`:''}</div>`;
  const iv=intervals();
  h+=`<h2>Pile ${esc(S.pile.id)} intervals · total ${S.strokes}</h2><div class="wrap"><table><tr><th>Band</th><th>Cum</th><th>Strokes</th><th>Flag</th></tr>${bands().map(b=>{const r=iv.find(r=>r.band===b);return `<tr><td>${b}</td><td>${r?r.cum:''}</td><td>${r&&r.d!=null?r.d:''}</td><td class="flag">${r?esc(r.flag):''}</td></tr>`}).join('')}<tr><td><b>Total</b></td><td></td><td><b>${S.strokes}</b></td><td></td></tr></table></div>`;
  const gr=pev('grout_return');
@@ -367,9 +367,9 @@ function formHTML(pk,pair){
  for(const [l,f,c] of rows)h+=`<tr><td style="${lab(c)}">${esc(l)}</td>`+ts.map((t,i)=>`<td style="${cell};min-width:84px">${esc(f(t,i))}</td>`).join('')+'</tr>';
  const L=ledger(P.key),f2=v=>v===null?'?':r1(v);
  const box=(r)=>`<table style="background:#fff;color:#0d1b2a;margin-top:12px">`+r.map(([l,v])=>`<tr><td style="${lab('g')};text-align:center;min-width:90px;font-weight:600">${esc(l)}</td><td style="${cell};min-width:100px">${esc(v)}</td></tr>`).join('')+`</table>`;
- h+=`</table></div>`+(pair?'':box([['ARRIVED',L.arr+L.cin?(L.arr+L.cin).toFixed(1):''],['USED',L.used!==null?f2(L.used):'?'],['CARRY OVER',L.left!==null?f2(L.left):'?'],['ELEV',P.elev],['STATION',P.station]]));
+ h+=`</table></div>`+(pair?'':box([['ARRIVED',L.arr+L.cin?r1((L.arr+L.cin)):''],['USED',L.used!==null?f2(L.used):'?'],['CARRY OVER',L.left!==null?f2(L.left):'?'],['ELEV',P.elev],['STATION',P.station]]));
  const comb=iv.filter(r=>r.flag.startsWith('COMBINED')),extra=[];
- if(L.samp)extra.push(['Samples',L.samp.toFixed(1)]);if(L.waste)extra.push(['Waste',L.waste.toFixed(1)]);
+ if(L.samp)extra.push(['Samples',r1(L.samp)]);if(L.waste)extra.push(['Waste',r1(L.waste)]);
  if(L.arr+L.cin)extra.push(['Left on trucks',f2(L.left)]);if(P.wall)extra.push(['Wall',P.wall]);if(P.opCount)extra.push(['My count / contractor',PS+' / '+P.opCount]);
  comb.forEach(r=>extra.push(['Missed mark',r.flag.replace('COMBINED: ','')]));
  if(extra.length)h+=`<p style="color:var(--mut);margin:14px 0 0">Not on the paper sheet:</p>`+box(extra);

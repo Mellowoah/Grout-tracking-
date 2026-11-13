@@ -1135,7 +1135,7 @@ async function preloadOne(D,done,PK){try{if(!D||!D.preloadId||done.includes(D.pr
   if(D.onlyOn){const d=new Date(),k=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');if(k!==D.onlyOn)return}
   // the phone still holds an earlier day: keep it in Past days and start today clean
   if(D.freshDay){const td=new Date().toDateString(),old=S.ev.some(e=>e.t&&new Date(e.t).toDateString()!==td)||S.trucks.some(t=>t.arrived&&new Date(t.arrived).toDateString()!==td);
-   if(old&&(S.piles.length||S.trucks.length||!pileEmpty())){try{await archiveDay()}catch(e){logErr(e,'preload archive');return}}}
+   if((old||D.replaceDay)&&(S.piles.length||S.trucks.length||!pileEmpty())){try{await archiveDay()}catch(e){logErr(e,'preload archive');return}}}
   // a sheet read ahead of time: filled in exactly like Scan filled-in form, on whatever is on this phone
   if(D.sheetFill){const ids=[];for(const p of D.sheetFill){const v=aiToGrid(p);gotoPile(v.pid[0]);if(v.len){const L=parseFloat(v.len[0]);if(L>0)setLen(S.pile,L)}formGrid(v,'(read by Claude)','',null);formApply(false);ids.push(v.pid[0])}
    for(const [k,v] of Object.entries(D.setAll||{})){for(const p of allPiles())if(ids.includes(p.id))p[k]=v}

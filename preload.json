@@ -1,9 +1,10 @@
 {
  "list": [
   {
-   "preloadId": "sheets-2026-11-13",
+   "preloadId": "sheets-2026-11-13-v2",
    "onlyOn": "2026-11-13",
    "freshDay": true,
+   "replaceDay": true,
    "sheetFill": [
     {
      "pile": "45",
@@ -48,8 +49,7 @@
        "row": "20-23",
        "value": "58"
       }
-     ],
-     "notes": ""
+     ]
     },
     {
      "pile": "49",
@@ -98,8 +98,7 @@
        "row": "15-17",
        "value": "29"
       }
-     ],
-     "notes": ""
+     ]
     },
     {
      "pile": "54",
@@ -120,8 +119,8 @@
       }
      ],
      "drillStart": "11:04",
-     "drillFinish": "11:08",
-     "groutStart": "11:08",
+     "drillFinish": "11:05",
+     "groutStart": "11:05",
      "groutFinish": "11:12",
      "reinforceStart": "11:12",
      "totalStrokes": "180",
@@ -146,25 +145,25 @@
        "row": "20-23",
        "value": "29"
       }
-     ],
-     "notes": ""
+     ]
     },
     {
-     "pile": "55?",
+     "pile": "55",
      "date": "11/13/26",
      "lengthFt": 23,
      "trucks": [
+      {
+       "truckNumber": "2",
+       "truckId": "2469",
+       "batch": "9:35",
+       "arrival": "10:27",
+       "empty": "11:30"
+      },
       {
        "truckNumber": "3",
        "truckId": "690",
        "batch": "10:12",
        "arrival": "11:07"
-      },
-      {
-       "truckNumber": "4",
-       "truckId": "2506",
-       "batch": "10:40",
-       "arrival": "11:37"
       }
      ],
      "drillStart": "11:27",
@@ -172,7 +171,7 @@
      "groutStart": "11:29",
      "groutFinish": "11:36",
      "reinforceStart": "11:36",
-     "totalStrokes": "154",
+     "totalStrokes": "184",
      "depth": [
       {
        "row": "0-5",
@@ -194,26 +193,25 @@
        "row": "20-23",
        "value": "29"
       }
-     ],
-     "notes": "Pile # written as 55 on two forms - check"
+     ]
     },
     {
-     "pile": "55",
+     "pile": "56",
      "date": "11/13/26",
      "lengthFt": 23,
      "trucks": [
       {
+       "truckNumber": "3",
+       "truckId": "690",
+       "batch": "10:12",
+       "arrival": "11:07",
+       "empty": "11:53"
+      },
+      {
        "truckNumber": "4",
        "truckId": "2506",
        "batch": "10:40",
-       "arrival": "11:37",
-       "empty": "11:59"
-      },
-      {
-       "truckNumber": "5",
-       "truckId": "2100",
-       "batch": "",
-       "arrival": "11:51"
+       "arrival": "11:37"
       }
      ],
      "drillStart": "11:47",
@@ -222,14 +220,19 @@
      "groutFinish": "11:55",
      "reinforceStart": "11:55",
      "totalStrokes": "180",
-     "depth": [],
-     "notes": ""
+     "depth": []
     },
     {
-     "pile": "56",
+     "pile": "57",
      "date": "11/13/26",
      "lengthFt": 23,
      "trucks": [
+      {
+       "truckNumber": "4",
+       "truckId": "2506",
+       "batch": "10:40",
+       "arrival": "11:37"
+      },
       {
        "truckNumber": "5",
        "truckId": "2100",
@@ -243,8 +246,7 @@
      "groutFinish": "12:14",
      "reinforceStart": "12:14",
      "totalStrokes": "182",
-     "depth": [],
-     "notes": ""
+     "depth": []
     }
    ],
    "setAll": {
@@ -252,14 +254,7 @@
    },
    "planDef": {
     "dia": "30"
-   },
-   "truckEmpties": [
-    [
-     "2",
-     "55?",
-     "11:30"
-    ]
-   ]
+   }
   }
  ]
 }

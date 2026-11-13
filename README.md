@@ -10,6 +10,10 @@ Phone app for logging grout piles: pump strokes, depth marks, trucks, yardage, Q
 
 Open it once with signal; after that it works with no connection. After an update, close and reopen the app once or twice to pick it up.
 
+## Top buttons
+- **☰** (round, top right): **Upload today's filled-in forms** (one or more photos; what can be read fills in, anything missing is filled in by the app in red), **Type in a form**, **View all pile forms**, voice.
+- **🎤**: say or type commands. "truck arrived ID 2469 batch 9 35", "drill start", "drill finish", "grout finish", "reinforce start", "truck 3 empty", "switch to truck 4", "passed 15 counter 92", "pump count 180", "grout return 10", "temp 83 and flow 34", "sample taken", "next pile 58", "problem", "back running", "undo". The app does it and scrolls to that part of the screen. Where the browser can't listen, the keyboard's mic in the box does the same.
+
 ## Today's piles (plan the day)
 - Open **Today's piles** at the top and type the day's pile numbers (`41-48, 52` works), with wall, length and diameter for all of them; fill station / elev per pile in the list.
 - Each pile's details fill in when you get to it; **Next pile ▸** goes to the next pile on the list. Tap a pile # in the list to jump to it.

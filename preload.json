@@ -1,7 +1,7 @@
 {
  "list": [
   {
-   "preloadId": "sheets-2026-11-13-v2",
+   "preloadId": "sheets-2026-11-13-v3",
    "onlyOn": "2026-11-13",
    "freshDay": true,
    "replaceDay": true,
@@ -254,7 +254,13 @@
    },
    "planDef": {
     "dia": "30"
-   }
+   },
+   "truckQty": [
+    [
+     "5",
+     "5"
+    ]
+   ]
   }
  ]
 }

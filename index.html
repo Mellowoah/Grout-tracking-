@@ -1143,6 +1143,7 @@ async function preloadOne(D,done,PK){try{if(!D||!D.preloadId||done.includes(D.pr
    // a truck emptied on a pile whose form doesn't have its column
    for(const [seq,pid,hhmm] of D.truckEmpties||[]){const t=S.trucks.filter(x=>String(x.seq)===String(seq)).pop(),pp=allPiles().find(x=>x.id===pid);if(!t||!pp)continue;
     const [h,m]=hhmm.split(':').map(Number),d=new Date();d.setHours(h,m,0,0);t.emptied=d.getTime();delete t.pend;if(S.active===t.id)S.active=null;log('truck_empty',{truck:t.id,pk:pp.key,source:'form'})}
+   for(const [seq,q] of D.truckQty||[]){const t=S.trucks.filter(x=>String(x.seq)===String(seq)).pop();if(t)t.qty=String(q)}
    for(const [seq,pid] of D.moveTrucks||[]){const t=S.trucks.filter(x=>String(x.seq)===String(seq)).pop(),pp=allPiles().find(x=>x.id===pid);if(t&&pp)A.movePile(t.id,pp.key)}
    const L=latestPile();if(L.key!==S.pile.key)A.openPile(L.key);done.push(D.preloadId);localStorage.setItem(PK,JSON.stringify(done));save();render();msg('Loaded your sheet: piles '+ids.join(', ')+'. Now on pile '+(S.pile.id||'?')+'.');return}
   if(D.dropPiles){const notes=[];for(const [id,into] of D.dropPiles){const all=allPiles(),a=all.find(x=>x.id===id),b=all.find(x=>x.id===into);if(a&&b){armed['dp'+a.key]=Date.now();A.dropPile(a.key,b.key);notes.push('pile '+id+' removed (folded into '+into+')')}}

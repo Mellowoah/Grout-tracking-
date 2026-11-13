@@ -1,0 +1,265 @@
+{
+ "list": [
+  {
+   "preloadId": "sheets-2026-11-13",
+   "onlyOn": "2026-11-13",
+   "freshDay": true,
+   "sheetFill": [
+    {
+     "pile": "45",
+     "date": "11/13/26",
+     "lengthFt": 23,
+     "trucks": [
+      {
+       "truckNumber": "1",
+       "truckId": "651",
+       "batch": "9:10",
+       "arrival": "10:03",
+       "temp": "83",
+       "flow": "34",
+       "sample": "CA6B0025Q"
+      }
+     ],
+     "drillStart": "10:13",
+     "drillFinish": "10:16",
+     "groutStart": "10:16",
+     "groutFinish": "10:23",
+     "groutReturnFt": "10",
+     "reinforceStart": "10:23",
+     "totalStrokes": "180",
+     "depth": [
+      {
+       "row": "0-5",
+       "value": "30"
+      },
+      {
+       "row": "5-10",
+       "value": "28"
+      },
+      {
+       "row": "10-15",
+       "value": "31"
+      },
+      {
+       "row": "15-20",
+       "value": "34"
+      },
+      {
+       "row": "20-23",
+       "value": "58"
+      }
+     ],
+     "notes": ""
+    },
+    {
+     "pile": "49",
+     "date": "11/13/26",
+     "lengthFt": 17,
+     "trucks": [
+      {
+       "truckNumber": "1",
+       "truckId": "651",
+       "batch": "9:10",
+       "arrival": "10:03",
+       "empty": "10:43",
+       "temp": "83",
+       "flow": "34",
+       "sample": "CA6B0025Q"
+      },
+      {
+       "truckNumber": "2",
+       "truckId": "2469",
+       "batch": "9:35",
+       "arrival": "10:27"
+      }
+     ],
+     "drillStart": "10:37",
+     "drillFinish": "10:40",
+     "groutStart": "10:40",
+     "groutFinish": "10:50",
+     "groutReturnFt": "9",
+     "reinforceStart": "10:50",
+     "reinforceFinish": "11:03",
+     "totalStrokes": "140",
+     "depth": [
+      {
+       "row": "0-5",
+       "value": "34"
+      },
+      {
+       "row": "5-10",
+       "value": "41"
+      },
+      {
+       "row": "10-15",
+       "value": "34"
+      },
+      {
+       "row": "15-17",
+       "value": "29"
+      }
+     ],
+     "notes": ""
+    },
+    {
+     "pile": "54",
+     "date": "11/13/26",
+     "lengthFt": 23,
+     "trucks": [
+      {
+       "truckNumber": "2",
+       "truckId": "2469",
+       "batch": "9:35",
+       "arrival": "10:27"
+      },
+      {
+       "truckNumber": "3",
+       "truckId": "690",
+       "batch": "10:12",
+       "arrival": "11:07"
+      }
+     ],
+     "drillStart": "11:04",
+     "drillFinish": "11:08",
+     "groutStart": "11:08",
+     "groutFinish": "11:12",
+     "reinforceStart": "11:12",
+     "totalStrokes": "180",
+     "depth": [
+      {
+       "row": "0-5",
+       "value": "36"
+      },
+      {
+       "row": "5-10",
+       "value": "27"
+      },
+      {
+       "row": "10-15",
+       "value": "22"
+      },
+      {
+       "row": "15-20",
+       "value": "63"
+      },
+      {
+       "row": "20-23",
+       "value": "29"
+      }
+     ],
+     "notes": ""
+    },
+    {
+     "pile": "55?",
+     "date": "11/13/26",
+     "lengthFt": 23,
+     "trucks": [
+      {
+       "truckNumber": "3",
+       "truckId": "690",
+       "batch": "10:12",
+       "arrival": "11:07"
+      },
+      {
+       "truckNumber": "4",
+       "truckId": "2506",
+       "batch": "10:40",
+       "arrival": "11:37"
+      }
+     ],
+     "drillStart": "11:27",
+     "drillFinish": "11:29",
+     "groutStart": "11:29",
+     "groutFinish": "11:36",
+     "reinforceStart": "11:36",
+     "totalStrokes": "154",
+     "depth": [
+      {
+       "row": "0-5",
+       "value": "26"
+      },
+      {
+       "row": "5-10",
+       "value": "23"
+      },
+      {
+       "row": "10-15",
+       "value": "35"
+      },
+      {
+       "row": "15-20",
+       "value": "59"
+      },
+      {
+       "row": "20-23",
+       "value": "29"
+      }
+     ],
+     "notes": "Pile # written as 55 on two forms - check"
+    },
+    {
+     "pile": "55",
+     "date": "11/13/26",
+     "lengthFt": 23,
+     "trucks": [
+      {
+       "truckNumber": "4",
+       "truckId": "2506",
+       "batch": "10:40",
+       "arrival": "11:37",
+       "empty": "11:59"
+      },
+      {
+       "truckNumber": "5",
+       "truckId": "2100",
+       "batch": "",
+       "arrival": "11:51"
+      }
+     ],
+     "drillStart": "11:47",
+     "drillFinish": "11:49",
+     "groutStart": "11:49",
+     "groutFinish": "11:55",
+     "reinforceStart": "11:55",
+     "totalStrokes": "180",
+     "depth": [],
+     "notes": ""
+    },
+    {
+     "pile": "56",
+     "date": "11/13/26",
+     "lengthFt": 23,
+     "trucks": [
+      {
+       "truckNumber": "5",
+       "truckId": "2100",
+       "batch": "",
+       "arrival": "11:51"
+      }
+     ],
+     "drillStart": "12:05",
+     "drillFinish": "12:07",
+     "groutStart": "12:07",
+     "groutFinish": "12:14",
+     "reinforceStart": "12:14",
+     "totalStrokes": "182",
+     "depth": [],
+     "notes": ""
+    }
+   ],
+   "setAll": {
+    "dia": "30"
+   },
+   "planDef": {
+    "dia": "30"
+   },
+   "truckEmpties": [
+    [
+     "2",
+     "55?",
+     "11:30"
+    ]
+   ]
+  }
+ ]
+}

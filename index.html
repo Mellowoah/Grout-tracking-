@@ -1125,9 +1125,24 @@ setInterval(tick,1000);
  render();tick();save();histLoad();preload();if(errList().length){const b=$('errb');if(b)b.hidden=false}})();
 async function preload(){const PK='groutTracker.preloaded'+(PROF?':'+PROF:'');let done=[];try{done=JSON.parse(localStorage.getItem(PK)||'[]')}catch(e){}
  try{const r=await fetch('preload.json',{cache:'no-store'});if(!r.ok)return;const J=await r.json();for(const D of (J&&J.list)||[J])await preloadOne(D,done,PK)}catch(e){}}
+// Save whatever day is on the phone to Past days and start a clean one (settings kept). Used before loading a new day's sheets.
+async function archiveDay(){const j=JSON.stringify(S),sm=daySummary();const db=await pdb();
+ await new Promise((res,rej)=>{const tx=db.transaction('s','readwrite');tx.objectStore('s').put({t:Date.now(),date:(S.piles[0]&&S.piles[0].date)||today(),piles:sm.piles.map(p=>p.id),used:sm.used,j},DAYK+Date.now());tx.oncomplete=res;tx.onerror=()=>rej(tx.error)});
+ const keep={};for(const k of ['cal','calUnit','limit','sampleYd','sampleEvery','defLoad','drillMin','groutMin','reinfMin','hideIntro','aiModel','planDef','gFactor','beep','relMin'])if(S[k]!==undefined)keep[k]=S[k];
+ S={pile:{...blankPile(),n:0,id:'',len:23,marks:[20,15,10,5,0],dayStart:true},strokes:0,segStart:0,pumping:false,active:null,trucks:[],ev:[],piles:[],warned:{},orphan:0,plan:[],...keep};save()}
 async function preloadOne(D,done,PK){try{if(!D||!D.preloadId||done.includes(D.preloadId))return;
+  // only on the day it's for (local date YYYY-MM-DD); other days it waits, unused
+  if(D.onlyOn){const d=new Date(),k=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');if(k!==D.onlyOn)return}
+  // the phone still holds an earlier day: keep it in Past days and start today clean
+  if(D.freshDay){const td=new Date().toDateString(),old=S.ev.some(e=>e.t&&new Date(e.t).toDateString()!==td)||S.trucks.some(t=>t.arrived&&new Date(t.arrived).toDateString()!==td);
+   if(old&&(S.piles.length||S.trucks.length||!pileEmpty())){try{await archiveDay()}catch(e){logErr(e,'preload archive');return}}}
   // a sheet read ahead of time: filled in exactly like Scan filled-in form, on whatever is on this phone
   if(D.sheetFill){const ids=[];for(const p of D.sheetFill){const v=aiToGrid(p);gotoPile(v.pid[0]);if(v.len){const L=parseFloat(v.len[0]);if(L>0)setLen(S.pile,L)}formGrid(v,'(read by Claude)','',null);formApply(false);ids.push(v.pid[0])}
+   for(const [k,v] of Object.entries(D.setAll||{})){for(const p of allPiles())if(ids.includes(p.id))p[k]=v}
+   if(D.planDef)S.planDef={...(S.planDef||{}),...D.planDef};
+   // a truck emptied on a pile whose form doesn't have its column
+   for(const [seq,pid,hhmm] of D.truckEmpties||[]){const t=S.trucks.filter(x=>String(x.seq)===String(seq)).pop(),pp=allPiles().find(x=>x.id===pid);if(!t||!pp)continue;
+    const [h,m]=hhmm.split(':').map(Number),d=new Date();d.setHours(h,m,0,0);t.emptied=d.getTime();delete t.pend;if(S.active===t.id)S.active=null;log('truck_empty',{truck:t.id,pk:pp.key,source:'form'})}
    for(const [seq,pid] of D.moveTrucks||[]){const t=S.trucks.filter(x=>String(x.seq)===String(seq)).pop(),pp=allPiles().find(x=>x.id===pid);if(t&&pp)A.movePile(t.id,pp.key)}
    const L=latestPile();if(L.key!==S.pile.key)A.openPile(L.key);done.push(D.preloadId);localStorage.setItem(PK,JSON.stringify(done));save();render();msg('Loaded your sheet: piles '+ids.join(', ')+'. Now on pile '+(S.pile.id||'?')+'.');return}
   if(D.dropPiles){const notes=[];for(const [id,into] of D.dropPiles){const all=allPiles(),a=all.find(x=>x.id===id),b=all.find(x=>x.id===into);if(a&&b){armed['dp'+a.key]=Date.now();A.dropPile(a.key,b.key);notes.push('pile '+id+' removed (folded into '+into+')')}}

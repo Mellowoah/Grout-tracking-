@@ -65,7 +65,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v90';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v91';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -1145,5 +1145,5 @@ try{navigator.wakeLock&&navigator.wakeLock.request('screen').catch(()=>{})}catch
 <script>if('serviceWorker' in navigator){const had=!!navigator.serviceWorker.controller;let reloaded=false;
  // a new version took over: reload once so it shows now (not on the next open)
  navigator.serviceWorker.addEventListener('controllerchange',()=>{if(had&&!reloaded){reloaded=true;location.reload()}});
- addEventListener('load',()=>navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(reg=>{reg.update();document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')reg.update()})}).catch(()=>{}))}</script>
+ addEventListener('load',()=>navigator.serviceWorker.register('sw.js?v='+APPV.replace(/\D/g,''),{updateViaCache:'none'}).then(reg=>{reg.update();document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')reg.update()})}).catch(()=>{}))}</script>
 </body></html>

@@ -14,6 +14,11 @@ Open it once with signal; after that it works with no connection. After an updat
 - **☰** (round, top right): **Upload today's filled-in forms** (one or more photos; what can be read fills in, anything missing is filled in by the app in red), **Type in a form**, **View all pile forms**, voice.
 - **🎤**: say or type commands. "truck arrived ID 2469 batch 9 35", "drill start", "drill finish", "grout finish", "reinforce start", "truck 3 empty", "switch to truck 4", "passed 15 counter 92", "pump count 180", "grout return 10", "temp 83 and flow 34", "sample taken", "next pile 58", "problem", "back running", "undo". The app does it and scrolls to that part of the screen. Where the browser can't listen, the keyboard's mic in the box does the same.
 
+## Remote mode (▦)
+- The screen turns into a five-key remote: **Passed line**, **next step** (drill start → drill finish → grout finish → reinforce start → reinforce finish → next pile, press twice), **Truck arrived** (hold: truck empty), **Speak**, and the wide **+1 stroke** key (hold: −1). Each press shows what was done; line and truck run-out buzzes keep working; the screen stays awake.
+- A Bluetooth keypad or page turner works the same: keys 1–4, Space / Enter (or → / Page Down) = wide key, ← / Page Up = passed line.
+- Siri / Action Button: a Shortcut that opens `https://mellowoah.github.io/Grout-tracking-/?cmd=truck%20arrived` runs that command (any command the 🎤 understands).
+
 ## Today's piles (plan the day)
 - Open **Today's piles** at the top and type the day's pile numbers (`41-48, 52` works), with wall, length and diameter for all of them; fill station / elev per pile in the list.
 - Each pile's details fill in when you get to it; **Next pile ▸** goes to the next pile on the list. Tap a pile # in the list to jump to it.

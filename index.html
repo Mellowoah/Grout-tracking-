@@ -21,6 +21,13 @@ body{background:var(--bg);color:var(--ink);font:500 16px/1.35 Barlow,system-ui,s
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--bg);z-index:10}
 .num{font-family:"Barlow Condensed",system-ui,sans-serif;font-weight:800}
 button:disabled{opacity:.4}
+/* Remote mode: silver body, speaker grille, 2x2 black keys and one wide key */
+.rdev{width:min(340px,92vw);margin:10px auto;background:#e4e4e1;border:2px solid #9a9a96;border-radius:34px;padding:18px 18px 20px}
+.rgrille{height:64px;margin:0 6px 16px;background-image:radial-gradient(circle,#2a2a2a 2.2px,transparent 2.6px);background-size:10px 10px}
+.rgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.rkey{aspect-ratio:1;width:100%;min-height:0;padding:8px;border-radius:14px;background:#1c1c1c;color:#f2f2f2;border:3px solid #050505;box-shadow:inset 0 -6px 0 #000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;touch-action:manipulation;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.rkey:active{transform:translateY(3px);box-shadow:inset 0 -2px 0 #000}.rwide{aspect-ratio:auto;height:110px;width:100%}
+.rtop{font:700 19px/1.1 Barlow,system-ui,sans-serif;text-align:center}.rsub{font:500 13px/1.1 Barlow,system-ui,sans-serif;color:#b8b8b8;text-align:center}
 button.rnd{width:46px;height:46px;min-height:46px;border-radius:50%;padding:0;font-size:20px;display:flex;align-items:center;justify-content:center}
 header{position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);z-index:9;padding:8px 12px;border-bottom:2px solid var(--ink)}
 .stat{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
@@ -54,19 +61,19 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 </head><body>
 
 <div id="alert"></div><button id="errb" hidden style="width:100%;border-radius:0;background:var(--red);color:#fff;border:0;min-height:48px" onclick="reportOpen()">Something went wrong. Tap to send a report</button>
-<header><div style="display:flex;justify-content:flex-end;gap:10px;margin-bottom:4px"><button class="sec rnd" onclick="voiceOpen()" aria-label="Voice command">🎤</button><button class="sec rnd" onclick="topMenu()" aria-label="Upload forms and more">☰</button></div><div class="stat" id="stat"></div><div id="save">Loading…</div><div id="msg" hidden></div><button id="undoNP" class="sec" hidden style="width:100%;margin-top:6px;min-height:44px" onclick="A.undoPile()">Undo new pile</button></header>
+<header><div style="display:flex;justify-content:flex-end;gap:10px;margin-bottom:4px"><button class="sec rnd" onclick="remoteOpen()" aria-label="Remote">▦</button><button class="sec rnd" onclick="voiceOpen()" aria-label="Voice command">🎤</button><button class="sec rnd" onclick="topMenu()" aria-label="Upload forms and more">☰</button></div><div class="stat" id="stat"></div><div id="save">Loading…</div><div id="msg" hidden></div><button id="undoNP" class="sec" hidden style="width:100%;margin-top:6px;min-height:44px" onclick="A.undoPile()">Undo new pile</button></header>
 <main id="app"></main>
 <div id="tray"><div class="top"><div><b style="font-size:20px">Pile <span id="tp"></span></b><div class="num" id="cnt">0</div></div>
 <div class="row" style="flex-wrap:nowrap"><button class="sec" style="font-size:15px;padding:6px 8px;white-space:nowrap" onclick="endDayOpen()">End day</button><button class="sec" id="npTray" style="font-size:15px;padding:6px 8px;white-space:nowrap" onclick="A.newPile()" aria-label="Finish pile and start next">Next pile ▸</button><button class="sec" style="padding:6px 10px" id="fold" aria-label="Fold counter">▾</button></div></div>
 <div id="tnone" class="trayw" hidden>No truck feeding: these strokes won't count toward any truck</div>
 <div id="trayBody"><div style="margin-top:4px"><small id="tint"></small></div><div style="display:flex;gap:8px;margin-top:6px"><button class="sec" style="width:70px;font-size:22px" onclick="tapStroke(-1)" aria-label="Minus one stroke">−1</button><button id="plus" style="flex:1;margin-top:0;min-height:84px;font-size:30px" onclick="tapStroke(1)">+1 stroke</button></div></div></div>
 <input type="file" id="camIn" accept="image/*" hidden><input type="file" id="formIn" accept="image/*" multiple hidden><input type="file" id="impIn" accept=".json,application/json" hidden>
-<div id="depv" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:32;overflow:auto;padding:calc(12px + env(safe-area-inset-top,0px)) 12px 24px;transition:background .1s"></div><div id="scanv" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:34;overflow:auto;padding:calc(16px + env(safe-area-inset-top,0px)) 12px 24px"></div>
+<div id="depv" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:32;overflow:auto;padding:calc(12px + env(safe-area-inset-top,0px)) 12px 24px;transition:background .1s"></div><div id="remv" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:33;overflow:auto;padding:calc(10px + env(safe-area-inset-top,0px)) 12px 20px"></div><div id="scanv" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:34;overflow:auto;padding:calc(16px + env(safe-area-inset-top,0px)) 12px 24px"></div>
 <div id="formv" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:30;overflow:auto;padding:calc(16px + env(safe-area-inset-top,0px)) 8px 24px"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v92';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v93';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -299,7 +306,7 @@ const A={
   // Grout start = start pumping (and feed a truck if none is); Grout finish = stop pumping
   if(k==='drillFinish'&&!S.pile.st.groutStart){S.pile.st.groutStart=S.pile.st.drillFinish;k='groutStart'}
   if(k==='groutStart'){if(!tk(S.active)){const open=S.trucks.filter(t=>!t.emptied&&!t.pend);const nx=open.find(t=>t.carryIn[S.pile.key])||open.find(t=>t.fed)||open.find(t=>!t.fed);if(nx)A.sw(nx.id)}
-   if(!S.pumping)A.pump();if($('depv').style.display!=='block')setTimeout(depthOpen,50);const t=tk(S.active);msg('Grout started: pumping'+(t?' from truck '+tname(t):'. No truck feeding: tap Feed pump on a truck')+'.')}
+   if(!S.pumping)A.pump();if($('depv').style.display!=='block'&&!remOn())setTimeout(depthOpen,50);const t=tk(S.active);msg('Grout started: pumping'+(t?' from truck '+tname(t):'. No truck feeding: tap Feed pump on a truck')+'.')}
   if(k==='groutFinish'&&S.pumping){A.pump();msg('Grout finished: pumping stopped.')}},
  stageSet(k,v){if(!v){delete S.pile.st[k]}else{const [h,m]=v.split(':').map(Number);const d=new Date();d.setHours(h,m,0,0);S.pile.st[k]=d.getTime();log('stage',{name:k,edited:true})}save();render()},
  pset(f,v){S.pile[f]=v;save();render()},
@@ -741,7 +748,7 @@ function topMenu(){scanShow(`<h2>Forms &amp; voice</h2>
  <small style="color:var(--mut);display:block;margin:4px 0 10px">Pick one or more photos. What can be read fills in; anything missing is filled in by the app and shown in red.${aiKey()?'':' Handwriting reads best with the Claude key in Settings.'}</small>
  <button class="sec" style="width:100%" onclick="scanClose();formGrid({},'')">Type in a form</button>
  <button class="sec" style="width:100%;margin-top:8px" onclick="scanClose();showForm(allPiles()[0].key)">View all pile forms</button>
- <button class="sec" style="width:100%;margin-top:8px" onclick="voiceOpen()">🎤 Voice / type a command</button>
+ <button class="sec" style="width:100%;margin-top:8px" onclick="remoteOpen()">▦ Remote (5 keys)</button><button class="sec" style="width:100%;margin-top:8px" onclick="voiceOpen()">🎤 Voice / type a command</button>
  <button class="sec" style="width:100%;margin-top:8px" onclick="scanClose()">Close</button>`)}
 // ---- Voice commands: say (or type) "truck arrived", "drill start", "truck 3 empty", "passed 15", "pump count 180"…
 // Uses the phone's speech recognition when it has it; otherwise the keyboard's dictation mic in the box works the same.
@@ -816,6 +823,57 @@ function vCmd(p){let m;
  return null}
 // a line passed with a spoken counter reading when the pouring view isn't open
 function linePassCount(c){let el=$('dl-c'),tmp=false;if(!el){el=document.createElement('input');el.id='dl-c';el.hidden=true;document.body.appendChild(el);tmp=true}el.value=String(c);try{linePass()}finally{if(tmp)el.remove();else el.value=''}}
+// ---- Remote mode: the screen looks and works like a five-key remote (four square keys, one wide key).
+// The same keys answer a Bluetooth keypad / page turner: 1 2 3 4, Space or Enter = wide key, ← → / Page Up/Down.
+let remT=null,remWL=null,remHold=null,remLast='';
+const remOn=()=>$('remv')&&$('remv').style.display==='block';
+const STEPS=[['drillStart','Drill start'],['drillFinish','Drill finish'],['groutFinish','Grout finish'],['reinfStart','Reinforce start'],['reinfFinish','Reinforce finish']];
+function remNext(){const st=S.pile.st||{};for(const [k,l] of STEPS)if(!st[k])return{k,l};return{k:'next',l:'Next pile'}}
+function remoteOpen(){scanClose();$('remv').style.display='block';
+ try{depAC=depAC||new (window.AudioContext||window.webkitAudioContext)();depAC.resume&&depAC.resume()}catch(e){}
+ try{navigator.wakeLock&&navigator.wakeLock.request('screen').then(w=>remWL=w).catch(()=>{})}catch(e){}
+ clearInterval(remT);remT=setInterval(remTick,500);remRender()}
+function remoteClose(){$('remv').style.display='none';clearInterval(remT);remT=null;try{remWL&&remWL.release()}catch(e){}remWL=null;render()}
+function remSay(t){remLast=t;const e=$('rm-last');if(e){e.textContent='✓ '+t;e.style.visibility='visible'}vib()}
+// one key press
+function remKey(k,hold){const P=S.pile;
+ if(k===1){const d=nextLine(P);if(d==null)return remSay('All lines done');linePass();remSay('Passed '+d+' ft'+(lines(P).slice(-1)[0].c!=null?' at '+lines(P).slice(-1)[0].c:''))}
+ else if(k===2){const n=remNext();if(n.k==='next'){if(!armed.remnp||Date.now()-armed.remnp>4000){armed.remnp=Date.now();return remSay('Press again to start the next pile')}delete armed.remnp;A.newPile();remSay('Pile '+(S.pile.id||'?')+' started')}
+  else{A.stage(n.k);remSay(n.l+' '+ft(S.pile.st[n.k]))}}
+ else if(k===3){if(hold){const t=tk(S.active)||S.trucks.filter(t=>!t.emptied&&!t.rejected).slice(-1)[0];if(!t)return remSay('No truck to empty');A.empty(t.id);remSay('Truck '+tname(t)+' empty '+ft(t.emptied))}
+  else{A.arrive();const t=S.trucks[S.trucks.length-1];remSay('Truck '+tname(t)+' arrived '+ft(t.arrived))}}
+ else if(k===4){voiceOpen();return}
+ else if(k===5){if(hold){tapStroke(-1);remSay('−1 stroke')}else{tapStroke(1);remLast='';const e=$('rm-last');if(e)e.style.visibility='hidden'}}
+ remRender()}
+// press-and-hold on keys 3 (truck empty) and 5 (−1)
+function remDown(k,ev){ev.preventDefault();clearTimeout(remHold);remHold=setTimeout(()=>{remHold='held';remKey(k,true)},650)}
+function remUp(k,ev){ev.preventDefault();if(remHold==='held'){remHold=null;return}clearTimeout(remHold);remHold=null;remKey(k,false)}
+document.addEventListener('keydown',e=>{if(!remOn()||e.target.tagName==='INPUT')return;const m={'1':1,'2':2,'3':3,'4':4,' ':5,'Enter':5,'ArrowRight':5,'PageDown':5,'ArrowDown':5,'ArrowLeft':1,'PageUp':1,'ArrowUp':1}[e.key];if(!m)return;e.preventDefault();remKey(m,e.shiftKey)});
+function remTick(){if(!remOn())return;const P=S.pile,p=linePredict(P);
+ if(p&&p.at){const key=P.key+':'+p.d;if(depBuzzed!==key&&Date.now()>=p.at-BUZZ_AHEAD*1000){depBuzzed=key;buzz()}}
+ const e=truckETA();if(e&&e.secs<=60){const k=e.t.id+':'+P.key;if(etaBuzzed!==k){etaBuzzed=k;buzz()}}
+ const s=$('rm-stat');if(s)s.innerHTML=remStat()}
+function remStat(){const P=S.pile,p=linePredict(P),at=tk(S.active),e=truckETA();
+ return `<div style="display:flex;justify-content:space-between;gap:8px"><b>Pile ${esc(P.id||'?')} · pump ${S.pumping?'on':'off'}</b><span>${p?'Next line <b>'+p.d+' ft</b>'+(p.ctr!=null?' at ~'+p.ctr:''):(gStart(P)?'Lines done':'')}</span></div>
+ <div style="display:flex;justify-content:space-between;gap:8px;margin-top:2px;color:var(--mut)"><span>${at?'Truck '+esc(tname(at))+' · '+(()=>{const c=calc(at);return c.rem===null?'?':r1(c.rem)})()+' yd³':'No truck feeding'}</span><span>${e?(e.secs>0?'runs out '+Math.floor(e.secs/60)+':'+String(Math.floor(e.secs%60)).padStart(2,'0'):'<b style="color:var(--red)">should be empty</b>'):(p&&p.at?cdText(p).replace(/<[^>]+>/g,''):'')}</span></div>`}
+function remRender(){const P=S.pile,n=remNext(),d=nextLine(P),key=(k,top,sub,extra='',al)=>`<button class="rkey" ${k===3||k===5?`onpointerdown="remDown(${k},event)" onpointerup="remUp(${k},event)" onpointerleave="clearTimeout(remHold)"`:`onclick="remKey(${k})"`} ${extra} aria-label="${al||top}"><span class="rtop">${top}</span>${sub?`<span class="rsub">${sub}</span>`:''}</button>`;
+ $('remv').innerHTML=`<div class="row" style="justify-content:space-between;flex-wrap:nowrap;margin:0 0 8px"><b style="font-size:18px">Remote</b><button class="sec" style="min-height:40px;padding:4px 14px" onclick="remoteClose()">Close</button></div>
+ <div id="rm-stat" class="card" style="padding:8px 10px;font-size:15px">${remStat()}</div>
+ <div class="rdev">
+  <div class="rgrille" aria-hidden="true"></div>
+  <div class="rgrid">
+   ${key(1,'Passed line',d!=null?d+' ft':'done')}
+   ${key(2,n.l,n.k==='next'?'press twice':'tap when it happens')}
+   ${key(3,'Truck arrived','hold: truck empty')}
+   ${key(4,'🎤 Speak','say a command')}
+  </div>
+  ${key(5,`<span class="num" style="font-size:44px;line-height:1">${S.strokes}</span>`,'+1 stroke · hold: −1','style="grid-column:1/-1"','Add one stroke').replace('class="rkey"','class="rkey rwide"')}
+ </div>
+ <div id="rm-last" style="text-align:center;font-weight:700;font-size:18px;min-height:26px;visibility:${remLast?'visible':'hidden'}">✓ ${esc(remLast)}</div>
+ <small style="color:var(--mut);display:block;text-align:center">A Bluetooth keypad works too: keys 1–4, and Space / Enter for the wide key. Screen stays awake while this is open.</small>`}
+// ---- Commands from a link (Siri Shortcuts, Action Button): …/index.html?cmd=truck%20arrived
+function linkCmd(){try{const u=new URL(location.href),c=u.searchParams.get('cmd');if(!c)return;u.searchParams.delete('cmd');history.replaceState(null,'',u.pathname+(u.search||'')+u.hash);
+ setTimeout(()=>{voiceRun(c);msg('From Siri: “'+c+'”. '+($('msg').textContent||''))},600)}catch(e){logErr(e,'link command')}}
 function pilePick(t){return `<label style="min-width:84px"><small>First pile</small><select id="t-${t.id}-pk" style="font:600 16px Barlow,system-ui,sans-serif;padding:7px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink)" onchange="A.movePile('${t.id}',this.value)">${t.pk0?'':'<option value="" selected>—</option>'}${allPiles().map(p=>`<option value="${p.key}"${p.key===t.pk0?' selected':''}>${esc(p.id||'?')}</option>`).join('')}</select></label>`}
 // Truck times: typed/stamped wins; missing ones estimated from today's average batch→arrival, and empty = grout finish of the pile its grout ran out on
 function lagMs(){const l=S.trucks.filter(t=>t.batch&&t.arrived).map(t=>{const [h,m]=t.batch.split(':').map(Number),d=new Date(t.arrived);d.setHours(h,m,0,0);return t.arrived-d.getTime()}).filter(x=>x>0&&x<4*3600000);return l.length?l.reduce((a,b)=>a+b,0)/l.length:null}
@@ -1202,6 +1260,7 @@ function tick(){const now=Date.now();let worst=null;
  else{const m=Math.floor(worst.r/60000),s=Math.floor(worst.r/1000)%60;a.textContent='▲ Truck '+tname(worst.t)+' — '+m+':'+String(s).padStart(2,'0')+' left · cutoff '+ft(worst.co)}
  if(!S.warned[worst.t.id]){S.warned[worst.t.id]=1;vib();noHist=true;save()}}
 setInterval(tick,1000);
+linkCmd();
 // If main storage came back empty but the backup copy has records, restore them
 (async()=>{let had=false;try{had=!!localStorage.getItem(KEY)}catch(e){}
  if(!had){try{const db=await pdb();const b=await new Promise(r=>{const q=db.transaction('s').objectStore('s').get('state'+(PROF?':'+PROF:''));q.onsuccess=()=>r(q.result);q.onerror=()=>r(null)});

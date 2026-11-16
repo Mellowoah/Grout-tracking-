@@ -86,7 +86,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v98';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v99';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -280,9 +280,9 @@ const A={
   // a truck the strokes say ran out here isn't carried on: it's flagged so you can confirm it empty (at this pile's grout finish)
   {const gf=stages().groutFinish;for(const [t,yd] of open.filter(([t,yd])=>yd!==null&&yd<=0.005&&usedOn(t,S.pile.key)>0)){t.pend={t:gf?gf.t:Date.now(),pk:S.pile.key};log('truck_maybe_empty',{truck:t.id})}}
   for(let i=open.length-1;i>=0;i--)if(open[i][0].pend&&!open[i][0].noPend)open.splice(i,1);
-  S.piles.push({...S.pile,strokes:S.strokes,done:Date.now()});const p=S.pile;S.pile={...blankPile(),n:maxN()+1,id:(typeof want==='string'&&want)||nextPileId(p.id),wall:p.wall,station:p.station,marks:p.marks,len:p.len};applyPlan(S.pile,true);S.strokes=0;S.segStart=0;log('new_pile');
+  const gf0=stages().groutFinish;S.piles.push({...S.pile,strokes:S.strokes,done:Date.now()});const p={...S.pile,gfAt:gf0&&gf0.t};S.pile={...blankPile(),n:maxN()+1,id:(typeof want==='string'&&want)||nextPileId(p.id),wall:p.wall,station:p.station,marks:p.marks,len:p.len};applyPlan(S.pile,true);S.strokes=0;S.segStart=0;log('new_pile');
   for(const [t,yd] of open){t.carryIn[S.pile.key]={from:p.key,yd};t.left='';log('truck_carry',{truck:t.id,yd})}
-  for(const t of loose)attach(t,S.pile.key);
+  for(const t of loose){const a=arrOf(t);if(p.gfAt&&a&&a<=p.gfAt){attach(t,p.key);t.carryIn[S.pile.key]={from:p.key,yd:num(t.qty)};log('truck_carry',{truck:t.id,yd:num(t.qty)})}else attach(t,S.pile.key)}
   msg(done+'Pile '+(S.pile.id||'')+' started.'+(open.length?' '+open.map(([t,yd])=>'Truck '+tname(t)+': '+(yd==null?'?':r1(yd))+' yd³ left').join(', '):''))});showUndoPile()},
  undoPile(){if(!undoSnap)return;S=JSON.parse(undoSnap);undoSnap=null;$('undoNP').hidden=true;save();render();msg('Back on pile '+S.pile.id+'. Nothing was lost.')},
  pump(){act(()=>{S.pumping=!S.pumping;log(S.pumping?'pump_start':'pump_pause')})},
@@ -298,7 +298,7 @@ const A={
  ret(){act(()=>{log('grout_return',{depth:null,source:''})})},
  sw(id){const t=tk(id);if(!t)return msg('No truck yet. Add a truck (times optional) or tap Truck arrived.');act(()=>{attach(t,S.pile.key);const o=tk(S.active);closeSeg();S.active=id;S.segStart=S.strokes;t.fed=true;log('truck_switch',{truck:id,from:o?o.id:null,depth:nextMark()??null})})},
  next(){const t=S.trucks.find(t=>!t.fed&&!t.emptied);if(!t)return msg('No truck yet. Add a truck (times optional) or tap Truck arrived.');A.sw(t.id)},
- empty(id){act(()=>{const t=tk(id);if(S.active===id){closeSeg();S.active=null}t.emptied=Date.now();log('truck_empty',{truck:id})})},
+ empty(id){act(()=>{const t=tk(id);if(S.active===id){closeSeg();S.active=null}if(!t.pk0&&t.onsite)attach(t,S.pile.key);t.emptied=Date.now();log('truck_empty',{truck:id})})},
  // Leftover on truck dumped: becomes waste on this pile and the truck is done
  waste(id){const t=tk(id),c=calc(t);if(c.rem===null)return msg('Enter the load and used yd³ first so the leftover can be worked out.');
   act(()=>{const e=log('truck_waste',{truck:id,yd:c.rem,prevWaste:t.waste,prevPk:t.wastePk||null,prevEmptied:t.emptied,prevActive:S.active===id});
@@ -951,8 +951,8 @@ function taSave(){const g=id=>String(($(id)||{}).value||'').trim(),num=g('ta-num
  if(Number.isNaN(at))return bad('Arrived “'+a+'” isn\'t a time. Not saved.');if(Number.isNaN(et))return bad('Empty “'+e+'” isn\'t a time. Not saved.');
  if(at&&et&&et<at)return bad('Empty '+hm(et)+' is before arrival '+hm(at)+'. Not saved.');
  if(qty&&!(parseFloat(qty)>=0))return bad('Load “'+qty+'” isn\'t a number. Not saved.');
- let t;act(()=>{t={id:uid(),seq:nextSeq(),num,sampleNo:'',qty,batch:'',dispatch:'',arrived:at,emptied:et,strokes:0,samples:[],waste:'',tests:[],pk0:null,onsite:!et,ps:{},used:{},carryIn:{},left:'',manual:true};S.trucks.push(t);attach(t,S.pile.key);if(et)log('truck_empty',{truck:t.id,manual:true})});
- if(feed&&!et)A.sw(t.id);scanClose();msg('Truck '+tname(t)+' added on pile '+(S.pile.id||'?')+(feed&&!et?', feeding the pump':'')+'.');if(remOn())remRender();return true}
+ let t;act(()=>{t={id:uid(),seq:nextSeq(),num,sampleNo:'',qty,batch:'',dispatch:'',arrived:at,emptied:et,strokes:0,samples:[],waste:'',tests:[],pk0:null,onsite:!et,ps:{},used:{},carryIn:{},left:'',manual:true};S.trucks.push(t);if(et||feed)attach(t,S.pile.key);else log('truck_onsite',{truck:t.id,manual:true});if(et)log('truck_empty',{truck:t.id,manual:true})});
+ if(feed&&!et)A.sw(t.id);scanClose();msg('Truck '+tname(t)+(t.pk0?' added on pile '+(S.pile.id||'?')+(feed&&!et?', feeding the pump':''):' added, waiting on site (it goes on the pile it feeds)')+'.');if(remOn())remRender();return true}
 function ttSet(id,f,v){const ok=A.setTime(id,f,v),t=tk(id),e=$('tt-'+id+'-err'),i=$('tt-'+id+'-'+f),m=$('tt-msg');if(e)e.textContent=ok?'':(tErr[id]||'');
  if(i&&t)i.value=hm(t[f]);if(m){m.style.color=ok?'':'var(--red)';m.textContent=ok?'✓ Truck '+tname(t)+(f==='arrived'?' arrived ':' empty ')+(t[f]?hm(t[f]):'cleared'):(tErr[id]||'')}if(remOn())remRender()}
 function remEnd(id){const t=tk(id);if(!t)return;A.empty(id);remSay('Truck '+tname(t)+' ended '+ft(t.emptied));remRender()}

@@ -773,32 +773,54 @@ function topMenu(){scanShow(`<h2>Forms &amp; voice</h2>
 // ---- Voice commands: say (or type) "truck arrived", "drill start", "truck 3 empty", "passed 15", "pump count 180"…
 // Uses the phone's speech recognition when it has it; otherwise the keyboard's dictation mic in the box works the same.
 let vRec=null;
-const VNUM={zero:0,one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10,eleven:11,twelve:12,fifteen:15,twenty:20,thirty:30,forty:40,fifty:50};
-function vNorm(s){return String(s||'').toLowerCase().replace(/[.,!?]/g,' ')
- .replace(/\b(zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty)\b/g,w=>VNUM[w]).replace(/#/g,' ').replace(/\s+/g,' ').trim()}
-function voiceOpen(){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+// spoken numbers: 0–19, tens, "twenty five" / "twenty-five" = 25, "one hundred (and) eighty" = 180; "nine thirty five" stays "9 35"
+const VONE={zero:0,one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10,eleven:11,twelve:12,thirteen:13,fourteen:14,fifteen:15,sixteen:16,seventeen:17,eighteen:18,nineteen:19},
+ VTEN={twenty:20,thirty:30,forty:40,fifty:50,sixty:60,seventy:70,eighty:80,ninety:90};
+function vNums(s){const w=s.replace(/\b(one|two|three|four|five|six|seven|eight|nine|a)-hundred\b/g,'$1 hundred').replace(/\b(twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)-(one|two|three|four|five|six|seven|eight|nine)\b/g,'$1 $2').split(' '),out=[];let i=0;
+ const one=x=>x in VONE,ten=x=>x in VTEN,num=x=>one(x)||ten(x)||x==='hundred';
+ while(i<w.length){let v=null,j=i;
+  if(one(w[j])&&VONE[w[j]]>0&&VONE[w[j]]<10&&w[j+1]==='hundred'){v=VONE[w[j]]*100;j+=2}else if(w[j]==='hundred'&&(i===0||w[i-1]!=='a')){v=100;j++}else if(w[j]==='a'&&w[j+1]==='hundred'){v=100;j+=2}
+  if(v!=null&&w[j]==='and'&&num(w[j+1])&&w[j+1]!=='hundred')j++;
+  if(ten(w[j])){v=(v||0)+VTEN[w[j]];j++;if(one(w[j])&&VONE[w[j]]>0&&VONE[w[j]]<10){v+=VONE[w[j]];j++}}
+  else if(one(w[j])&&(v==null||v%100===0)){v=(v||0)+VONE[w[j]];j++}
+  if(v==null){out.push(w[i]);i++}else{out.push(String(v));i=j}}
+ return out.join(' ')}
+function vNorm(s){return vNums(String(s||'').toLowerCase().replace(/[.,!?]/g,' ').replace(/#/g,' ').replace(/\s+/g,' ').trim())}
+const vIOSHome=()=>{const ios=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);return ios&&(navigator.standalone===true||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches))};
+const VHOME='Voice doesn\'t work in the Home Screen app (iPhone blocks it there). Tap the box, then the mic on the keyboard, and speak. Or open the app in Safari.';
+function voiceOpen(){const SR=vIOSHome()?null:(window.SpeechRecognition||window.webkitSpeechRecognition),home=vIOSHome();
  scanShow(`<h2>Voice command</h2>
  ${SR?`<button id="vmic" style="width:100%;min-height:96px;font-size:26px" onclick="voiceListen()">🎤 Tap and speak</button>`:''}
  <div class="row" style="margin-top:8px"><input id="vtxt" placeholder="${SR?'…or type it':'Tap here, then the keyboard mic, and speak'}" style="flex:1" onkeydown="if(event.key==='Enter')voiceGo()"><button style="min-width:70px" onclick="voiceGo()">Go</button></div>
- <div id="vout" class="card" style="min-height:44px">${SR?'':'This phone\'s browser doesn\'t listen directly. Use the mic on the keyboard.'}</div>
+ <div id="vout" class="card" style="min-height:44px">${SR?'':home?VHOME:'This phone\'s browser doesn\'t listen directly. Use the mic on the keyboard.'}</div>
  <small style="color:var(--mut)">Examples: <b>truck arrived</b> · <b>truck arrived ID 2469 batch 9 35</b> · <b>drill start</b> · <b>drill finish</b> · <b>grout finish</b> · <b>reinforce start</b> · <b>truck 3 empty</b> · <b>switch to truck 4</b> · <b>passed 15</b> · <b>counter 92</b> · <b>pump count 180</b> · <b>grout return 10</b> · <b>temp 83 flow 34</b> · <b>sample taken</b> · <b>next pile</b> · <b>next pile 58</b> · <b>problem</b> · <b>back running</b> · <b>undo</b>. Say several with "and".</small>
  <button class="sec" style="width:100%;margin-top:8px" onclick="voiceStop();scanClose()">Close</button>`);
  if(SR)voiceListen();else setTimeout(()=>{const i=$('vtxt');if(i)i.focus()},100)}
+// iPhone Safari often never marks a result final and just ends: the last words heard are run when listening ends (once).
 function voiceListen(){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR)return;voiceStop();
- try{vRec=new SR();vRec.lang='en-US';vRec.interimResults=true;vRec.maxAlternatives=1;
+ try{const r=vRec=new SR();r.lang='en-US';r.interimResults=true;r.continuous=false;r.maxAlternatives=1;r._last='';r._ran=false;
   const b=$('vmic');if(b){b.textContent='Listening…';b.style.background='var(--red)';b.style.color='#fff'}
-  vRec.onresult=e=>{let t='',fin=false;for(const r of e.results){t+=r[0].transcript;if(r.isFinal)fin=true}const o=$('vout');if(o)o.textContent='“'+t+'”';if(fin){voiceStop();voiceRun(t)}};
-  vRec.onerror=e=>{const o=$('vout');if(o)o.textContent=e.error==='not-allowed'?'Microphone blocked. Allow it for this site in Settings, or use the keyboard mic in the box.':'Didn\'t catch that. Tap and speak again, or type it.';voiceStop()};
-  vRec.onend=()=>{const b=$('vmic');if(b){b.textContent='🎤 Tap and speak';b.style.background='';b.style.color=''}};
-  vRec.start()}catch(e){const o=$('vout');if(o)o.textContent='Couldn\'t start listening. Use the keyboard mic in the box.'}}
-function voiceStop(){try{vRec&&vRec.abort()}catch(e){}vRec=null}
+  const run=t=>{if(r._ran||r._cancel||!String(t).trim()||!$('vout'))return;r._ran=true;voiceRun(t)};
+  r.onresult=e=>{let t='',fin=false;for(const x of e.results){t+=x[0].transcript;if(x.isFinal)fin=true}r._last=t;const o=$('vout');if(o&&!r._ran)o.textContent='“'+t+'”';if(fin){voiceStop(true);run(t)}};
+  r.onerror=e=>{if(e.error==='aborted'||r._ran||r._cancel)return;if(r._last.trim()&&!['not-allowed','service-not-allowed'].includes(e.error))return;const o=$('vout');if(o)o.textContent=e.error==='not-allowed'?'Microphone blocked. Allow it for this site in Settings, or use the keyboard mic in the box.':e.error==='service-not-allowed'?(vIOSHome()?VHOME:'Voice isn\'t available here. On iPhone, turn on Siri or Dictation in Settings and use Safari (not the Home Screen app). Or tap the box and use the keyboard mic.'):e.error==='no-speech'?'Didn\'t hear anything. Tap and speak again, or type it.':'Didn\'t catch that. Tap and speak again, or type it.';r._err=true};
+  r.onend=()=>{if(!vRec||vRec===r){const b=$('vmic');if(b){b.textContent='🎤 Tap and speak';b.style.background='';b.style.color=''}if(vRec===r)vRec=null}if(!r._err)run(r._last)};
+  r.start()}catch(e){const o=$('vout');if(o)o.textContent='Couldn\'t start listening. Use the keyboard mic in the box.'}}
+// keep=true after a result (stop, so nothing is thrown away); otherwise cancel (Close / start again)
+function voiceStop(keep){const r=vRec;vRec=null;if(!r)return;if(!keep)r._cancel=true;try{keep?r.stop():r.abort()}catch(e){}}
 function voiceGo(){const i=$('vtxt');if(i&&i.value.trim())voiceRun(i.value)}
 // Run one or more commands; show what was done, then jump to that part of the screen
-function voiceRun(raw){const parts=vNorm(raw).split(/\b(?:and then|and|then)\b/).map(x=>x.trim()).filter(Boolean),done=[],miss=[];let go=null;
- for(const p of parts){const r=vCmd(p);if(r){done.push(r.say);go=r.go||go}else miss.push(p)}
- const o=$('vout'),txt=(done.length?'✓ '+done.join(' · '):'')+(miss.length?(done.length?'<br>':'')+'<span class="flag">Not sure what “'+esc(miss.join('”, “'))+'” means.</span>':'');
+// A command that couldn't be done (pump already on, no truck, wrong line, nothing to undo) comes back ok:false: shown red, no ✓, panel stays open.
+function voiceRun(raw){const nm=String(raw||'').match(/^\s*(?:add (?:a )?)?notes?\b[\s:,.-]*(.*)$/i),done=[],bad=[],miss=[];let go=null;
+ const parts=nm?[]:vNorm(raw).split(/\b(?:and then|and|then)\b/).map(x=>x.trim()).filter(Boolean);
+ if(nm){const r=vNote(nm[1]);(r.ok===false?bad:done).push(r.say);go=r.go}
+ for(const p of parts){const r=vCmd(p);if(!r)miss.push(p);else if(r.ok===false)bad.push(r.say);else{done.push(r.say);go=r.go||go}}
+ const o=$('vout'),txt=[done.length?'✓ '+esc(done.join(' · ')):'',bad.length?'<span class="flag">'+esc(bad.join(' · '))+'</span>':'',miss.length?'<span class="flag">Not sure what “'+esc(miss.join('”, “'))+'” means.</span>':''].filter(Boolean).join('<br>');
  if(o)o.innerHTML='“'+esc(raw)+'”<br>'+txt;const i=$('vtxt');if(i)i.value='';
- if(done.length){msg(done.join(' · ')+'.');setTimeout(()=>{if(!miss.length){scanClose();if(go)setTimeout(()=>vGo(go),80)}},miss.length?0:700)}}
+ const all=[...done,...bad];if(all.length)msg(all.join(' · ')+'.');
+ if(remOn()){if(done.length)remLast=all.join(' · ');else if(bad.length)remLast='';remRender();const e=$('rm-last');if(e&&done.length)vib();else if(e&&bad.length){e.textContent=bad.join(' · ');e.style.visibility='visible'}}
+ if(done.length&&!miss.length&&!bad.length)setTimeout(()=>{scanClose();if(go&&!remOn())setTimeout(()=>vGo(go),80)},700)}
+// "note hit water at 12 ft" → the pile's Explanation note (Closeout, and the Piles sheet), with the time
+function vNote(t){t=String(t||'').trim();if(!t)return{say:'Say the note after “note”',ok:false};act(()=>{S.pile.note=(S.pile.note?S.pile.note+'; ':'')+hm(Date.now())+' '+t});return{say:'Note on pile '+(S.pile.id||'?')+': '+t,go:'#f-note'}}
 function vGo(sel){const e=typeof sel==='function'?sel():$('app').querySelector(sel)||document.getElementById(sel);if(!e)return;e.scrollIntoView({block:'center',behavior:'smooth'});
  const c=e.closest('.card,.row')||e;c.style.transition='box-shadow .3s';c.style.boxShadow='0 0 0 4px var(--acc)';setTimeout(()=>c.style.boxShadow='',1600)}
 // which truck a command means: "truck 3" (truck number), "truck 2469" (ticket ID), else the one feeding, else the newest open one
@@ -808,41 +830,45 @@ function vTruck(p){const m=p.match(/truck (?:number |id )?(\w+)/);const open=S.t
 const vT=t=>'#t-'+t.id+'-num';
 function vTime(p,re){const m=p.match(re);if(!m)return null;let h=+m[1],mi=+(m[2]||0);if(m[3]==='pm'&&h<12)h+=12;if(h<6&&!m[3])h+=12;return String(h).padStart(2,'0')+':'+String(mi).padStart(2,'0')}
 function vCmd(p){let m;
- if(/^(undo|undo that|undo last|undo last step)$/.test(p)){undoAll();return{say:'Undid the last step'}}
+ if(/^(undo|undo that|undo last|undo last step)$/.test(p)){if(!hist.length)return{say:'Nothing left to undo',ok:false};undoAll();return{say:'Undid the last step'}}
  if(/(pour(ing)? (view|screen))|open pour/.test(p)){depthOpen();return{say:'Pouring view'}}
  if(/end (the )?day/.test(p)){scanClose();endDayOpen();return{say:'End day'}}
- if(/back (running|to work|up)|running again|resume/.test(p)){if(!openIss())return{say:'Nothing is stopped'};issResume();return{say:'Back running',go:'#app'}}
+ if(/back (running|to work|up)|running again|resume/.test(p)){if(!openIss())return{say:'Nothing is stopped',ok:false};issResume();return{say:'Back running',go:'#app'}}
  if(/problem|broke|break ?down|delay|send (the )?truck back|reject/.test(p)){scanClose();issOpen();return{say:'Problem / delay'}}
  if((m=p.match(/(?:next|new|start) pile(?: number)?(?: (\w+))?/))){const id=m[1]&&/\d/.test(m[1])?m[1]:'';if(id&&allPiles().some(x=>x.id===id)){gotoPile(id);render()}else A.newPile(id||undefined);return{say:'Pile '+(S.pile.id||'?')+' started',go:'#f-pile'}}
  if((m=p.match(/(?:go to|open|back to) pile (\w+)/))){const P=allPiles().find(x=>x.id===m[1]);if(!P)return null;A.openPile(P.key);return{say:'Pile '+m[1]}}
- if((m=p.match(/\bpump (on|off|start(?:ed)?|stop(?:ped)?|paused?|resumed?)\b/))){const want=/^(on|start|resume)/.test(m[1]);
+ if((m=p.match(/\bpump(?:ing)? (?:is |was |now |going )?(on|off|start(?:ed)?|stop(?:ped)?|paused?|resumed?)\b/)||p.match(/^(?:we're |we are |i'm )?(start|stop|resume|pause|restart)(?:ed)? pumping$/))){const want=/^(on|start|resume|restart)/.test(m[1]);
   if(want&&!gStart(S.pile)){A.stage('groutStart');return{say:'Grout start '+ft(S.pile.st.groutStart)+', pump on',go:'st-groutStart'}}
-  if(!!S.pumping===want)return{say:'Pump is already '+(want?'on':'off')};pumpSet(want);return{say:'Pump '+(want?'on':'off')+' '+ft(Date.now())}}
+  if(!!S.pumping===want)return{say:'Pump is already '+(want?'on':'off'),ok:false};pumpSet(want);return{say:'Pump '+(want?'on':'off')+' '+ft(Date.now())}}
  if(/drill (start|started|down|begin|going)|start(ed)? drill/.test(p)){A.stage('drillStart');return{say:'Drill start '+ft(S.pile.st.drillStart),go:'st-drillStart'}}
  if(/drill (finish|finished|done|up|complete|out)|finish(ed)? drill/.test(p)){A.stage('drillFinish');return{say:'Drill finish '+ft(S.pile.st.drillFinish)+', grout started',go:'st-drillFinish'}}
  if(/(grout|placement|pump) (start|started|on|going)|start(ed)? (grout|placement)/.test(p)){A.stage('groutStart');return{say:'Grout start '+ft(S.pile.st.groutStart),go:'st-groutStart'}}
  if(/(grout|placement) (finish|finished|done|complete|stop|stopped)|pump off|finish(ed)? (grout|placement)/.test(p)){A.stage('groutFinish');return{say:'Grout finish '+ft(S.pile.st.groutFinish),go:'st-groutFinish'}}
  if(/reinforc\w* (start|started|in|going)|cage (in|start)/.test(p)){A.stage('reinfStart');return{say:'Reinforce start '+ft(S.pile.st.reinfStart),go:'st-reinfStart'}}
  if(/reinforc\w* (finish|finished|done|complete)|cage (done|finish)/.test(p)){A.stage('reinfFinish');return{say:'Reinforce finish '+ft(S.pile.st.reinfFinish),go:'st-reinfFinish'}}
- if(/missed (the )?line/.test(p)){if(nextLine(S.pile)==null)return{say:'All lines are done'};linePass(true);return{say:'Line missed'}}
+ if(/missed (the )?line/.test(p)){if(nextLine(S.pile)==null)return{say:'All lines are done',ok:false};linePass(true);return{say:'Line missed'}}
  if((m=p.match(/(?:contractor|pump|agreed)(?: count| strokes| total)?(?: is| was| of)? (\d+)/))){A.pset('opCount',m[1]);return{say:'Contractor pump count '+m[1],go:'#f-my'}}
  if((m=p.match(/grout return(?: at| of)? (\d+(?:\.\d+)?)/))){act(()=>log('grout_return',{depth:+m[1],source:'voice'}));return{say:'Grout return at '+m[1]+' ft'}}
  if(/grout return/.test(p)){A.ret();return{say:'Grout return logged (add the depth)'}}
  const tq=p.match(/temp(?:erature)?(?: is| of)? (\d+(?:\.\d+)?)/),fq=p.match(/flow(?: cone)?(?: time)?(?: is| of)? (\d+(?:\.\d+)?)/);
- if(tq||fq){const t=vTruck(p);if(!t)return{say:'No truck to put the test on'};let x=t.tests.find(q=>q.pk===S.pile.key);act(()=>{if(!x){x={id:uid(),t:Date.now(),temp:'',flow:'',pk:S.pile.key};t.tests.push(x);log('qc_test',{truck:t.id})}if(tq)x.temp=tq[1];if(fq)x.flow=fq[1]});
+ if(tq||fq){const t=vTruck(p);if(!t)return{say:'No truck to put the test on',ok:false};let x=t.tests.find(q=>q.pk===S.pile.key);act(()=>{if(!x){x={id:uid(),t:Date.now(),temp:'',flow:'',pk:S.pile.key};t.tests.push(x);log('qc_test',{truck:t.id})}if(tq)x.temp=tq[1];if(fq)x.flow=fq[1]});
   return{say:'Truck '+tname(t)+(tq?' temp '+tq[1]+'°':'')+(fq?' flow '+fq[1]+' s':''),go:vT(t)}}
  if((m=p.match(/sample (taken|not taken|skipped|missed)/))){const t=S.trucks.find(t=>sy(t)>0&&!t.sampleRep)||vTruck(p);if(!t)return null;A.sampleRep(t.id,m[1]==='taken'?'taken':'not taken');return{say:'Sample '+(m[1]==='taken'?'taken':'not taken')+' on truck '+tname(t),go:vT(t)}}
- if((m=p.match(/switch(?: to)? truck (\w+)|feed(?: the)?(?: pump)?(?: with| from)? truck (\w+)/))){const t=vTruck('truck '+(m[1]||m[2]));if(!t)return{say:'No truck '+(m[1]||m[2])};A.sw(t.id);return{say:'Feeding from truck '+tname(t),go:vT(t)}}
- if(/truck/.test(p)&&/(empty|emptied|finished|done|ran out|out)\b/.test(p)){const t=vTruck(p);if(!t)return{say:'No truck to empty'};A.empty(t.id);return{say:'Truck '+tname(t)+' empty '+ft(t.emptied),go:vT(t)}}
- if(/truck (arrived|is here|here|showed up|on site|pulled in)|new truck|(^| )arrived/.test(p)){A.arrive();const t=S.trucks[S.trucks.length-1];
+ if((m=p.match(/switch(?: to)? truck (\w+)|feed(?: the)?(?: pump)?(?: with| from)? truck (\w+)/))){const t=vTruck('truck '+(m[1]||m[2]));if(!t)return{say:'No truck '+(m[1]||m[2]),ok:false};A.sw(t.id);return{say:'Feeding from truck '+tname(t),go:vT(t)}}
+ if(/truck/.test(p)&&/(empty|emptied|finished|done|ran out|out)\b/.test(p)){const t=vTruck(p);if(!t)return{say:'No truck to empty',ok:false};A.empty(t.id);return{say:'Truck '+tname(t)+' empty '+ft(t.emptied),go:vT(t)}}
+ if(/truck (arrived|is here|here|showed up|on site|pulled in)|new truck|(^| )arrived/.test(p)){
+  const tn=p.match(/truck (?:number |id )?(\d+) (?:has |just )?(?:arrived|is here|here|showed up|on site|pulled in)/);
+  if(tn){const n=tn[1],have=S.trucks.find(t=>!t.emptied&&!t.rejected&&(String(t.num)===n||(n.length<2&&String(t.seq)===n)));if(have)return{say:'Truck '+tname(have)+' is already here',ok:false,go:vT(have)}}
+  A.arrive();const t=S.trucks[S.trucks.length-1];if(tn&&tn[1].length>=2&&!/\bid (\d{2,6})/.test(p))act(()=>{t.num=tn[1]});
   const id=p.match(/\bid (\d{2,6})/),bt=vTime(p,/batch(?:ed)?(?: time)?(?: at)? (\d{1,2})[: ]?(\d{2})?\s*(am|pm)?/),q=p.match(/(\d+(?:\.\d+)?) (?:yards|yard|yd)/);
   act(()=>{if(id)t.num=id[1];if(bt)t.batch=bt;if(q)t.qty=q[1]});return{say:'Truck '+tname(t)+' arrived '+ft(t.arrived)+(id?' · ID '+id[1]:'')+(bt?' · batch '+bt:'')+(q?' · '+q[1]+' yd³':''),go:vT(t)}}
  if((m=p.match(/batch(?:ed)?(?: time)?(?: at)? (\d{1,2})[: ]?(\d{2})?\s*(am|pm)?/))){const t=vTruck(p)||S.trucks[S.trucks.length-1];if(!t)return null;const b=vTime(p,/batch(?:ed)?(?: time)?(?: at)? (\d{1,2})[: ]?(\d{2})?\s*(am|pm)?/);A.setT(t.id,'batch',b);return{say:'Truck '+tname(t)+' batch '+b,go:vT(t)}}
  if((m=p.match(/(?:truck )?id (\d{2,6})/))){const t=S.trucks[S.trucks.length-1];if(!t)return null;A.setT(t.id,'num',m[1]);return{say:'Truck '+t.seq+' ID '+m[1],go:vT(t)}}
  if((m=p.match(/(\d+(?:\.\d+)?) (?:yards|yard|yd)/))){const t=S.trucks[S.trucks.length-1];if(!t)return null;A.setT(t.id,'qty',m[1]);return{say:'Truck '+tname(t)+' load '+m[1]+' yd³',go:vT(t)}}
- if((m=p.match(/(?:passed|line|mark(?:ed)?) (\d+)(?: (?:feet|foot|ft))?|^(\d+) (?:feet|foot|ft)(?: line)?$/))){const d=+(m[1]||m[2]),nl=nextLine(S.pile);if(nl==null)return{say:'All lines are done'};if(d!==nl)return{say:'Next line is '+nl+' ft, not '+d+'. Nothing changed'};
-  const c=p.match(/(?:counter|count|strokes?) (\d+)/);if(c)linePassCount(+c[1]);else linePass();return{say:'Passed '+d+' ft'+(c?' at '+c[1]:'')}}
- if((m=p.match(/(?:my count|counter|strokes?)(?: is| at| of)? (\d+)/))){A.setCounter(m[1]);return{say:'Counter '+m[1]}}
+ if((m=p.match(/(?:passed|past|line|mark(?:ed)?) (\d+)(?: (?:feet|foot|ft))?|^(\d+) (?:feet|foot|ft)\b(?: line)?/))){const d=+(m[1]||m[2]),nl=nextLine(S.pile);if(nl==null)return{say:'All lines are done',ok:false};if(d!==nl)return{say:'Next line is '+nl+' ft, not '+d+'. Nothing changed',ok:false};
+  const r=p.slice(m.index+m[0].length),c=r.match(/(?:counter|count|strokes?)(?: is| of)? (\d+)/)||r.match(/\bat (\d+)/)||r.match(/(\d+) strokes?\b/)||p.match(/(?:counter|count|strokes?) (\d+)/);if(c)linePassCount(+c[1]);else linePass();return{say:'Passed '+d+' ft'+(c?' at '+c[1]:'')}}
+ if((m=p.match(/^(?:(?:passed|past|pass|mark(?:ed)?|hit)(?: the)?(?: next)? line|next line|line passed)(?: (?:at|counter|count|strokes?)(?: is)? (\d+)(?: strokes?)?| (\d+) strokes?)?$/))){const nl=nextLine(S.pile);if(nl==null)return{say:'All lines are done',ok:false};const c=m[1]||m[2];if(c)linePassCount(+c);else linePass();return{say:'Passed '+nl+' ft'+(c?' at '+c:'')}}
+ if((m=p.match(/(?:my count|counter|count|strokes?)(?: is| at| of| now)? (\d+)/)||p.match(/^(?:at )?(\d+) strokes?$/))){A.setCounter(m[1]);return{say:'Counter '+m[1]}}
  return null}
 // a line passed with a spoken counter reading when the pouring view isn't open
 function linePassCount(c){let el=$('dl-c'),tmp=false;if(!el){el=document.createElement('input');el.id='dl-c';el.hidden=true;document.body.appendChild(el);tmp=true}el.value=String(c);try{linePass()}finally{if(tmp)el.remove();else el.value=''}}

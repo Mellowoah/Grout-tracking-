@@ -86,7 +86,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v124';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v125';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -602,7 +602,11 @@ function estBands(P){const all=bands(P),bi=P.bandIn||{},ba=P.bandAuto||{};if(!al
  const ix=bl.map(b=>all.indexOf(b));const btw=bandW(P,bl);const sig=JSON.stringify(bl);
  const pats=allPiles().filter(q=>q.key!==P.key&&JSON.stringify(bands(q))===JSON.stringify(all)).map(bandCounts).filter(Boolean).map(a=>{const s=a.reduce((x,y)=>x+y,0);return a.map(x=>x/s)});
  let w;if(btw){const sw=btw.reduce((a,b)=>a+b,0);w=btw.map(x=>x/sw)}else if(pats.length){w=ix.map(i=>pats.reduce((a,p)=>a+p[i],0)/pats.length);const sw=w.reduce((a,b)=>a+b,0)||1;w=w.map(x=>x/sw)}else{const L=bl.map(b=>{const [x,y]=b.replace(' ft','').split('–').map(Number);return Math.abs(y-x)});const s=L.reduce((a,b)=>a+b,0);w=L.map(x=>x/s)}
- const raw=w.map(x=>x*tot),fl=raw.map(Math.floor);let left=tot-fl.reduce((a,b)=>a+b,0);raw.map((x,i)=>[x-fl[i],i]).sort((a,b)=>b[0]-a[0]).slice(0,left).forEach(([,i])=>fl[i]++);
+ // The head is pumped first at the deepest tip. Include it only in estimates
+ // for an unmeasured tip band, and never add it to the pile total twice.
+ const tip=all[0],head=bl.includes(tip)?Math.min(headOf(P),Math.max(0,tot)):0;
+ const spread=Math.max(0,tot-head);
+ const raw=w.map((x,i)=>x*spread+(bl[i]===tip?head:0)),fl=raw.map(Math.floor);let left=tot-fl.reduce((a,b)=>a+b,0);raw.map((x,i)=>[x-fl[i],i]).sort((a,b)=>b[0]-a[0]).slice(0,left).forEach(([,i])=>fl[i]++);
  const out={...pre};bl.forEach((b,i)=>out[b]=fl[i]);out._src=btw?'time each band took':pats.length?'pattern of '+pats.length+' pile'+(pats.length>1?'s':''):'footage';return out}
 // Trucks belong to the day; a truck joins a pile when it's used there, carried there, or (keyed in later) by its arrival time
 function attach(t,pk){if(t.pk0)return;t.pk0=pk;log('truck_arrival',{truck:t.id,pk,attached:true})}
@@ -1164,7 +1168,7 @@ function formHTML(pk,pair){
  const ts=[...used];while(ts.length<2)ts.push({seq:'',num:'',tests:[],blank:true});
  const CL={y:'#ffe600',g:'#d3d6da',t:'#f2c27a',b:'#a9b9d3',u:'#cfe8d4'};
  const SV=stages(P),anyEst=Object.values(SV).some(x=>x.est)||used.some(t=>{const x=truckTimes(t);return x.batch.est||x.arrived.est||(x.emptied.est&&x.emptied.pk===P.key)});const one=k=>(t,i)=>i||!SV[k]?'':fh(SV[k].t)+(SV[k].est?'*':'');
- const bl=bands(P).slice().reverse(),EB=estBands(P); // shallow to deep: 0–5, 5–10 …
+ const bl=bands(P).slice().reverse(),EB=estBands(P); // Paper display shallow-to-deep; pumping and head accounting are tip-to-zero.
  const dl=b=>b.replace(' ft','').replace('–','-');
  const rows=[['PILE / DATE',(t,i)=>i?'':[P.id,P.date].filter(Boolean).join(' / '),''],['TRUCK NUMBER',t=>t.seq+(t.carryIn&&t.carryIn[P.key]?' (from '+pname(t.carryIn[P.key].from)+')':''),''],['TRUCK I.D. #',t=>t.num,''],['BATCH TIME',t=>{if(t.blank)return'';const x=truckTimes(t).batch;return fs(x.v)+(x.v&&x.est?'*':'')},''],['ARRIVAL TIME',t=>{if(t.blank)return'';const x=truckTimes(t).arrived;return x.t?fh(x.t)+(x.est?'*':''):''},''],['TRUCK EMPTY',t=>{if(t.blank)return'';const x=truckTimes(t).emptied;if(x.est&&x.pk===P.key)return fh(x.t)+'*';return !emptyHere(t)?carriedTo(t):fh(t.emptied)},''],
  ['DRILL START',one('drillStart'),'y'],['DRILL FINISH',one('drillFinish'),'y'],['GROUT / HOLE START',one('groutStart'),'g'],['GROUT / HOLE FINISH',one('groutFinish'),'g'],

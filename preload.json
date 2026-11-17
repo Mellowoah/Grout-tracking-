@@ -388,6 +388,26 @@
           "qty": "9"
         }
       ]
+    },
+    {
+      "preloadId": "field-2026-11-16-stage-completion-v2",
+      "profile": "nov16field",
+      "patch": true,
+      "piles": [
+        {
+          "id": "58",
+          "st": {
+            "groutStart": "12:32"
+          }
+        },
+        {
+          "id": "59",
+          "st": {
+            "groutStart": "12:54",
+            "groutFinish": "13:01"
+          }
+        }
+      ]
     }
   ]
 }

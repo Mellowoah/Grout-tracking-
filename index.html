@@ -86,7 +86,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v127';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v128';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -1570,6 +1570,28 @@ async function preloadOne(D,done,PK){try{if(!D||!D.preloadId||done.includes(D.pr
    done.push(D.preloadId);localStorage.setItem(PK,JSON.stringify(done));save();render();if(notes.length)msg(notes.join('; ')+'.');return}
   if(D.renamePiles){const notes=[];for(const [from,to] of D.renamePiles){const all=allPiles(),pf=all.find(x=>x.id===from);if(pf&&!all.some(x=>x.id===to)){pf.id=to;notes.push('pile '+from+' is now pile '+to)}}
    resortPiles();done.push(D.preloadId);localStorage.setItem(PK,JSON.stringify(done));save();render();msg((notes.join('; ')||'No pile to rename')+(D.note?' '+D.note:'')+'.');return}
+  if(D.fixNov17Reinforcement&&PROF==='nov17field'){
+   const corrections=[];
+   for(const [id,startHour,startMinute] of [['51',9,59],['61',10,20]]){
+    const p=allPiles().find(x=>String(x.id)===id&&x.date==='11/17/26');
+    if(!p)continue;
+    p.st=p.st||{};
+    const start=new Date(2026,10,17,startHour,startMinute).getTime();
+    const prior=p.st.reinfFinish;
+    const oldFive=prior&&Math.abs(prior-(start+5*60000))<60000;
+    if(oldFive){
+     p.st.reinfFinish=start+15*60000;
+     corrections.push('Pile '+id+' reinforcement finish corrected from '+new Date(prior).toLocaleTimeString()+' to '+new Date(p.st.reinfFinish).toLocaleTimeString());
+    }else if(!prior){
+     p.st.reinfFinish=start+15*60000;
+     corrections.push('Pile '+id+' reinforcement finish set to 15 minutes after recorded start');
+    }
+   }
+   if(corrections.length)log('edit',{source:'Nov 17 reinforcement duration correction',note:corrections.join('; ')});
+   done.push(D.preloadId);localStorage.setItem(PK,JSON.stringify(done));save();render();
+   if(corrections.length)msg('Nov 17 reinforcement corrected to 15 minutes. Truck empty times unchanged.');
+   return;
+  }
   if(D.reconcileNov17&&PROF==='nov17field'){
    const p51=allPiles().find(p=>String(p.id)==='51'&&p.date==='11/17/26'),p61=allPiles().find(p=>String(p.id)==='61'&&p.date==='11/17/26');
    const t1=S.trucks.find(t=>String(t.num)==='625'),t2=S.trucks.find(t=>String(t.num)==='688');

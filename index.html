@@ -86,7 +86,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v128';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v129';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -1152,6 +1152,25 @@ function truckTimes(t){const L=lagMs(),out={batch:{v:t.batch||t.dispatch||'',est
  return out}
 const EST='font-style:italic;color:var(--red);border:2px dashed var(--red)';
 function tIn(t,f){const x=truckTimes(t)[f],v=f==='batch'?x.v:hm(x.t);return `value="${esc(v)}" style="${x.est&&v?EST:''}"`+(x.est&&v?` title="estimated"`:'')}
+// Per-truck grout feed windows. Recorded switch events win; otherwise allocate
+// elapsed grout time in proportion to each truck's strokes on this pile.
+function truckPumpWindows(P,used){
+ const sv=stages(P),a=sv.groutStart&&sv.groutStart.t,b=sv.groutFinish&&sv.groutFinish.t,out={};
+ if(!a||!b||b<a)return out;
+ const feeders=used.filter(t=>(usedOn(t,P.key)||0)>0);
+ if(!feeders.length)return out;
+ const events=pev(null,P.key).filter(e=>e.type==='truck_switch'&&e.truck&&e.t>=a&&e.t<=b).sort((x,y)=>x.t-y.t);
+ const total=feeders.reduce((n,t)=>n+(usedOn(t,P.key)||0),0);
+ let boundary=a;
+ for(let i=0;i<feeders.length;i++){
+  const t=feeders[i],next=feeders[i+1],sw=next&&events.find(e=>e.truck===next.id);
+  let end=next?(sw?sw.t:(total>0?a+(b-a)*feeders.slice(0,i+1).reduce((n,x)=>n+(usedOn(x,P.key)||0),0)/total:null)):b;
+  if(end==null||end<boundary||end>b)continue;
+  out[t.id]={start:boundary,finish:end,startEst:i>0?!events.some(e=>e.truck===t.id):!!sv.groutStart.est,finishEst:!!next?!sw:!!sv.groutFinish.est};
+  boundary=end;
+ }
+ return out;
+}
 function formHTML(pk,pair){
  const fh=ms=>{if(!ms)return'';const d=new Date(ms);return (d.getHours()%12||12)+':'+String(d.getMinutes()).padStart(2,'0')};
  const fs=s=>{if(!s)return'';const [h,m]=s.split(':').map(Number);return (h%12||12)+':'+String(m).padStart(2,'0')};
@@ -1167,11 +1186,13 @@ function formHTML(pk,pair){
  const emptyHere=t=>!t.blank&&usedOn(t,P.key)>0&&(pev(null,P.key).some(e=>e.truck===t.id&&(e.type==='truck_empty'||e.type==='truck_waste'))||!!(t.emptied&&gs&&gf&&t.emptied>=gs&&t.emptied<=gf));
  const ts=[...used];while(ts.length<2)ts.push({seq:'',num:'',tests:[],blank:true});
  const CL={y:'#ffe600',g:'#d3d6da',t:'#f2c27a',b:'#a9b9d3',u:'#cfe8d4'};
+ const TW=truckPumpWindows(P,used);
+ const truckPump=(field)=>(t,i)=>{if(t.blank)return'';const x=TW[t.id];if(x){const time=x[field];return time?fh(time)+((field==='start'?x.startEst:x.finishEst)?'*':''):''}return i===0&&SV[field==='start'?'groutStart':'groutFinish']?fh(SV[field==='start'?'groutStart':'groutFinish'].t):''};
  const SV=stages(P),anyEst=Object.values(SV).some(x=>x.est)||used.some(t=>{const x=truckTimes(t);return x.batch.est||x.arrived.est||(x.emptied.est&&x.emptied.pk===P.key)});const one=k=>(t,i)=>i||!SV[k]?'':fh(SV[k].t)+(SV[k].est?'*':'');
  const bl=bands(P).slice().reverse(),EB=estBands(P); // Paper display shallow-to-deep; pumping and head accounting are tip-to-zero.
  const dl=b=>b.replace(' ft','').replace('–','-');
  const rows=[['PILE / DATE',(t,i)=>i?'':[P.id,P.date].filter(Boolean).join(' / '),''],['TRUCK NUMBER',t=>t.seq+(t.carryIn&&t.carryIn[P.key]?' (from '+pname(t.carryIn[P.key].from)+')':''),''],['TRUCK I.D. #',t=>t.num,''],['BATCH TIME',t=>{if(t.blank)return'';const x=truckTimes(t).batch;return fs(x.v)+(x.v&&x.est?'*':'')},''],['ARRIVAL TIME',t=>{if(t.blank)return'';const x=truckTimes(t).arrived;return x.t?fh(x.t)+(x.est?'*':''):''},''],['TRUCK EMPTY',t=>{if(t.blank)return'';const x=truckTimes(t).emptied;if(x.est&&x.pk===P.key)return fh(x.t)+'*';return !emptyHere(t)?carriedTo(t):fh(t.emptied)},''],
- ['DRILL START',one('drillStart'),'y'],['DRILL FINISH',one('drillFinish'),'y'],['GROUT / HOLE START',one('groutStart'),'g'],['GROUT / HOLE FINISH',one('groutFinish'),'g'],
+ ['DRILL START',one('drillStart'),'y'],['DRILL FINISH',one('drillFinish'),'y'],['GROUT / HOLE START',truckPump('start'),'g'],['GROUT / HOLE FINISH',truckPump('finish'),'g'],
  ['GROUT RETURN',(t,i)=>i?'':(gr?(gr.depth!=null?gr.depth:'?'):''),''],['REINFORCE START',one('reinfStart'),'t'],['REINFORCE FINISH',one('reinfFinish'),'t'],
  ['GROUT TEMP',t=>testFor(t,P.key).temp,''],['FLOW CONE TIME',t=>testFor(t,P.key).flow,''],['SAMPLE #',t=>t.sampleNo,''],
  ['TOTAL STROKES',(t,i)=>{if(i)return'';const m=num(P.myCount);if(m===null&&!P.opCount&&!P.reviewed){const c=confStrokes(P.key);if(c.est&&c.n)return c.n+'*'}return num(P.opCount)!==null?num(P.opCount):(num(P.reviewed)!==null?num(P.reviewed):(m!==null?m:(PS||bandSum(P)||'')))},'b'],

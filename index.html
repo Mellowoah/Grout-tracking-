@@ -1498,6 +1498,7 @@ async function archiveDay(){const j=JSON.stringify(S),sm=daySummary();const db=a
  const keep={};for(const k of ['cal','calUnit','limit','sampleYd','sampleEvery','defLoad','drillMin','groutMin','reinfMin','hideIntro','aiModel','planDef','gFactor','beep','relMin','noCount','topF','headStr'])if(S[k]!==undefined)keep[k]=S[k];
  S={pile:{...blankPile(),n:0,id:'',len:23,marks:[20,15,10,5,0],dayStart:true},strokes:0,segStart:0,pumping:false,active:null,trucks:[],ev:[],piles:[],warned:{},orphan:0,schema:100,plan:[],...keep};save()}
 async function preloadOne(D,done,PK){try{if(!D||!D.preloadId||done.includes(D.preloadId))return;
+  if(D.profile&&D.profile!==PROF)return;
   // only on the day it's for (local date YYYY-MM-DD); other days it waits, unused
   if(D.onlyOn){const d=new Date(),k=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');if(k!==D.onlyOn)return}
   // the phone still holds an earlier day: keep it in Past days and start today clean

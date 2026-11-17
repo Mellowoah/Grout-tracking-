@@ -86,7 +86,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v125';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v126';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -533,7 +533,7 @@ function render(){clearTimeout(rT);
   <div class="row"><button class="sec" style="flex:1" onclick="A.scan('${t.id}')">${t.photo?'Rescan ticket':'Scan ticket'}</button><button class="sec" style="flex:1" onclick="A.sw('${t.id}')">Feed pump</button><button class="sec" style="flex:1" onclick="A.empty('${t.id}')">Empty</button></div><div class="row"><small style="flex:1">Pump runout: ${t.pumpOutAt?hm(t.pumpOutAt)+' (estimated)':'—'} · Left site: ${t.departed?hm(t.departed):'not recorded'}</small><button class="sec" onclick="A.depart('${t.id}')">Left site now</button></div>
   <details data-s="more-${t.id}" ${secOpen['more-'+t.id]?'open':''} ontoggle="secT(this)"><summary style="font-weight:700;padding:6px 0">More for truck ${esc(t.seq||'')}</summary>  <div class="row"><label style="flex:1"><small>Correct used yd³ for pile ${esc(S.pile.id)} (leave blank to use strokes)</small><input id="t-${t.id}-used" inputmode="decimal" placeholder="${autoU?autoU+' from strokes':'Enter yd³'}" value="${man?esc(t.used[pk]):''}" onchange="A.setUsed('${t.id}',this.value)"></label></div>
   <div>Load ${c.q>=0?r1(c.q):'<span class=flag>?</span>'} − used ${c.placed===null?'<span class=flag>?</span>':r1(c.placed)} − sample ${r1(c.s)} − waste ${r1(c.w)} = <b>left on truck ${c.rem===null?'<span class=flag>?</span>':r1(c.rem)} yd³${sLeft(c.rem)!==null?' (~'+sLeft(c.rem)+' strokes)':''}</b></div>
-<div class="row"><input id="t-${t.id}-waste" placeholder="Waste yd³" inputmode="decimal" value="${esc(t.waste)}" onchange="A.setT('${t.id}','waste',this.value)"><label style="flex:1;min-width:90px"><small>Sample yd³ off this truck</small><input id="t-${t.id}-sy" inputmode="decimal" placeholder="${r1(sy(t))} (from samples)" value="${esc(t.sampleYd??'')}" onchange="A.setT('${t.id}','sampleYd',this.value)"></label></div>
+<div class="row"><input id="t-${t.id}-waste" placeholder="Final waste yd³ (confirm)" inputmode="decimal" value="${esc(t.waste)}" onchange="A.setT('${t.id}','waste',this.value)"><label style="flex:1;min-width:90px"><small>Sample yd³ off this truck</small><input id="t-${t.id}-sy" inputmode="decimal" placeholder="${r1(sy(t))} (from samples)" value="${esc(t.sampleYd??'')}" onchange="A.setT('${t.id}','sampleYd',this.value)"></label></div>
   <div class="row">${t.photo?`<button class="sec" style="flex:1" onclick="viewPhoto('${t.id}')">View ticket</button>`:''}${!(usedAll(t)>0.005)?`<button class="sec" style="flex:1" onclick="issOpen('${t.id}')">Send truck back</button>`:''}${canRm?`<button class="sec" style="flex:1" id="rm${t.id}" onclick="A.remove('${t.id}')">Remove truck</button>`:''}</div></details>
   ${t.tests.map((x,i)=>{if(x.pk&&x.pk!==pk)return'';const run=fc&&fc.id===t.id&&fc.i===i;return `<div class="card" style="background:var(--bg);border:1px solid var(--line)"><b>Sample ${i+1}${t.sampleNo?' · #'+esc(t.sampleNo):''}</b> <small style="color:var(--mut)">${ft(x.t)}</small>
   <div class="row"><label style="flex:1"><small>Grout temp °F</small><input id="t-${t.id}-tt${i}" inputmode="decimal" value="${esc(x.temp)}" onchange="A.setTest('${t.id}',${i},'temp',this.value)"></label><label style="flex:1"><small>Flow cone (sec)</small><input id="t-${t.id}-tf${i}" inputmode="decimal" value="${esc(x.flow)}" onchange="A.setTest('${t.id}',${i},'flow',this.value)"></label></div>
@@ -1207,8 +1207,8 @@ function midVals(pk){const P=pileRec(pk),L=ledger(pk),f=v=>v===null?'?':r1(v),or
    const carry=2.167,avail=5+carry;
    const common={ELEV:P.elev||'',STATION:P.station||''};
    if(P.id==='51')return{ARRIVED:r1(9),USED:r1(u51),'CARRY OVER':r1(carry),...common};
-   const left=avail-u61;
-   return{ARRIVED:{html:esc(r1(avail))+' <small style="font-size:12px;color:#555">(5 new + 2.167 carry)</small>'},USED:r1(u61),'CARRY OVER':'—',WASTE:{html:esc(r1(left))+' <small style="font-size:12px;color:#555">(estimated; confirm)</small>'},...common};
+   const left=avail-u61,confirmed=second.wastePk===pk?num(second.waste):null;
+   return{ARRIVED:{html:esc(r1(avail))+' <small style="font-size:12px;color:#555">(5 new + 2.167 carry)</small>'},USED:r1(u61),'CARRY OVER':'—',...(confirmed!==null?{WASTE:r1(Math.max(0,confirmed))}:{'REMAINING (EST.)':{html:esc(r1(left))+' <small style="font-size:12px;color:#555">(Truck 688; confirm waste)</small>'}}),...common};
   }
  }
 const usedHere=S.trucks.filter(t=>usedOn(t,pk)>0);const finalWaste=usedHere.reduce((sum,t)=>{const later=order.slice(idx+1).some(k=>usedOn(t,k)>0);if(later)return sum;const recorded=t.wastePk===pk?num(t.waste):null;return sum+(recorded!==null?Math.max(0,recorded):0)},0);const hasWaste=usedHere.some(t=>t.wastePk===pk&&num(t.waste)!==null);return{ARRIVED:arrCell(L),USED:f(L.used),'CARRY OVER':hasWaste?'—':f(L.left),...(hasWaste?{WASTE:r1(finalWaste)}:{}),ELEV:P.elev||'',STATION:P.station||''}}

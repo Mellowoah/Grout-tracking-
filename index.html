@@ -86,7 +86,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v112';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v113';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -370,7 +370,7 @@ const A={
   for(const t of loose){const a=arrOf(t);if(p.gfAt&&a&&a<=p.gfAt){attach(t,p.key);t.carryIn[S.pile.key]={from:p.key,yd:num(t.qty)};log('truck_carry',{truck:t.id,yd:num(t.qty)})}else attach(t,S.pile.key)}
   msg(done+'Pile '+(S.pile.id||'')+' started.'+(open.length?' '+open.map(([t,yd])=>'Truck '+tname(t)+': '+(yd==null?'?':r1(yd))+' yd³ left').join(', '):''))});showUndoPile()},
  undoPile(){if(!undoSnap)return;S=JSON.parse(undoSnap);undoSnap=null;$('undoNP').hidden=true;save();render();msg('Back on pile '+S.pile.id+'. Nothing was lost.')},
- pump(){act(()=>{S.pumping=!S.pumping;log(S.pumping?'pump_start':'pump_pause')})},
+ pump(){act(()=>{const on=!S.pumping;stampPumpStage(on);S.pumping=on;log(on?'pump_start':'pump_pause')})},
  arrive(){act(()=>{const t={id:uid(),seq:S.trucks.length?Math.max(...S.trucks.map(x=>x.seq||0))+1:1,num:'',sampleNo:'',qty:S.defLoad?String(S.defLoad):'',batch:'',dispatch:'',arrived:Date.now(),emptied:null,strokes:0,samples:[],waste:'',tests:[],pk0:null,onsite:true,ps:{},used:{},carryIn:{},left:''};S.trucks.push(t);log('truck_onsite',{truck:t.id});vib();if(sDue(t)>0)msg('Truck '+t.seq+' arrived. Sample due on this truck: report it Taken or Not taken on its card.')})},
  // Strokes come from the physical counter: type the reading; the difference goes to the feeding truck,
  // split at the point a truck's load runs out so the next truck gets the rest
@@ -1089,7 +1089,11 @@ function remRender(){const P=S.pile,n=remNext(),d=nextLine(P),key=(k,top,sub,ext
 function remHelp(){scanShow(`<h2>Keypad &amp; clicker keys</h2><div class="card">A Bluetooth keypad or clicker works with the Remote: keys 1–4 = the four keys, ◀ / Page Up = passed line, ▶ / Page Down / Space / Enter = ${S.noCount?'pump on / off (counter is off)':'+1 stroke'}. Shift + 3 = end the feeding truck.<br><b>Pump on / off: keypad 5, or the clicker's blank-screen button (B or .) or slideshow button (F5 / Esc).</b><br>The screen stays awake while the Remote is open.</div><button class="sec" style="width:100%;min-height:52px" onclick="scanClose();if(remOn())remRender()">Done</button>`)}
 // ---- Pump mode: the whole screen is one pump On / Off switch (works without looking).
 // Red = PUMP ON, gray = PUMP OFF. One buzz + high beep for on, two buzzes + low beep for off. A second tap within 1.5 s is ignored; Undo for 10 s.
-let pumpLastT=0,pumpUndo=null,pumpT=null,pumpWL=null;
+let pumpLastT=0,pumpUndo=null,pumpT=null,pumpWL=null,pumpStamp=null;
+// Pump on stamps Grout start; pump off stamps Grout finish. Only when that time is still empty.
+// A time already tapped or typed is left alone. Red auto-fill is not stored, so a stamp replaces it.
+function stampPumpStage(on){pumpStamp=null;const st=S.pile.st||(S.pile.st={}),k=on?'groutStart':'groutFinish';if(st[k])return;
+ st[k]=Date.now();pumpStamp={k,id:log('stage',{name:k}).id,t:st[k]}}
 const pumpOn=()=>$('pumpv')&&$('pumpv').style.display==='block';
 function pumpOpen(){$('pumpv').style.display='block';try{depAC=depAC||new (window.AudioContext||window.webkitAudioContext)();depAC.resume&&depAC.resume()}catch(e){}
  try{navigator.wakeLock&&navigator.wakeLock.request('screen').then(w=>pumpWL=w).catch(()=>{})}catch(e){}clearInterval(pumpT);pumpT=setInterval(pumpTick,500);pumpRender()}
@@ -1098,9 +1102,10 @@ function pumpFeel(on){try{navigator.vibrate&&navigator.vibrate(on?[350]:[180,140
  if(S.beep!==false)try{const a=depAC||(depAC=new (window.AudioContext||window.webkitAudioContext)());a.resume&&a.resume();(on?[0]:[0,0.3]).forEach(o=>{const os=a.createOscillator(),g=a.createGain();os.frequency.value=on?1400:420;g.gain.value=0.3;os.connect(g);g.connect(a.destination);os.start(a.currentTime+o);os.stop(a.currentTime+o+0.18)})}catch(e){}}
 // Turn the pump to a state through A.pump(): logs pump_start / pump_pause with the time (and the stroke count when this phone counts)
 function pumpSet(on){if(!!S.pumping===!!on)return false;const was=!!S.pumping;A.pump();const e=S.ev[S.ev.length-1];
- pumpUndo={id:e&&/^pump_/.test(e.type)?e.id:null,was,t:Date.now()};pumpFeel(!!S.pumping);pumpRefresh();return true}
+ pumpUndo={id:e&&/^pump_/.test(e.type)?e.id:null,was,t:Date.now(),stamp:pumpStamp};pumpFeel(!!S.pumping);pumpRefresh();return true}
 function pumpTap(){const now=Date.now();if(now-pumpLastT<1500)return false;pumpLastT=now;return pumpSet(!S.pumping)}
-function pumpUndoDo(){const u=pumpUndo;if(!u||Date.now()-u.t>10000)return;pumpUndo=null;act(()=>{S.pumping=u.was;if(u.id)S.ev=S.ev.filter(e=>e.id!==u.id)});pumpFeel(!!S.pumping);msg('Undid pump '+(u.was?'off':'on')+'. Pump is '+(S.pumping?'on':'off')+'.');pumpRefresh()}
+function pumpUndoDo(){const u=pumpUndo;if(!u||Date.now()-u.t>10000)return;pumpUndo=null;act(()=>{S.pumping=u.was;if(u.id)S.ev=S.ev.filter(e=>e.id!==u.id);
+ if(u.stamp){S.ev=S.ev.filter(e=>e.id!==u.stamp.id);if(S.pile.st&&S.pile.st[u.stamp.k]===u.stamp.t)delete S.pile.st[u.stamp.k]}});pumpFeel(!!S.pumping);msg('Undid pump '+(u.was?'off':'on')+'. Pump is '+(S.pumping?'on':'off')+'.');pumpRefresh()}
 function pumpRefresh(){if(pumpOn())pumpRender();if(remOn())remRender();if($('depv').style.display==='block'&&!pumpOn())depthRender()}
 function pumpTick(){if(!pumpOn())return;const u=$('pm-undo');if(pumpUndo&&Date.now()-pumpUndo.t>10000){pumpUndo=null;pumpRender()}else if(u&&pumpUndo)u.firstChild.textContent='Undo pump '+(pumpUndo.was?'off':'on')+' ('+Math.max(0,Math.ceil((10000-(Date.now()-pumpUndo.t))/1000))+' s)'}
 function pumpRender(){const v=$('pumpv');if(!v)return;const on=!!S.pumping,P=S.pile,d=nextLine(P),u=pumpUndo&&Date.now()-pumpUndo.t<=10000;

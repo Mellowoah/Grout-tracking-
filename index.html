@@ -86,7 +86,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v100';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v101';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -272,6 +272,31 @@ function ledger(pk=S.pile.key){const sum=f=>S.trucks.reduce((a,t)=>a+f(t),0);let
  // left on trucks = what each truck on this pile has left after it (same carry-over rule as the truck rows)
  let left=0,lp=pend;for(const t of S.trucks.filter(t=>counts(t)||t.carryIn[pk])){const la=leftAfter(t,pk);if(la===null){lp=true;break}left+=la}
  return{arr,cin,used:pend?null:used,samp,waste,left:lp?null:left}}
+// End-of-day read-only truck reconciliation. No historical records are rewritten.
+function dayRebalanceH(){
+ const order=orderKeys(),rows=[],warnings=[];let received=0,samples=0,placed=0,wasted=0,remaining=0,unknown=false;
+ for(const t of S.trucks){
+  const q=num(t.qty),sample=sy(t),used=usedAll(t),w=num(t.waste)||0;
+  const rem=q!==null&&used!==null?q-sample-used-w:null;
+  if(q!==null)received+=q;else{unknown=true;warnings.push('Truck '+tname(t)+': missing ticket quantity')}
+  samples+=sample;wasted+=w;
+  if(used!==null)placed+=used;else unknown=true;
+  if(rem!==null)remaining+=rem;else unknown=true;
+  if(rem!==null&&rem< -0.005)warnings.push('Truck '+tname(t)+': calculated overdraw '+r1(-rem)+' yd³');
+  if(t.pend)warnings.push('Truck '+tname(t)+': estimated handoff needs confirmation');
+  rows.push('<tr><td>'+esc(tname(t))+'</td><td>'+(q===null?'?':r1(q))+'</td><td>'+r1(sample)+'</td><td>'+(used===null?'?':r1(used))+'</td><td>'+(rem===null?'?':r1(rem))+'</td></tr>');
+ }
+ for(const pk of order){const p=pileRec(pk),n=confStrokes(pk),r=recon(pk);if(r&&r._gap)warnings.push('Pile '+(p.id||'?')+': '+Math.round(Math.abs(r._gap))+' strokes need allocation');if(n.src==='my count'&&!p.tapped&&!p.myCount)warnings.push('Pile '+(p.id||'?')+': total is not independently confirmed')}
+ if(S.orphan)warnings.push(S.orphan+' strokes held without a truck');
+ if(!S.trucks.length)warnings.push('No truck records in this saved day. Rebalance cannot restore records lost during an update.');
+ const net=received-samples-placed-wasted;
+ return '<div class="card" id="day-rebalance"><b>End-of-day truck rebalance (preview)</b><small>Recalculates all saved piles and trucks. No values are changed automatically.</small>'+
+ '<div style="overflow-x:auto"><table><tr><th>Truck</th><th>Load</th><th>Sample</th><th>Used</th><th>Left</th></tr>'+rows.join('')+'</table></div>'+
+ '<div>Delivered '+r1(received)+' − samples '+r1(samples)+' − pumped '+r1(placed)+' − documented losses '+r1(wasted)+' = <b>'+(unknown?'partial / unknown':r1(net)+' yd³')+'</b></div>'+
+ (!unknown&&Math.abs(net-remaining)>0.005?'<div class="flag">Ledger mismatch: '+r1(net-remaining)+' yd³</div>':'')+
+ (warnings.length?'<div class="flag">'+warnings.map(esc).join('<br>')+'</div>':'<div>All recorded truck quantities reconcile mathematically. Verify actual empty events and switch points.</div>')+
+ '<small>Missing trucks cannot be reconstructed from calculations. Use the existing backup/import or restore the original saved data before approving quantities.</small></div>';
+}
 // Closeout: counter readings at the lines (fixable), reconciliation, change history
 function reconH(){const P=S.pile,pk=P.key,L=lines(P),cs=confStrokes(pk),my=S.strokes||0,r=my>0?recon(pk):null,ord=r?r._ord.filter(id=>(r[id]||0)>0||strokesOn(tk(id),pk)>0):[];let h='';
  if(L.length)h+=`<div class="card" id="lines-fix"><b>Counter at each depth line</b> <small>(fix a wrong reading; the bands either side follow)</small>${L.map((l,i)=>`<div class="row"><label style="flex:1"><small>${l.d} ft</small><input id="ln-${i}" type="number" inputmode="numeric" placeholder="missing" value="${l.c??''}" onchange="A.lineSet(${i},this.value)"></label>${'orig' in l&&l.orig!==l.c?`<small style="flex:1">first read ${l.orig??'missing'}</small>`:''}</div>`).join('')}</div>`;
@@ -501,7 +526,7 @@ function render(){clearTimeout(rT);
   <tr><td><b>Total</b></td><td><b>${bs??'—'}</b>${bs!=null&&c.src!=='my count'&&bs!==c.n?` <small class=flag>${esc(c.src)} ${c.n}</small>`:''}</td><td></td><td><b>${c.n&&calYd()>0?r1(c.n*calYd()):''}</b></td>${QC?'<td><b>'+(PQ?fx(PQ.f):'')+'</b></td>':''}</tr></table>${QC?`<small style="color:var(--mut)">× = grout in the band vs ${esc(QC.ref)}; flagged under ${needTxt(QC)}${hdN(P)}.${QC.mode==='rel'?' Add the pile diameter for the real check against the hole volume.':''}</small>`:''}</div>`}
  const gr=pev('grout_return');
  if(gr.length)h+=`<h2>Grout return</h2>`+gr.map(e=>`<div class="row">${ft(e.t)}${e.countOff?'':' · strokes '+e.strokes}<input id="gr-${e.id}" placeholder="Depth ft (fill later)" inputmode="decimal" value="${e.depth??''}" onchange="A.setDepth('${e.id}',this.value)">${e.depth==null?'<span class=flag>missing</span>':''}</div>`).join('');
- h+=`<h2>Closeout</h2><div class="card"><div class="row"><label style="flex:1"><small>My count (total strokes)</small><input id="f-my" type="number" inputmode="numeric" value="${esc(S.pile.myCount??'')}" placeholder="${bandSum(S.pile)!=null?bandSum(S.pile)+' (sum of bands)':''}" onchange="A.pset('myCount',this.value)"></label></div><div>Used yd³ figured from <b>${confStrokes(S.pile.key).src} (${confStrokes(S.pile.key).n})</b>${EBs?` · no depths marked, so strokes are split by the ${esc(EBs._src)} (≈ in the table)`:''}</div><div class="row"><input id="f-op" placeholder="Contractor count" inputmode="numeric" value="${esc(S.pile.opCount)}" onchange="A.pset('opCount',this.value)"><input id="f-rev" placeholder="Agreed total" inputmode="numeric" value="${esc(S.pile.reviewed)}" onchange="A.pset('reviewed',this.value)"></div><div class="row"><input id="f-note" placeholder="Explanation" value="${esc(S.pile.note)}" onchange="A.pset('note',this.value)"></div>${(()=>{const off=S.pile.noCount&&!S.pile.tapped,mine=off?num(S.pile.myCount):S.strokes;return S.pile.opCount&&mine!==null&&Number(S.pile.opCount)!==mine?'<div class=flag>Counts differ by '+(Number(S.pile.opCount)-mine)+'</div>':''})()}</div>`;h+=reconH();
+ h+=`<h2>Closeout</h2><div class="card"><div class="row"><label style="flex:1"><small>My count (total strokes)</small><input id="f-my" type="number" inputmode="numeric" value="${esc(S.pile.myCount??'')}" placeholder="${bandSum(S.pile)!=null?bandSum(S.pile)+' (sum of bands)':''}" onchange="A.pset('myCount',this.value)"></label></div><div>Used yd³ figured from <b>${confStrokes(S.pile.key).src} (${confStrokes(S.pile.key).n})</b>${EBs?` · no depths marked, so strokes are split by the ${esc(EBs._src)} (≈ in the table)`:''}</div><div class="row"><input id="f-op" placeholder="Contractor count" inputmode="numeric" value="${esc(S.pile.opCount)}" onchange="A.pset('opCount',this.value)"><input id="f-rev" placeholder="Agreed total" inputmode="numeric" value="${esc(S.pile.reviewed)}" onchange="A.pset('reviewed',this.value)"></div><div class="row"><input id="f-note" placeholder="Explanation" value="${esc(S.pile.note)}" onchange="A.pset('note',this.value)"></div>${(()=>{const off=S.pile.noCount&&!S.pile.tapped,mine=off?num(S.pile.myCount):S.strokes;return S.pile.opCount&&mine!==null&&Number(S.pile.opCount)!==mine?'<div class=flag>Counts differ by '+(Number(S.pile.opCount)-mine)+'</div>':''})()}</div>`;h+=reconH();h+=dayRebalanceH();
  h=h.slice(0,g1)+sec('strokes','Strokes by depth & closeout'+(confStrokes(S.pile.key).n?' · '+confStrokes(S.pile.key).n+' strokes':''),h.slice(g1))+truckH;
  const g2=h.length;
  h+=`<div class="card">${[

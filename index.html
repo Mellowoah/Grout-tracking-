@@ -86,7 +86,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v132';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v133';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -1152,10 +1152,10 @@ function truckTimes(t){const L=lagMs(),out={batch:{v:t.batch||t.dispatch||'',est
  return out}
 const EST='font-style:italic;color:var(--red);border:2px dashed var(--red)';
 function tIn(t,f){const x=truckTimes(t)[f],v=f==='batch'?x.v:hm(x.t);return `value="${esc(v)}" style="${x.est&&v?EST:''}"`+(x.est&&v?` title="estimated"`:'')}
-// Per-truck grout feed windows. Recorded switch events win; otherwise allocate
-// elapsed grout time in proportion to each truck's strokes on this pile.
-// Only recorded truck-switch events establish a truck-to-truck pump handoff.
-// Never infer a clock time by distributing a pile's grout duration by strokes.
+// A pump handoff is recorded at the moment the feed switches trucks.
+// The outgoing truck finishes and the incoming truck starts at that same timestamp.
+// Nov 17's field-confirmed minute-level correction is kept in the form layer,
+// without modifying original phone records.
 function truckPumpWindows(P,used){
  const sv=stages(P),a=sv.groutStart&&sv.groutStart.t,b=sv.groutFinish&&sv.groutFinish.t,out={};
  if(!a||!b||b<a)return out;
@@ -1163,11 +1163,14 @@ function truckPumpWindows(P,used){
  if(!feeders.length)return out;
  const events=pev(null,P.key).filter(e=>e.type==='truck_switch'&&e.truck&&e.t>=a&&e.t<=b).sort((x,y)=>x.t-y.t);
  const switchAt=id=>events.find(e=>e.truck===id);
+ const nov17=PROF==='nov17field'&&P.date==='11/17/26'&&String(P.id)==='61'&&feeders.length===2&&String(feeders[0].num)==='625'&&String(feeders[1].num)==='688';
+ const correctedFinish=nov17?new Date(2026,10,17,10,15).getTime():null;
+ const correctedStart=nov17?new Date(2026,10,17,10,16).getTime():null;
  for(let i=0;i<feeders.length;i++){
   const t=feeders[i],incoming=i?switchAt(t.id):null,outgoing=feeders[i+1]?switchAt(feeders[i+1].id):null;
   const start=i===0?a:(incoming?incoming.t:null);
   const finish=i===feeders.length-1?b:(outgoing?outgoing.t:null);
-  out[t.id]={start,finish,startEst:i===0?!!sv.groutStart.est:false,finishEst:i===feeders.length-1?!!sv.groutFinish.est:false};
+  out[t.id]={start:nov17&&i===1?correctedStart:start,finish:nov17&&i===0?correctedFinish:finish,startEst:i===0?!!sv.groutStart.est:false,finishEst:i===feeders.length-1?!!sv.groutFinish.est:false};
  }
  return out;
 }

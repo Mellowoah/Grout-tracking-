@@ -86,7 +86,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v113';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v114';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -214,14 +214,14 @@ function recon(pk){const my=pileRec(pk).strokes||0,cs=confStrokes(pk),cy=calYd()
 function feedOrder(pk){const seen=[],add=id=>{if(id&&tk(id)&&!seen.includes(id))seen.push(id)};
  for(const e of pev(null,pk))if(e.type==='truck_carry'||e.type==='truck_switch')add(e.truck);
  if(pk===S.pile.key)add(S.active);
- for(const e of pev(null,pk))if(e.type==='truck_arrival'||e.type==='truck_carry')add(e.truck);
+ for(const e of pev(null,pk))if(e.type==='truck_carry')add(e.truck);
  // Imported field sheets have pile totals and truck arrival times, but often no
  // pump-switch events. Allocate against eligible loads in chronological arrival order.
  const p=pileRec(pk),g=stages(p).groutStart,at=g&&g.t||null;
- S.trucks.filter(t=>!t.rejected&&num(t.qty)!==null&&(!at||!arrOf(t)||arrOf(t)<=at))
+ S.trucks.filter(t=>!t.rejected&&num(t.qty)!==null&&(num(t.used[pk])!==null||((t.ps||{})[pk]||0)>0)&&(!at||!arrOf(t)||arrOf(t)<=at))
   .sort((x,y)=>(arrOf(x)||Infinity)-(arrOf(y)||Infinity)||(x.seq||0)-(y.seq||0))
   .forEach(t=>add(t.id));
- if(pk===S.pile.key)S.trucks.filter(t=>!t.pk0&&t.onsite&&!t.emptied).sort((a,b)=>(a.arrived||0)-(b.arrived||0)).forEach(t=>add(t.id));
+ 
  return seen}
 function onBoard(t,pk){const order=orderKeys(),i=order.indexOf(pk),q=parseFloat(t.qty);if(!(q>=0))return Infinity;
  if(t.pk0===pk||i<=0)return q-sy(t);const prev=leftAfter(t,order[i-1]);return prev===null?Infinity:Math.max(0,prev)}
@@ -354,7 +354,7 @@ function autoHandoff(){const t=tk(S.active);if(!t||t.pend||t.noPend||!(calYd()>0
  const pk=S.pile.key,cy=calYd(),n=strokesOn(t,pk),bnd=Math.max(0,Math.floor((c.rem+n*cy)/cy+1e-9)),over=Math.max(0,Math.round(n-bnd));
  closeSeg();if(over){t.ps[pk]=(t.ps[pk]||0)-over;t.strokes-=over}S.active=null;S.segStart=S.strokes-over;
  t.pend={t:Date.now(),pk,strokes:S.strokes-over,est:true};log('truck_maybe_empty',{truck:t.id,boundary:bnd});const {ok:nx,late}=nextFeeder(t);
- if(nx){attach(nx,pk);S.active=nx.id;nx.fed=true;log('truck_switch',{truck:nx.id,from:t.id,auto:true,est:true,at:S.strokes-over,depth:nextMark()??null});save();msg('Strokes say truck '+tname(t)+' is used up (estimated at its stroke '+bnd+'). Now counting on truck '+tname(nx)+'. Truck '+tname(t)+' stays open until you confirm.')}
+ if(nx){save();msg('Pump count estimates truck '+tname(t)+' is out at stroke '+bnd+'. Truck '+tname(nx)+' is waiting; tap Feed pump when it actually starts supplying grout. Unassigned strokes are held.')}
  else{S.orphan=(S.orphan||0)+over;save();msg('Strokes say truck '+tname(t)+' is used up (estimated at its stroke '+bnd+'). No truck is ready'+(late?' (truck '+tname(late)+' is past its batch time; tap Feed pump on it to use it anyway)':'')+', so strokes are held as not on any truck.')}render();vib()}
 $('fold').onclick=()=>{$('tray').classList.toggle('min');$('fold').textContent=$('tray').classList.contains('min')?'▴':'▾'};
 
@@ -367,7 +367,7 @@ const A={
   for(let i=open.length-1;i>=0;i--)if(open[i][0].pend&&!open[i][0].noPend)open.splice(i,1);
   const gf0=stages().groutFinish;S.piles.push({...S.pile,strokes:S.strokes,done:Date.now()});const p={...S.pile,gfAt:gf0&&gf0.t};S.pile={...blankPile(),n:maxN()+1,id:(typeof want==='string'&&want)||nextPileId(p.id),wall:p.wall,station:p.station,marks:p.marks,len:p.len};applyPlan(S.pile,true);S.strokes=0;S.segStart=0;log('new_pile');
   for(const [t,yd] of open){t.carryIn[S.pile.key]={from:p.key,yd};t.left='';log('truck_carry',{truck:t.id,yd})}
-  for(const t of loose){const a=arrOf(t);if(p.gfAt&&a&&a<=p.gfAt){attach(t,p.key);t.carryIn[S.pile.key]={from:p.key,yd:num(t.qty)};log('truck_carry',{truck:t.id,yd:num(t.qty)})}else attach(t,S.pile.key)}
+  /* Waiting trucks remain unassigned across pile changes until they feed the pump. */
   msg(done+'Pile '+(S.pile.id||'')+' started.'+(open.length?' '+open.map(([t,yd])=>'Truck '+tname(t)+': '+(yd==null?'?':r1(yd))+' yd³ left').join(', '):''))});showUndoPile()},
  undoPile(){if(!undoSnap)return;S=JSON.parse(undoSnap);undoSnap=null;$('undoNP').hidden=true;save();render();msg('Back on pile '+S.pile.id+'. Nothing was lost.')},
  pump(){act(()=>{S.pumping=!S.pumping;log(S.pumping?'pump_start':'pump_pause')})},
@@ -403,7 +403,7 @@ const A={
   delete tErr[id];const wasLoose=!t.pk0;
   if(f==='emptied'&&!t.emptied){if(S.active===id){closeSeg();S.active=null}log('truck_empty',{truck:id})}
   t[f]=nt;log('edit',{truck:id,field:f,value:hm(nt)});
-  if(wasLoose&&f==='arrived'){const k=pileByArrival(t.arrived);if(k){A.movePile(id,k);return true}}save();render();return true},
+  save();render();return true},
  remove(id){const t=tk(id);if(!t||t.fed||t.samples.length||t.tests.length)return;if(!twoTap('rm'+id,'rm'+id))return;act(()=>{S.trucks=S.trucks.filter(x=>x!==t);S.ev=S.ev.filter(e=>!(e.type==='truck_arrival'&&e.truck===id));msg('Truck removed')})},
  sample(id){const t=tk(id);if(!t)return;if(sHere(t)&&!twoTap('smp'+id,'ts-'+id,'Tap again: 2nd sample'))return;act(()=>{const e=takeSample(t);msg('Sample taken from truck '+tname(t)+' ('+r1(e.yd)+' yd³) at '+ft(e.t)+'. Temp and flow cone go on its card.')})},
  test(id){act(()=>{const t=tk(id);log('qc_test',{truck:id});t.tests.push({id:uid(),t:Date.now(),temp:'',flow:'',pk:S.pile.key})});setTimeout(()=>{const t=tk(id),e=t&&$('t-'+id+'-tt'+(t.tests.length-1));if(e)e.scrollIntoView({block:'center',behavior:'smooth'})},50)},
@@ -1147,12 +1147,12 @@ function formHTML(pk,pair){
  const cur=!pk||pk===S.pile.key,P=cur?S.pile:S.piles.find(p=>p.key===pk),PS=cur?S.strokes:(P.strokes||0),iv=intervals(P),gr=pev('grout_return',P.key)[0];
  // Same layout as the paper sheet: always at least two truck columns, blank where nothing is logged yet
  const carriedTo=t=>{const k=Object.keys(t.carryIn).find(k=>t.carryIn[k].from===P.key);return k?'→ pile '+pname(k):''};
- const linked=pileTrucks(P.key);
+ const linked=pileTrucks(P.key).filter(t=>num(t.used[P.key])!==null||((t.ps||{})[P.key]||0)>0||pev(null,P.key).some(e=>e.truck===t.id&&['truck_switch','truck_empty','truck_waste','truck_carry'].includes(e.type)));
  // For imported field sheets, truck times are recorded separately from pile events.
  // Match trucks by the actual grout window, retaining explicit pile links first.
  const svForTruck=stages(P),gs=svForTruck.groutStart&&svForTruck.groutStart.t,gf=svForTruck.groutFinish&&svForTruck.groutFinish.t;
  const timed=gs&&gf?S.trucks.filter(t=>{if(t.rejected)return false;const x=truckTimes(t),a=x.arrived.t,e=x.emptied.t;return a&&a<=gf&&(!e||e>=gs)}).sort((a,b)=>(truckTimes(a).arrived.t||0)-(truckTimes(b).arrived.t||0)):[];
- const used=[...linked,...timed.filter(t=>!linked.some(x=>x.id===t.id))].sort((a,b)=>(truckTimes(a).arrived.t||0)-(truckTimes(b).arrived.t||0));
+ const used=[...linked,...timed.filter(t=>!linked.some(x=>x.id===t.id)&&(num(t.used[P.key])!==null||((t.ps||{})[P.key]||0)>0))].sort((a,b)=>(truckTimes(a).arrived.t||0)-(truckTimes(b).arrived.t||0));
  const emptyHere=t=>pev(null,P.key).some(e=>e.truck===t.id&&(e.type==='truck_empty'||e.type==='truck_waste'))||!!(t.emptied&&gs&&gf&&t.emptied>=gs&&t.emptied<=gf);
  const ts=[...used];while(ts.length<2)ts.push({seq:'',num:'',tests:[],blank:true});
  const CL={y:'#ffe600',g:'#d3d6da',t:'#f2c27a',b:'#a9b9d3',u:'#cfe8d4'};

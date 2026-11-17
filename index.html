@@ -86,7 +86,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v119';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v120';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -1168,7 +1168,7 @@ function formHTML(pk,pair){
  ['DRILL START',one('drillStart'),'y'],['DRILL FINISH',one('drillFinish'),'y'],['GROUT / HOLE START',one('groutStart'),'g'],['GROUT / HOLE FINISH',one('groutFinish'),'g'],
  ['GROUT RETURN',(t,i)=>i?'':(gr?(gr.depth!=null?gr.depth:'?'):''),''],['REINFORCE START',one('reinfStart'),'t'],['REINFORCE FINISH',one('reinfFinish'),'t'],
  ['GROUT TEMP',t=>testFor(t,P.key).temp,''],['FLOW CONE TIME',t=>testFor(t,P.key).flow,''],['SAMPLE #',t=>t.sampleNo,''],
- ['TOTAL STROKES',(t,i)=>{if(i)return'';const m=num(P.myCount);if(m===null&&!P.opCount&&!P.reviewed){const c=confStrokes(P.key);if(c.est&&c.n)return c.n+'*'}return m!==null?m:(PS||P.opCount||P.reviewed||bandSum(P)||'')},'b'],
+ ['TOTAL STROKES',(t,i)=>{if(i)return'';const m=num(P.myCount);if(m===null&&!P.opCount&&!P.reviewed){const c=confStrokes(P.key);if(c.est&&c.n)return c.n+'*'}return num(P.opCount)!==null?num(P.opCount):(num(P.reviewed)!==null?num(P.reviewed):(m!==null?m:(PS||bandSum(P)||'')))},'b'],
  ...bl.map((b,bi)=>['DEPTH '+dl(b),(t,i)=>{if(i)return'';const r=iv.find(r=>r.band===b);const bv=(P.bandIn||{})[dl(b)];return bv!=null?bv:r?(r.flag?'?':r.d):(EB&&EB[b]!=null?EB[b]+'*':'')},bi===bl.length-1?'t':'b'])];
  const cell='border:1px solid #6b7c99;height:34px;padding:2px 6px;font-size:18px';
  const lab=c=>`${cell};background:${CL[c]||'#fff'};font:700 13px Barlow,system-ui,sans-serif;white-space:nowrap`;

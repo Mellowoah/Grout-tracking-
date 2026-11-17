@@ -524,6 +524,11 @@
           "5"
         ]
       ]
+    },
+    {
+      "preloadId": "nov17-verified-handoff-v2",
+      "profile": "nov17field",
+      "reconcileNov17": true
     }
   ]
 }

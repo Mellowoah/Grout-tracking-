@@ -1534,7 +1534,14 @@ async function preloadOne(D,done,PK){try{if(!D||!D.preloadId||done.includes(D.pr
    done.push(D.preloadId);localStorage.setItem(PK,JSON.stringify(done));save();render();if(notes.length)msg(notes.join('; ')+'.');return}
   if(D.renamePiles){const notes=[];for(const [from,to] of D.renamePiles){const all=allPiles(),pf=all.find(x=>x.id===from);if(pf&&!all.some(x=>x.id===to)){pf.id=to;notes.push('pile '+from+' is now pile '+to)}}
    resortPiles();done.push(D.preloadId);localStorage.setItem(PK,JSON.stringify(done));save();render();msg((notes.join('; ')||'No pile to rename')+(D.note?' '+D.note:'')+'.');return}
-  if(D.patch){const notes=[];for(const p of D.trucks||[]){let t=S.trucks.filter(x=>String(x.seq)===String(p.seq)).sort((a,b)=>(b.arrived||0)-(a.arrived||0))[0];
+  if(D.patch){const notes=[];
+   for(const p of D.piles||[]){const target=allPiles().find(x=>String(x.id)===String(p.id));if(!target)continue;
+    for(const [field,value] of Object.entries(p.st||{})){if(target.st&&target.st[field])continue;
+     const [hh,mm]=String(value).split(':').map(Number),date=String(target.date||'11/16/26').split('/');
+     const stamp=new Date(2000+Number(date[2]),Number(date[0])-1,Number(date[1]),hh,mm).getTime();
+     if(Number.isFinite(stamp)){target.st=target.st||{};target.st[field]=stamp;notes.push('pile '+p.id+' '+field+' '+value)}}
+   }
+for(const p of D.trucks||[]){let t=S.trucks.filter(x=>String(x.seq)===String(p.seq)).sort((a,b)=>(b.arrived||0)-(a.arrived||0))[0];
     if(!t&&p.add){A.addTruck();t=S.trucks[S.trucks.length-1];t.seq=p.seq;notes.push('added truck '+p.seq)}
     if(t&&p.batch&&t.batch!==p.batch){notes.push('truck '+p.seq+' batch '+(t.batch||'—')+' → '+p.batch);t.batch=p.batch;log('edit',{truck:t.id,field:'batch',value:p.batch,source:'patch'})}if(t&&p.num)t.num=String(p.num);if(t&&p.qty)t.qty=String(p.qty);if(t&&p.arrival){const [h,m]=p.arrival.split(':').map(Number),d=new Date();d.setHours(h,m,0,0);t.arrived=d.getTime()}if(t&&p.departure){const [h,m]=p.departure.split(':').map(Number),d=new Date();d.setHours(h,m,0,0);t.emptied=d.getTime()}}
    done.push(D.preloadId);localStorage.setItem(PK,JSON.stringify(done));save();render();msg('Updated: '+(notes.join('; ')||'nothing to change')+'.');return}

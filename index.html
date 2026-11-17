@@ -86,7 +86,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v117';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v118';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -364,7 +364,7 @@ $('fold').onclick=()=>{$('tray').classList.toggle('min');$('fold').textContent=$
 const armed={};
 function twoTap(k,btnId,label){if(Date.now()-(armed[k]||0)>4000){armed[k]=Date.now();const b=$(btnId);if(b)b.textContent=label||'Tap again to confirm';setTimeout(render,4200);return false}armed[k]=0;return true}
 const A={
- newPile(want){if(!isLatest()){const L=latestPile();A.openPile(L.key);return}undoSnap=JSON.stringify(S);for(const t of S.trucks)if(onsiteUsed(t,S.pile.key))attach(t,S.pile.key);if(fc){clearInterval(fcT);fc=null}let done='';act(()=>{closeSeg();const ok=S.pile.key;done='Pile '+(S.pile.id||'?')+' done: '+(pileTrucks(ok).map(t=>'truck '+tname(t)+' '+(usedOn(t,ok)===null?'?':r1(usedOn(t,ok)))+' yd³').join(', ')||'no trucks')+'. ';const loose=S.trucks.filter(t=>!t.emptied&&!t.pk0&&(t.onsite||!arrOf(t)||arrOf(t)<=Date.now()));const open=S.trucks.filter(t=>!t.emptied&&t.pk0&&((t.ps||{})[S.pile.key]>0||num(t.used[S.pile.key])!==null||S.active===t.id)).map(t=>{const c=calc(t);return[t,c.rem!==null?c.rem:(c.q>=0&&usedAll(t)===0?c.q:null)]});
+ newPile(want){if(!isLatest()){const L=latestPile();A.openPile(L.key);return}undoSnap=JSON.stringify(S);for(const t of S.trucks)if(onsiteUsed(t,S.pile.key))attach(t,S.pile.key);if(fc){clearInterval(fcT);fc=null}let done='';act(()=>{closeSeg();const ok=S.pile.key;done='Pile '+(S.pile.id||'?')+' done: '+(pileTrucks(ok).map(t=>'truck '+tname(t)+' '+(usedOn(t,ok)===null?'?':r1(usedOn(t,ok)))+' yd³').join(', ')||'no trucks')+'. ';const loose=S.trucks.filter(t=>!t.emptied&&!t.pk0&&(t.onsite||!arrOf(t)||arrOf(t)<=Date.now()));const open=S.trucks.filter(t=>!t.emptied&&t.pk0&&!t.pend&&(S.active===t.id||((t.ps||{})[S.pile.key]>0||num(t.used[S.pile.key])>0)&&calc(t).rem>0)).map(t=>{const c=calc(t);return[t,c.rem!==null?c.rem:(c.q>=0&&usedAll(t)===0?c.q:null)]});
   // a truck the strokes say ran out here isn't carried on: it's flagged so you can confirm it empty (at this pile's grout finish)
   {const gf=stages().groutFinish;for(const [t,yd] of open.filter(([t,yd])=>yd!==null&&yd<=0.005&&usedOn(t,S.pile.key)>0)){t.pend={t:gf?gf.t:Date.now(),pk:S.pile.key};log('truck_maybe_empty',{truck:t.id})}}
   for(let i=open.length-1;i>=0;i--)if(open[i][0].pend&&!open[i][0].noPend)open.splice(i,1);
@@ -485,7 +485,8 @@ function render(){clearTimeout(rT);
  const recv=sum(t=>parseFloat(t.qty)||0),samp=sum(t=>t.samples.length*S.sampleYd),waste=sum(t=>parseFloat(t.waste)||0);
  const pl=calYd()>0?sum(t=>tStrokes(t)*calYd()):null;
  const at=tk(S.active),nm=nextMark();
- const atR=at?calc(at).rem:null;const onSite=ts.filter(t=>!t.emptied&&t!==at);$('stat').innerHTML=`<div><small>Feeding pump</small><b class="num">${at?'Truck '+esc(at.num||at.seq):'none'}</b>${at?`<small style="color:var(--ink)"><b class="num" style="font-size:18px">${atR===null?'?':r1(atR)}</b> yd³ left${sLeft(atR)!==null?' · ~'+sLeft(atR)+' strokes':''}</small>`:''}</div><div><small>Strokes</small><b class="num">${confStrokes(S.pile.key).n||'—'}</b><small style="color:var(--ink)">${esc(confStrokes(S.pile.key).src)}</small></div><div><small>Pump</small><b class="num">${S.pumping?'On':'Off'}</b><small style="color:var(--ink)">${onSite.length?'On site: '+onSite.map(t=>'#'+esc(t.seq||'?')).join(', '):'No other trucks'}</small></div>`;
+ const atR=at?calc(at).rem:null;const onSite=ts.filter(t=>!t.emptied&&t!==at);const next=at?nextFeeder(at).ok:null;const sourceNote=at?'Current source: truck '+tname(at)+(sLeft(atR)!==null?' · estimated '+sLeft(atR)+' more strokes on this truck':' · remaining strokes unknown')+(next?' · next: truck '+tname(next):' · no eligible next truck'):'No feeding truck selected; waiting trucks are not in use';$('stat').innerHTML=`<div><small>Feeding pump</small><b class="num">${at?'Truck '+esc(at.num||at.seq):'none'}</b>${at?`<small style="color:var(--ink)"><b class="num" style="font-size:18px">${atR===null?'?':r1(atR)}</b> yd³ left${sLeft(atR)!==null?' · ~'+sLeft(atR)+' strokes until switch':''}</small>`:''}</div><div><small>Strokes</small><b class="num">${confStrokes(S.pile.key).n||'—'}</b><small style="color:var(--ink)">${esc(confStrokes(S.pile.key).src)}</small></div><div><small>Pump</small><b class="num">${S.pumping?'On':'Off'}</b><small style="color:var(--ink)">${onSite.length?'On site: '+onSite.map(t=>'#'+esc(t.seq||'?')).join(', '):'No other trucks'}</small></div>`;
+ $('stat').title=sourceNote;
  const ae=document.activeElement;if(ae&&ae.tagName==='INPUT'){pend=true;return}pend=false;
  const sh=v=>v===null?'pending':r1(v);
  const cins=ts.filter(t=>t.carryIn[S.pile.key]),lat=latestPile();

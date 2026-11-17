@@ -86,7 +86,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v114';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v115';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -212,9 +212,9 @@ function recon(pk){const my=pileRec(pk).strokes||0,cs=confStrokes(pk),cy=calYd()
  else if(d<0){for(let i=ord.length-1;i>=0&&d<-1e-6;i--){const take=Math.min(-d,out[ord[i]]);out[ord[i]]-=take;d+=take}}
  Object.defineProperty(out,'_gap',{value:ord.length&&Math.abs(d)>1e-6?d:0});Object.defineProperty(out,'_ord',{value:ord});return out}
 function feedOrder(pk){const seen=[],add=id=>{if(id&&tk(id)&&!seen.includes(id))seen.push(id)};
- for(const e of pev(null,pk))if(e.type==='truck_carry'||e.type==='truck_switch')add(e.truck);
+ for(const e of pev(null,pk))if(e.type==='truck_switch'||(e.type==='truck_carry'&&tk(e.truck)&&tk(e.truck).fed))add(e.truck);
  if(pk===S.pile.key)add(S.active);
- for(const e of pev(null,pk))if(e.type==='truck_carry')add(e.truck);
+ 
  // Imported field sheets have pile totals and truck arrival times, but often no
  // pump-switch events. Allocate against eligible loads in chronological arrival order.
  const p=pileRec(pk),g=stages(p).groutStart,at=g&&g.t||null;
@@ -383,7 +383,7 @@ const A={
  ret(){act(()=>{log('grout_return',{depth:null,source:''})})},
  sw(id){const t=tk(id);if(!t)return msg('No truck yet. Add a truck (times optional) or tap Truck arrived.');act(()=>{attach(t,S.pile.key);const o=tk(S.active);closeSeg();S.active=id;S.segStart=S.strokes;t.fed=true;log('truck_switch',{truck:id,from:o?o.id:null,depth:nextMark()??null})})},
  next(){const t=S.trucks.find(t=>!t.fed&&!t.emptied);if(!t)return msg('No truck yet. Add a truck (times optional) or tap Truck arrived.');A.sw(t.id)},
- empty(id){let nxMsg='';act(()=>{const t=tk(id),wasA=S.active===id;if(wasA){closeSeg();S.active=null}if(!t.pk0&&t.onsite)attach(t,S.pile.key);t.emptied=Date.now();log('truck_empty',{truck:id});if(wasA){const nf=nextFeeder(t),nx=nf.ok;if(!nx&&nf.late)nxMsg='Truck '+tname(t)+' empty. Truck '+tname(nf.late)+' is past its batch time, so it wasn\'t started: tap Feed pump on it to use it anyway.';if(nx){attach(nx,S.pile.key);S.active=nx.id;S.segStart=S.strokes;nx.fed=true;log('truck_switch',{truck:nx.id,from:id,auto:true,depth:nextMark()??null});nxMsg='Truck '+tname(t)+' empty. Now feeding truck '+tname(nx)+'.'}}});if(nxMsg)msg(nxMsg)},
+ empty(id){let nxMsg='';act(()=>{const t=tk(id),wasA=S.active===id;if(wasA){closeSeg();S.active=null}if(!t.pk0&&t.onsite)attach(t,S.pile.key);t.emptied=Date.now();log('truck_empty',{truck:id});if(wasA){const nf=nextFeeder(t),nx=nf.ok;if(!nx&&nf.late)nxMsg='Truck '+tname(t)+' empty. Truck '+tname(nf.late)+' is past its batch time, so it wasn\'t started: tap Feed pump on it to use it anyway.';if(nx){nxMsg='Truck '+tname(t)+' empty. Truck '+tname(nx)+' is waiting; tap Feed pump when it actually supplies grout.'}}});if(nxMsg)msg(nxMsg)},
  // Leftover on truck dumped: becomes waste on this pile and the truck is done
  waste(id){const t=tk(id),c=calc(t);if(c.rem===null)return msg('Enter the load and used yd³ first so the leftover can be worked out.');
   act(()=>{const e=log('truck_waste',{truck:id,yd:c.rem,prevWaste:t.waste,prevPk:t.wastePk||null,prevEmptied:t.emptied,prevActive:S.active===id});
@@ -413,7 +413,7 @@ const A={
  stage(k){act(()=>{const st=S.pile.st;st[k]=Date.now();if(S.pile.resetStages)delete S.pile.resetStages[k];log('stage',{name:k})});
   // Grout start = start pumping (and feed a truck if none is); Grout finish = stop pumping
   if(k==='drillFinish'&&!S.pile.st.groutStart){S.pile.st.groutStart=S.pile.st.drillFinish;k='groutStart'}
-  if(k==='groutStart'){if(!tk(S.active)){const open=S.trucks.filter(t=>!t.emptied&&!t.pend);const nx=open.find(t=>t.carryIn[S.pile.key])||open.find(t=>t.fed)||open.find(t=>!t.fed);if(nx)A.sw(nx.id)}
+  if(k==='groutStart'){if(!tk(S.active)){msg('Grout started. Select Feed pump on the truck actually supplying grout; waiting trucks stay unassigned.')}
    if(!S.pumping)A.pump();if($('depv').style.display!=='block'&&!remOn())setTimeout(depthOpen,50);const t=tk(S.active);msg('Grout started: pumping'+(t?' from truck '+tname(t):'. No truck logged yet (that\'s fine, add one any time)')+'.')}
   if(k==='groutFinish'&&S.pumping){A.pump();msg('Grout finished: pumping stopped.')}},
  stageReset(k){if(k!=='drillStart')return;const prev=S.pile.st&&S.pile.st[k];if(!prev)return msg('No recorded drill start to reset.');if(!confirm('Clear the accidental Drill start time? You can tap Drill start again when drilling actually begins. The correction stays in the history.'))return;act(()=>{delete S.pile.st[k];S.pile.resetStages=S.pile.resetStages||{};S.pile.resetStages[k]=true;log('edit',{field:k,from:prev,to:'cleared accidental tap'});msg('Drill start cleared. Tap Drill start when work begins.')})},

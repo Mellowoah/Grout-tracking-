@@ -86,7 +86,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v123';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v124';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -1159,7 +1159,7 @@ function formHTML(pk,pair){
  // Match trucks by the actual grout window, retaining explicit pile links first.
  const svForTruck=stages(P),gs=svForTruck.groutStart&&svForTruck.groutStart.t,gf=svForTruck.groutFinish&&svForTruck.groutFinish.t;
  const timed=gs&&gf?S.trucks.filter(t=>{if(t.rejected)return false;const x=truckTimes(t),a=x.arrived.t,e=x.emptied.t;return a&&a<=gf&&(!e||e>=gs)}).sort((a,b)=>(truckTimes(a).arrived.t||0)-(truckTimes(b).arrived.t||0)):[];
- const used=[...linked,...timed.filter(t=>!linked.some(x=>x.id===t.id)&&(num(t.used[P.key])!==null||((t.ps||{})[P.key]||0)>0))].sort((a,b)=>(truckTimes(a).arrived.t||0)-(truckTimes(b).arrived.t||0));
+ const used=[...linked,...timed.filter(t=>!linked.some(x=>x.id===t.id)&&((num(t.used[P.key])||0)>0||((t.ps||{})[P.key]||0)>0))].sort((a,b)=>(truckTimes(a).arrived.t||0)-(truckTimes(b).arrived.t||0));
  const emptyHere=t=>!t.blank&&usedOn(t,P.key)>0&&(pev(null,P.key).some(e=>e.truck===t.id&&(e.type==='truck_empty'||e.type==='truck_waste'))||!!(t.emptied&&gs&&gf&&t.emptied>=gs&&t.emptied<=gf));
  const ts=[...used];while(ts.length<2)ts.push({seq:'',num:'',tests:[],blank:true});
  const CL={y:'#ffe600',g:'#d3d6da',t:'#f2c27a',b:'#a9b9d3',u:'#cfe8d4'};
@@ -1566,6 +1566,28 @@ async function preloadOne(D,done,PK){try{if(!D||!D.preloadId||done.includes(D.pr
    done.push(D.preloadId);localStorage.setItem(PK,JSON.stringify(done));save();render();if(notes.length)msg(notes.join('; ')+'.');return}
   if(D.renamePiles){const notes=[];for(const [from,to] of D.renamePiles){const all=allPiles(),pf=all.find(x=>x.id===from);if(pf&&!all.some(x=>x.id===to)){pf.id=to;notes.push('pile '+from+' is now pile '+to)}}
    resortPiles();done.push(D.preloadId);localStorage.setItem(PK,JSON.stringify(done));save();render();msg((notes.join('; ')||'No pile to rename')+(D.note?' '+D.note:'')+'.');return}
+  if(D.reconcileNov17&&PROF==='nov17field'){
+   const p51=allPiles().find(p=>String(p.id)==='51'&&p.date==='11/17/26'),p61=allPiles().find(p=>String(p.id)==='61'&&p.date==='11/17/26');
+   const t1=S.trucks.find(t=>String(t.num)==='625'),t2=S.trucks.find(t=>String(t.num)==='688');
+   if(!p51||!p61||!t1||!t2)return;
+   // Explicit verified handoff; never rewrite inspector strokes, timestamps or QC.
+   // Contractor count is stored separately from the 183 inspector reading.
+   p51.opCount='180';p61.opCount='142';
+   t1.qty='9';t2.qty='5';
+   t1.used=t1.used||{};t2.used=t2.used||{};
+   t1.used[p51.key]=String(180*calYd());t2.used[p51.key]='0';
+   t1.used[p61.key]=String(2.167);t2.used[p61.key]=String(142*calYd()-2.167);
+   t1.carryIn=t1.carryIn||{};t1.carryIn[p61.key]={from:p51.key,yd:2.167};
+   // 9 - 180*(0.86/27) - 2.167 = 1.100 yd3 QC deduction.
+   // This is a reconciled deduction, not a new physical test event.
+   t1.sampleYd=String(Math.max(0,9-180*calYd()-2.167).toFixed(6));
+   t2.sampleYd='0';
+   if(t2.pk0===p51.key)t2.pk0=p61.key;
+   // Preserve original events in the audit log; allocation overrides are explicit.
+   log('edit',{source:'verified Nov 17 reconciliation',note:'Truck 625: 9 yd3, pile 51 then 2.167 to pile 61; Truck 688: 5 yd3, pile 61 only. Original inspector count retained.'});
+   done.push(D.preloadId);localStorage.setItem(PK,JSON.stringify(done));save();render();
+   msg('Nov 17 truck handoff reconciled. Confirm final waste separately.');return;
+  }
   if(D.patch){const notes=[];
    for(const p of D.piles||[]){const target=allPiles().find(x=>String(x.id)===String(p.id));if(!target)continue;
     for(const [field,value] of Object.entries(p.st||{})){if(target.st&&target.st[field])continue;

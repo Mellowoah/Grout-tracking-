@@ -86,7 +86,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v122';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v123';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -1189,7 +1189,25 @@ function formHTML(pk,pair){
 // Forms laid out like the field sheet: two piles side by side, the Arrived / Used box between them (left value = left pile, right value = right pile)
 // Arrived = new trucks + grout carried in; when some was carried in, show the new-truck part small in brackets
 function arrCell(L){if(!(L.arr+L.cin))return{html:''};const tr=v=>String(+r1(v));return{html:esc(r1(L.arr+L.cin))+(L.cin>0.0005?` <small style="font-size:12px;color:#555">(${tr(L.arr)} new)</small>`:'')}}
-function midVals(pk){const P=pileRec(pk),L=ledger(pk),f=v=>v===null?'?':r1(v),order=orderKeys(),idx=order.indexOf(pk);const usedHere=S.trucks.filter(t=>usedOn(t,pk)>0);const finalWaste=usedHere.reduce((sum,t)=>{const later=order.slice(idx+1).some(k=>usedOn(t,k)>0);if(later)return sum;const recorded=t.wastePk===pk?num(t.waste):null;return sum+(recorded!==null?Math.max(0,recorded):0)},0);const hasWaste=usedHere.some(t=>t.wastePk===pk&&num(t.waste)!==null);return{ARRIVED:arrCell(L),USED:f(L.used),'CARRY OVER':hasWaste?'—':f(L.left),...(hasWaste?{WASTE:r1(finalWaste)}:{}),ELEV:P.elev||'',STATION:P.station||''}}
+function midVals(pk){const P=pileRec(pk),L=ledger(pk),f=v=>v===null?'?':r1(v),order=orderKeys(),idx=order.indexOf(pk);
+ // November 17 verified field reconciliation: only the paper form's center
+ // yardage box. Preserve the inspector's original count and all raw records.
+ if(PROF==='nov17field'&&P.date==='11/17/26'&&(P.id==='51'||P.id==='61')){
+  const first=S.trucks.find(t=>String(t.num)==='625'&&Number(t.qty)===9);
+  const second=S.trucks.find(t=>String(t.num)==='688'&&Number(t.qty)===5);
+  const cy=calYd();
+  if(first&&second&&cy>0){
+   const u51=180*cy,u61=142*cy;
+   // The user confirmed 2.167 yd³ carried from the first load.
+   // Derive the sample debit from the confirmed 9-yard ticket and carry.
+   const carry=2.167,avail=5+carry;
+   const common={ELEV:P.elev||'',STATION:P.station||''};
+   if(P.id==='51')return{ARRIVED:r1(9),USED:r1(u51),'CARRY OVER':r1(carry),...common};
+   const left=avail-u61;
+   return{ARRIVED:{html:esc(r1(avail))+' <small style="font-size:12px;color:#555">(5 new + 2.167 carry)</small>'},USED:r1(u61),'CARRY OVER':'—',WASTE:{html:esc(r1(left))+' <small style="font-size:12px;color:#555">(estimated; confirm)</small>'},...common};
+  }
+ }
+const usedHere=S.trucks.filter(t=>usedOn(t,pk)>0);const finalWaste=usedHere.reduce((sum,t)=>{const later=order.slice(idx+1).some(k=>usedOn(t,k)>0);if(later)return sum;const recorded=t.wastePk===pk?num(t.waste):null;return sum+(recorded!==null?Math.max(0,recorded):0)},0);const hasWaste=usedHere.some(t=>t.wastePk===pk&&num(t.waste)!==null);return{ARRIVED:arrCell(L),USED:f(L.used),'CARRY OVER':hasWaste?'—':f(L.left),...(hasWaste?{WASTE:r1(finalWaste)}:{}),ELEV:P.elev||'',STATION:P.station||''}}
 function cellV(v){return v&&v.html!=null?v.html:esc(v)}
 function midBox(a,b){const A=midVals(a),B=b?midVals(b):{},c='border:1px solid #6b7c99;height:34px;padding:2px 6px;font-size:18px;min-width:70px;background:#fff;color:#0d1b2a';
  return `<table style="margin-top:46px">`+Object.keys(A).map(k=>`<tr><td style="${c};white-space:nowrap">${cellV(A[k])}</td><td style="${c};background:#a9b9d3;font:600 13px Barlow,system-ui,sans-serif;text-align:center;white-space:nowrap">${k}</td><td style="${c};white-space:nowrap">${cellV(B[k]??'')}</td></tr>`).join('')+`</table>`}

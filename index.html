@@ -86,7 +86,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v111';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v112';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -575,7 +575,7 @@ function render(){clearTimeout(rT);
  <div class="row"><input id="s-rm" inputmode="numeric" style="max-width:90px" value="${esc(S.reinfMin)}" onchange="A.cfg('reinfMin',Number(this.value)||0)"><small>Reinforce minutes until today's piles show otherwise (today: ${learnMin('reinfStart','reinfFinish','reinfMin')})</small></div>
  <div class="row"><input id="s-gf" inputmode="decimal" style="max-width:90px" value="${esc(gF())}" onchange="A.cfg('gFactor',Number(this.value)||1.15)"><small>Minimum grout factor per band (× theoretical volume). Confirm against your spec.</small></div>
  <div class="row"><button id="s-top" class="sec" style="min-height:44px" onclick="A.cfg('topF',topF()===1.05?1:1.05)">Top 5 ft: ${fx(topF())}</button><small style="flex:1">Minimum grout factor in the top 5 ft (FDOT 455: 1.00×; tap for 1.05× on older contracts). Below 5 ft the factor above applies.</small></div>
- <div class="row"><input id="s-head" inputmode="numeric" style="max-width:90px" value="${esc(S.headStr??'')}" placeholder="0" onchange="A.cfg('headStr',this.value.trim())"><small>Grout head strokes, taken off the bottom band for the grout check. Type your head strokes if your count includes them (5 ft of head at ${pileDia(S.pile)||30} in ≈ ${headAuto(S.pile)}). Blank = 0.</small></div>
+ <div class="row"><input id="s-head" inputmode="numeric" style="max-width:90px" value="${esc(S.headStr??29)}" placeholder="29" onchange="A.cfg('headStr',this.value.trim())"><small>Grout head strokes, taken off the bottom band for the grout check. Type your head strokes if your count includes them (5 ft of head at ${pileDia(S.pile)||30} in ≈ ${headAuto(S.pile)}). Blank = 0.</small></div>
  <div class="row"><input id="s-rel" inputmode="decimal" style="max-width:90px" value="${esc(relMin())}" onchange="A.cfg('relMin',Number(this.value)||0.8)"><small>Without a diameter: flag a band under this share of today's typical strokes per foot</small></div>
  <div class="row"><input id="s-lim" inputmode="numeric" value="${esc(S.limit)}" onchange="A.cfg('limit',Number(this.value)||120)"><small>Cutoff minutes from batch time. Confirm against your spec.</small></div>
  <div class="row"><button onclick="exportX()">Export Excel</button><button class="sec" onclick="backup()">Backup JSON</button><button class="sec" onclick="reportOpen()">Report a problem</button><button class="sec" onclick="pastDaysOpen()">Past days</button><button class="sec" onclick="$('impIn').value='';$('impIn').click()">Import file</button><button class="sec" id="rs" onclick="A.reset()">Clear all</button></div>${undoRow().replace('id="undoLast" ','')}</div>`;
@@ -835,7 +835,7 @@ const inTop5=b=>Math.max(...b.replace(' ft','').split('–').map(Number))<=5;
 const needTxt=Q=>fx(Q.need)+(Q.mode==='theo'?' (top 5 ft '+fx(topF())+')':'');
 // Grout head: strokes pumped at the tip before pulling up (not counted for the grout check). Setting, default 0; headAuto = 5 ft of hole at the diameter (30 in if none), shown as a hint
 const headAuto=P=>{const cy=calYd(),th=theoYd(pileDia(P)||30,5);return th&&cy>0?Math.round(th/cy):0};
-const headOf=P=>{const v=S.headStr===''||S.headStr==null?NaN:Number(S.headStr);return isFinite(v)&&v>=0?Math.round(v):0};
+const headOf=P=>{const raw=P.headStr??S.headStr;const v=raw===''||raw==null?29:Number(raw);return isFinite(v)&&v>=0?Math.round(v):29};
 // Strokes and feet above the bottom band of a finished pile (read / typed bands), else its total less the head over its length
 function bodyNF(q){const bl=bands(q),bi=q.bandIn||{},iv=intervals(q);let n=0,f=0;
  bl.slice(1).forEach(b=>{const r=iv.find(r=>r.band===b),v=bi[dl2(b)]!=null?Number(bi[dl2(b)]):(r&&r.d!=null?r.d:null);if(v!=null){n+=v;f+=bandFt(b)}});

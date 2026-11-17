@@ -86,7 +86,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v106';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v107';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -503,7 +503,8 @@ function render(){clearTimeout(rT);
    return `<div class="card"><div class="row"><b>Truck ${esc(t.seq||'')}</b>${pilePick(t)}<input id="t-${t.id}-num" placeholder="Truck I.D. #" value="${esc(t.num)}" onchange="A.setT('${t.id}','num',this.value)"><small>Load ${esc(t.qty||'?')} yd³</small></div>
    <div class="row"><label style="flex:1;min-width:95px"><small>Batch</small><input id="t-${t.id}-batch" type="time" ${tIn(t,'batch')} onchange="A.setT('${t.id}','batch',this.value)"></label><label style="flex:1;min-width:95px"><small>Arrived</small><input id="t-${t.id}-arr" type="time" ${tIn(t,'arrived')} onchange="A.setTime('${t.id}','arrived',this.value)"></label><label style="flex:1;min-width:95px"><small>Empty</small><input id="t-${t.id}-emp" type="time" ${tIn(t,'emptied')} onchange="A.setTime('${t.id}','emptied',this.value)"></label></div>${tErr[t.id]?`<div class="flag" id="t-${t.id}-terr">${esc(tErr[t.id])}</div>`:''}
    ${on.map(k=>{const u=usedOn(t,k),la=leftAfter(t,k);return `<div>Pile <b>${esc(pname(k))}</b>: used ${u===null?'?':r1(u)} yd³ · left ${la===null?'?':r1(la)}</div>`}).join('')}
-   <div style="color:var(--mut);font-size:14px">${t.sampleNo?'Sample '+esc(t.sampleNo)+' · ':''}${tt.map(x=>esc(x.temp||'?')+'°F / '+esc(x.flow||'?')+' s').join(' · ')}${t.left==='waste'?' · leftover wasted':''}</div></div>`;};
+   <div class="row"><input id="t-${t.id}-sn" placeholder="Sample #" value="${esc(t.sampleNo||'')}" onchange="A.setT('${t.id}','sampleNo',this.value)"><button style="flex:1;min-height:48px" id="ts-${t.id}" onclick="A.sample('${t.id}')">${(t.samples||[]).length?'✓ Sample taken · add another':'Take sample · '+r1(Number(S.sampleYd)||0)+' yd³'}</button></div>
+   <div style="color:var(--mut);font-size:14px">${(t.samples||[]).length?'Samples taken: '+t.samples.length+' · '+r1(sRec(t))+' yd³ deducted · ':''}${tt.map(x=>esc(x.temp||'?')+'°F / '+esc(x.flow||'?')+' s').join(' · ')}${t.left==='waste'?' · leftover wasted':''}</div></div>`;};
  if(loose.length)h+=`<div class="card" style="border:2px dashed var(--line)"><b>Trucks not on a pile yet (${loose.length})</b><div style="color:var(--mut);font-size:14px">Type the arrival time and the app puts it on the right pile, or it joins the pile it feeds / the next pile you start.</div>${loose.map(compact).join('')}</div>`;
  if(!shown.length&&!loose.length)h+=`<div class="card">No trucks yet. That's fine: the pile, pumping and counts work without one. Add a truck when you have it (times optional), or tap Truck arrived when one pulls up.</div>`;
  const list=[...shown,...olderL];

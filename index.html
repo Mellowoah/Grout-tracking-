@@ -86,7 +86,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v118';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v119';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -1151,14 +1151,14 @@ function formHTML(pk,pair){
  const fs=s=>{if(!s)return'';const [h,m]=s.split(':').map(Number);return (h%12||12)+':'+String(m).padStart(2,'0')};
  const cur=!pk||pk===S.pile.key,P=cur?S.pile:S.piles.find(p=>p.key===pk),PS=cur?S.strokes:(P.strokes||0),iv=intervals(P),gr=pev('grout_return',P.key)[0];
  // Same layout as the paper sheet: always at least two truck columns, blank where nothing is logged yet
- const carriedTo=t=>{const k=Object.keys(t.carryIn).find(k=>t.carryIn[k].from===P.key);return k?'→ pile '+pname(k):''};
- const linked=pileTrucks(P.key).filter(t=>num(t.used[P.key])!==null||((t.ps||{})[P.key]||0)>0||pev(null,P.key).some(e=>e.truck===t.id&&['truck_switch','truck_empty','truck_waste','truck_carry'].includes(e.type)));
+ const carriedTo=t=>{if(t.blank||!(usedOn(t,P.key)>0))return '';const k=Object.keys(t.carryIn||{}).find(k=>t.carryIn[k].from===P.key);return k&&leftAfter(t,P.key)>0?'→ pile '+pname(k):''};
+ const linked=S.trucks.filter(t=>usedOn(t,P.key)>0);
  // For imported field sheets, truck times are recorded separately from pile events.
  // Match trucks by the actual grout window, retaining explicit pile links first.
  const svForTruck=stages(P),gs=svForTruck.groutStart&&svForTruck.groutStart.t,gf=svForTruck.groutFinish&&svForTruck.groutFinish.t;
  const timed=gs&&gf?S.trucks.filter(t=>{if(t.rejected)return false;const x=truckTimes(t),a=x.arrived.t,e=x.emptied.t;return a&&a<=gf&&(!e||e>=gs)}).sort((a,b)=>(truckTimes(a).arrived.t||0)-(truckTimes(b).arrived.t||0)):[];
  const used=[...linked,...timed.filter(t=>!linked.some(x=>x.id===t.id)&&(num(t.used[P.key])!==null||((t.ps||{})[P.key]||0)>0))].sort((a,b)=>(truckTimes(a).arrived.t||0)-(truckTimes(b).arrived.t||0));
- const emptyHere=t=>pev(null,P.key).some(e=>e.truck===t.id&&(e.type==='truck_empty'||e.type==='truck_waste'))||!!(t.emptied&&gs&&gf&&t.emptied>=gs&&t.emptied<=gf);
+ const emptyHere=t=>!t.blank&&usedOn(t,P.key)>0&&(pev(null,P.key).some(e=>e.truck===t.id&&(e.type==='truck_empty'||e.type==='truck_waste'))||!!(t.emptied&&gs&&gf&&t.emptied>=gs&&t.emptied<=gf));
  const ts=[...used];while(ts.length<2)ts.push({seq:'',num:'',tests:[],blank:true});
  const CL={y:'#ffe600',g:'#d3d6da',t:'#f2c27a',b:'#a9b9d3',u:'#cfe8d4'};
  const SV=stages(P),anyEst=Object.values(SV).some(x=>x.est)||used.some(t=>{const x=truckTimes(t);return x.batch.est||x.arrived.est||(x.emptied.est&&x.emptied.pk===P.key)});const one=k=>(t,i)=>i||!SV[k]?'':fh(SV[k].t)+(SV[k].est?'*':'');

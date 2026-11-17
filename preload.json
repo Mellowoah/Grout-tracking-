@@ -365,6 +365,29 @@
           "qty": "9"
         }
       ]
+    },
+    {
+      "preloadId": "field-2026-11-16-qty-v1",
+      "profile": "nov16field",
+      "patch": true,
+      "trucks": [
+        {
+          "seq": 1,
+          "qty": "9"
+        },
+        {
+          "seq": 2,
+          "qty": "9"
+        },
+        {
+          "seq": 3,
+          "qty": "9"
+        },
+        {
+          "seq": 4,
+          "qty": "9"
+        }
+      ]
     }
   ]
 }

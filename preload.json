@@ -323,6 +323,44 @@
           "totalStrokes": "180"
         }
       ]
+    },
+    {
+      "preloadId": "field-2026-11-16-trucks-v1",
+      "profile": "nov16field",
+      "patch": true,
+      "trucks": [
+        {
+          "seq": 1,
+          "num": "688",
+          "batch": "10:39",
+          "arrival": "11:29",
+          "departure": "12:11"
+        },
+        {
+          "seq": 2,
+          "num": "2206",
+          "batch": "11:10",
+          "arrival": "12:00",
+          "departure": "12:38",
+          "add": true
+        },
+        {
+          "seq": 3,
+          "num": "2449",
+          "batch": "11:24",
+          "arrival": "12:21",
+          "departure": "13:20",
+          "add": true
+        },
+        {
+          "seq": 4,
+          "num": "630",
+          "batch": "12:03",
+          "arrival": "12:53",
+          "departure": "13:55",
+          "add": true
+        }
+      ]
     }
   ]
 }

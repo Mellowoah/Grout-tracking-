@@ -1209,7 +1209,7 @@ async function sendForms(kind){const st=$('sendst'),say=t=>{if(st)st.textContent
  try{await loadOnce('ocr/html2canvas.min.js','html2canvas');const files=[];
   for(const el of document.querySelectorAll('#formv .fpair')){const cv=await html2canvas(el,{scale:2,backgroundColor:'#ffffff',width:el.scrollWidth,height:el.scrollHeight,windowWidth:el.scrollWidth+40,scrollX:0,scrollY:-window.scrollY,logging:false,onclone:doc=>{const root=doc.querySelector('#formv');if(!root)return;
     const css=doc.createElement('style');css.textContent='#formv .fpair, #formv .fpair * {color:#0d1b2a !important;text-decoration-color:#0d1b2a !important;text-shadow:none !important;font-style:normal !important}';doc.head.appendChild(css);
-    root.querySelectorAll('.fpair td').forEach(td=>{td.style.color='#0d1b2a';td.style.fontStyle='normal';td.textContent=td.textContent.replace(/\\*$/,'')});
+    root.querySelectorAll('.fpair td').forEach(td=>{td.style.color='#0d1b2a';td.style.fontStyle='normal';td.textContent=td.textContent.replace(/\*$/,'')});
    }});
    const b=await new Promise(r=>cv.toBlob(r,'image/png'));files.push(new File([b],'grout-'+el.dataset.name+'-'+stamp()+'.png',{type:'image/png'}))}
   const keys=formMode.only?[formMode.pk]:orderKeys(),title='Grout log '+(formMode.only?'pile '+pname(formMode.pk):'piles '+keys.map(pname).join(', '));

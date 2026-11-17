@@ -86,7 +86,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v108';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v109';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -1150,7 +1150,7 @@ function formHTML(pk,pair){
  // Match trucks by the actual grout window, retaining explicit pile links first.
  const svForTruck=stages(P),gs=svForTruck.groutStart&&svForTruck.groutStart.t,gf=svForTruck.groutFinish&&svForTruck.groutFinish.t;
  const timed=gs&&gf?S.trucks.filter(t=>{if(t.rejected)return false;const x=truckTimes(t),a=x.arrived.t,e=x.emptied.t;return a&&a<=gf&&(!e||e>=gs)}).sort((a,b)=>(truckTimes(a).arrived.t||0)-(truckTimes(b).arrived.t||0)):[];
- const used=linked.length?linked:[...timed];
+ const used=[...linked,...timed.filter(t=>!linked.some(x=>x.id===t.id))].sort((a,b)=>(truckTimes(a).arrived.t||0)-(truckTimes(b).arrived.t||0));
  const emptyHere=t=>pev(null,P.key).some(e=>e.truck===t.id&&(e.type==='truck_empty'||e.type==='truck_waste'))||!!(t.emptied&&gs&&gf&&t.emptied>=gs&&t.emptied<=gf);
  const ts=[...used];while(ts.length<2)ts.push({seq:'',num:'',tests:[],blank:true});
  const CL={y:'#ffe600',g:'#d3d6da',t:'#f2c27a',b:'#a9b9d3',u:'#cfe8d4'};
@@ -1207,7 +1207,10 @@ function sendText(kind){const keys=formMode.only?[formMode.pk]:orderKeys(),body=
  location.href=kind==='email'?'mailto:?subject='+encodeURIComponent(sub)+'&body='+encodeURIComponent(body):'sms:?&body='+encodeURIComponent(sub+'\n\n'+body)}
 async function sendForms(kind){const st=$('sendst'),say=t=>{if(st)st.textContent=t};say('Making pictures of the forms…');
  try{await loadOnce('ocr/html2canvas.min.js','html2canvas');const files=[];
-  for(const el of document.querySelectorAll('#formv .fpair')){const cv=await html2canvas(el,{scale:2,backgroundColor:'#ffffff',width:el.scrollWidth,height:el.scrollHeight,windowWidth:el.scrollWidth+40,scrollX:0,scrollY:-window.scrollY,logging:false,onclone:doc=>{const root=doc.querySelector('#formv');if(!root)return;root.querySelectorAll('.fpair td').forEach(td=>{td.style.color='#0d1b2a';td.style.fontStyle='normal';td.style.fontWeight=td.style.fontWeight||'normal';td.textContent=td.textContent.replace(/\*$/,'')});root.querySelectorAll('.fpair [style*="color:#d00000"]').forEach(el=>{el.style.color='#0d1b2a'})}});
+  for(const el of document.querySelectorAll('#formv .fpair')){const cv=await html2canvas(el,{scale:2,backgroundColor:'#ffffff',width:el.scrollWidth,height:el.scrollHeight,windowWidth:el.scrollWidth+40,scrollX:0,scrollY:-window.scrollY,logging:false,onclone:doc=>{const root=doc.querySelector('#formv');if(!root)return;
+    const css=doc.createElement('style');css.textContent='#formv .fpair, #formv .fpair * {color:#0d1b2a !important;text-decoration-color:#0d1b2a !important;text-shadow:none !important;font-style:normal !important}';doc.head.appendChild(css);
+    root.querySelectorAll('.fpair td').forEach(td=>{td.style.color='#0d1b2a';td.style.fontStyle='normal';td.textContent=td.textContent.replace(/\\*$/,'')});
+   }});
    const b=await new Promise(r=>cv.toBlob(r,'image/png'));files.push(new File([b],'grout-'+el.dataset.name+'-'+stamp()+'.png',{type:'image/png'}))}
   const keys=formMode.only?[formMode.pk]:orderKeys(),title='Grout log '+(formMode.only?'pile '+pname(formMode.pk):'piles '+keys.map(pname).join(', '));
   if(navigator.canShare&&navigator.canShare({files})){say('');await navigator.share({files,title,text:title});return}

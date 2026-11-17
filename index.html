@@ -86,7 +86,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v130';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v131';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -1235,7 +1235,7 @@ function midVals(pk){const P=pileRec(pk),L=ledger(pk),f=v=>v===null?'?':r1(v),or
 const usedHere=S.trucks.filter(t=>usedOn(t,pk)>0);const finalWaste=usedHere.reduce((sum,t)=>{const later=order.slice(idx+1).some(k=>usedOn(t,k)>0);if(later)return sum;const recorded=t.wastePk===pk?num(t.waste):null;return sum+(recorded!==null?Math.max(0,recorded):0)},0);const hasWaste=usedHere.some(t=>t.wastePk===pk&&num(t.waste)!==null);return{ARRIVED:arrCell(L),USED:f(L.used),'CARRY OVER':hasWaste?'—':f(L.left),...(hasWaste?{WASTE:r1(finalWaste)}:{}),ELEV:P.elev||'',STATION:P.station||''}}
 function cellV(v){return v&&v.html!=null?v.html:esc(v)}
 function midBox(a,b){const A=midVals(a),B=b?midVals(b):{},c='border:1px solid #6b7c99;height:34px;padding:2px 6px;font-size:18px;min-width:70px;background:#fff;color:#0d1b2a';
- return `<table style="margin-top:46px">`+Object.keys(A).map(k=>`<tr><td style="${c};white-space:nowrap">${cellV(A[k])}</td><td style="${c};background:#a9b9d3;font:600 13px Barlow,system-ui,sans-serif;text-align:center;white-space:nowrap">${k}</td><td style="${c};white-space:nowrap">${cellV(B[k]??'')}</td></tr>`).join('')+`</table>`}
+ const keys=[...new Set([...Object.keys(A),...Object.keys(B)])];return `<table style="margin-top:46px">`+keys.map(k=>`<tr><td style="${c};white-space:nowrap">${cellV(A[k]??'')}</td><td style="${c};background:#a9b9d3;font:600 13px Barlow,system-ui,sans-serif;text-align:center;white-space:nowrap">${k}</td><td style="${c};white-space:nowrap">${cellV(B[k]??'')}</td></tr>`).join('')+`</table>`}
 // Form view: all piles in sheet pairs, or one pile on its own. Email / Text send pictures of the forms through the phone's share menu.
 let formMode={pk:null,only:false};
 function showForm(pk,only){const keys=orderKeys();const go=pk||S.pile.key;formMode={pk:go,only:!!only};let pairs=[];

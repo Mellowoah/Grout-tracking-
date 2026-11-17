@@ -408,6 +408,122 @@
           }
         }
       ]
+    },
+    {
+      "preloadId": "field-2026-11-17-piles-51-61-v1",
+      "profile": "nov17field",
+      "sheetFill": [
+        {
+          "pile": "51",
+          "date": "11/17/26",
+          "lengthFt": 23,
+          "drillStart": "9:49",
+          "drillFinish": "9:52",
+          "groutStart": "9:52",
+          "groutFinish": "9:59",
+          "reinforceStart": "9:59",
+          "reinforceFinish": "10:04",
+          "totalStrokes": "183",
+          "depth": [
+            {
+              "row": "0-5",
+              "value": "29"
+            },
+            {
+              "row": "5-10",
+              "value": "30"
+            },
+            {
+              "row": "10-15",
+              "value": "31"
+            },
+            {
+              "row": "15-20",
+              "value": "37"
+            },
+            {
+              "row": "20-23",
+              "value": "53"
+            }
+          ],
+          "trucks": [
+            {
+              "truckNumber": "1",
+              "truckId": "625",
+              "batch": "8:43",
+              "arrival": "9:39",
+              "temp": "74",
+              "flow": "50",
+              "sample": "CAGB027Q"
+            },
+            {
+              "truckNumber": "2",
+              "truckId": "688",
+              "batch": "9:04",
+              "arrival": "9:56"
+            }
+          ]
+        },
+        {
+          "pile": "61",
+          "date": "11/17/26",
+          "lengthFt": 17,
+          "drillStart": "10:13",
+          "drillFinish": "10:15",
+          "groutStart": "10:15",
+          "groutFinish": "10:20",
+          "reinforceStart": "10:20",
+          "reinforceFinish": "10:25",
+          "totalStrokes": "142",
+          "depth": [
+            {
+              "row": "0-5",
+              "value": "22"
+            },
+            {
+              "row": "5-10",
+              "value": "30"
+            },
+            {
+              "row": "10-15",
+              "value": "36"
+            },
+            {
+              "row": "15-17",
+              "value": "54"
+            }
+          ],
+          "trucks": [
+            {
+              "truckNumber": "1",
+              "truckId": "625",
+              "batch": "8:43",
+              "arrival": "9:39",
+              "empty": "10:20",
+              "temp": "74",
+              "flow": "50",
+              "sample": "CAGB027Q"
+            },
+            {
+              "truckNumber": "2",
+              "truckId": "688",
+              "batch": "9:04",
+              "arrival": "9:56",
+              "empty": "10:19"
+            }
+          ]
+        }
+      ],
+      "truckQty": [
+        [
+          "1",
+          "9"
+        ],
+        [
+          "2",
+          "5"
+        ]
+      ]
     }
   ]
 }

@@ -86,7 +86,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v105';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v106';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -1169,8 +1169,6 @@ function formHTML(pk,pair){
  comb.forEach(r=>extra.push(['Missed mark',r.flag.replace('COMBINED: ','')]));
  {const Q=bandQC(P),pq=pileQC(P);if(Q)Q.filter(q=>q.n!=null).forEach(q=>extra.push(['Grout '+dl(q.b),fx(q.f)+(q.under?' UNDER '+fx(q.need??Q.need):'')+(q.auto?' *':'')]));if(Q)extra.push(['Grout check vs',Q.ref+', flagged under '+needTxt(Q)+(Q.find(q=>q.head)?', bottom band less '+Q.find(q=>q.head).head+' head strokes':'')]);if(pq)extra.push(['Grout pile',fx(pq.f)+' of '+pq.ref])}
  ISS().filter(x=>x.pk===P.key).forEach(x=>extra.push(['Stop / delay',issDesc(x)]));S.trucks.filter(t=>t.rejected&&t.rejected.pk===P.key).forEach(t=>extra.push(['Truck sent back',tname(t)+' · '+(t.qty||'?')+' yd³ · '+t.rejected.reason+' · '+hm(t.rejected.t)+(t.rejected.note?' · '+t.rejected.note:'')]));
- if(extra.length)h+=`<p style="color:var(--mut);margin:14px 0 0">Not on the paper sheet:</p>`+box(extra);
- h+=`<p style="color:var(--mut)">${anyEst||EB?'<span style="color:#d00000;font-weight:700">Red *</span> = filled in automatically from today\'s times and your drill / grout / reinforce rules. ':''}Blank means not logged yet. ? means a reading is missing. Use Email or Text above to send it.</p>`;
  return h}
 // Forms laid out like the field sheet: two piles side by side, the Arrived / Used box between them (left value = left pile, right value = right pile)
 // Arrived = new trucks + grout carried in; when some was carried in, show the new-truck part small in brackets
@@ -1185,7 +1183,7 @@ function showForm(pk,only){const keys=orderKeys();const go=pk||S.pile.key;formMo
  if(only)pairs=[[go]];else for(let i=0;i<keys.length;i+=2)pairs.push([keys[i],keys[i+1]]);
  const el=$('formv');el.innerHTML=`<div style="position:sticky;top:0;left:0;background:var(--bg);padding:4px 0;z-index:2"><div class="row"><button onclick="document.getElementById('formv').style.display='none'">Close</button><button onclick="sendForms('email')">Email</button><button onclick="sendForms('text')">Text</button>
   ${only?`<button class="sec" onclick="showForm('${go}')">All piles</button>`:`<button class="sec" onclick="showForm('${go}',true)">Pile ${esc(pname(go))} only</button>`}</div>
-  <small style="color:var(--mut)">${only?'Pile '+esc(pname(go))+' form':'All '+keys.length+' pile forms'} · Email / Text send pictures of ${only?'this form':'these forms'} · <a href="#" onclick="sendText('email');return false">email numbers</a> · <a href="#" onclick="sendText('text');return false">text numbers</a>${only?'':' · swipe sideways for both piles'}</small><div id="sendst" class="trayw" style="color:var(--ink)"></div></div>`+
+  <div id="sendst" class="trayw" style="color:var(--ink)"></div></div>`+
   pairs.map(([a,b])=>`<div style="overflow-x:auto"><div class="fpair" data-name="${esc(only?'pile-'+pname(a):'piles-'+pname(a)+(b?'-'+pname(b):''))}" style="display:flex;gap:12px;align-items:flex-start;width:max-content;background:#fff;color:#0d1b2a;padding:6px">
    <div style="width:420px">${formHTML(a,true)}</div>${midBox(a,b)}${only?'':`<div style="width:420px">${b?formHTML(b,true):'<h2 style="margin-top:20px;color:#9aa5b1">Next pile</h2>'}</div>`}</div></div>`).join('<hr style="margin:20px 0;border:0;border-top:2px dashed var(--line)">');
  el.style.display='block';const a=$('fp-'+go);if(a)setTimeout(()=>{a.scrollIntoView({block:'start',inline:'start'})},0)}
@@ -1202,7 +1200,7 @@ function sendText(kind){const keys=formMode.only?[formMode.pk]:orderKeys(),body=
  location.href=kind==='email'?'mailto:?subject='+encodeURIComponent(sub)+'&body='+encodeURIComponent(body):'sms:?&body='+encodeURIComponent(sub+'\n\n'+body)}
 async function sendForms(kind){const st=$('sendst'),say=t=>{if(st)st.textContent=t};say('Making pictures of the forms…');
  try{await loadOnce('ocr/html2canvas.min.js','html2canvas');const files=[];
-  for(const el of document.querySelectorAll('#formv .fpair')){const cv=await html2canvas(el,{scale:2,backgroundColor:'#ffffff',width:el.scrollWidth,height:el.scrollHeight,windowWidth:el.scrollWidth+40,scrollX:0,scrollY:-window.scrollY,logging:false});
+  for(const el of document.querySelectorAll('#formv .fpair')){const cv=await html2canvas(el,{scale:2,backgroundColor:'#ffffff',width:el.scrollWidth,height:el.scrollHeight,windowWidth:el.scrollWidth+40,scrollX:0,scrollY:-window.scrollY,logging:false,onclone:doc=>{const root=doc.querySelector('#formv');if(!root)return;root.querySelectorAll('.fpair td').forEach(td=>{td.style.color='#0d1b2a';td.style.fontStyle='normal';td.style.fontWeight=td.style.fontWeight||'normal';td.textContent=td.textContent.replace(/\\*$/,'')});root.querySelectorAll('.fpair [style*="color:#d00000"]').forEach(el=>{el.style.color='#0d1b2a'})}});
    const b=await new Promise(r=>cv.toBlob(r,'image/png'));files.push(new File([b],'grout-'+el.dataset.name+'-'+stamp()+'.png',{type:'image/png'}))}
   const keys=formMode.only?[formMode.pk]:orderKeys(),title='Grout log '+(formMode.only?'pile '+pname(formMode.pk):'piles '+keys.map(pname).join(', '));
   if(navigator.canShare&&navigator.canShare({files})){say('');await navigator.share({files,title,text:title});return}

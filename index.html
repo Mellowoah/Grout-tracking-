@@ -267,11 +267,18 @@ function calc(t){const q=parseFloat(t.qty),placed=usedAll(t);
 function ledger(pk=S.pile.key){const sum=f=>S.trucks.reduce((a,t)=>a+f(t),0);let pend=false;
  const counts=t=>onsiteUsed(t,pk)||t.pk0===pk&&(!Object.values(t.carryIn).some(c=>c.from===pk)||(usedOn(t,pk)||0)>0);
  const arr=sum(t=>counts(t)?(parseFloat(t.qty)||0):0),cin=sum(t=>(cyd(t,pk))||0);
- const used=sum(t=>{const u=usedOn(t,pk);if(u===null){pend=true;return 0}return u});
+ const allocated=sum(t=>{const u=usedOn(t,pk);if(u===null){pend=true;return 0}return u});
+ const p=pileRec(pk),confirmed=confStrokes(pk),cy=calYd();
+ // Imported field records can have a verified pile total but no truck-by-truck
+ // pump events. Show that total as USED; do not mistake missing allocations for zero grout.
+ const expected=confirmed.n>0&&Number.isFinite(cy)&&cy>0?confirmed.n*cy:null;
+ const gap=expected!==null&&expected>allocated+Math.max(cy*0.5,0.005);
+ const used=pend?null:(gap?expected:allocated);
  const samp=S.trucks.filter(counts).reduce((a,t)=>a+sy(t),0),waste=sum(t=>t.wastePk===pk?(parseFloat(t.waste)||0):0);
- // left on trucks = what each truck on this pile has left after it (same carry-over rule as the truck rows)
- let left=0,lp=pend;for(const t of S.trucks.filter(t=>counts(t)||t.carryIn[pk])){const la=leftAfter(t,pk);if(la===null){lp=true;break}left+=la}
- return{arr,cin,used:pend?null:used,samp,waste,left:lp?null:left}}
+ // A truck's carry-over cannot be verified until its share of USED is assigned.
+ // Do not print a plausible but false 0.000 balance for an imported pile.
+ let left=0,lp=pend||gap;for(const t of S.trucks.filter(t=>counts(t)||t.carryIn[pk])){const la=leftAfter(t,pk);if(la===null){lp=true;break}left+=la}
+ return{arr,cin,used,samp,waste,left:lp?null:left,allocationGap:gap}}
 // End-of-day read-only truck reconciliation. No historical records are rewritten.
 function dayRebalanceH(){
  const order=orderKeys(),rows=[],warnings=[];let received=0,samples=0,placed=0,wasted=0,remaining=0,unknown=false;

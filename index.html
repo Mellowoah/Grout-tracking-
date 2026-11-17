@@ -86,7 +86,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v102';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v103';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -198,9 +198,10 @@ const lineEst=r=>{if(num(r.myCount)!==null)return false;const L=r.lines||[];if(!
 function confStrokes(pk){const r=pileRec(pk),a=num(r.reviewed),o=num(r.opCount);return a!==null?{n:a,src:'agreed total'}:o!==null?{n:o,src:'contractor count'}:lineEst(r)?{n:myCount(r),src:'≈ estimated from depth lines',est:true}:{n:myCount(r),src:'my count'}}
 // Each truck's share of the pile = its strokes on my counter, scaled to the confirmed total
 function confOn(t,pk){const n=strokesOn(t,pk),my=pileRec(pk).strokes||0,cs=confStrokes(pk);
- if(my>0)return recon(pk)[t.id]||0;
- // I didn't count this pile but the contractor did: fill trucks in the order they fed it, each up to what it had on board
- if(cs.n>0)return (seqAlloc(pk)[t.id])||0;return n}
+ // No per-truck strokes were recorded: reconcile the pile total against the
+ // available truck loads instead of assigning every truck zero.
+ if(my>0&&S.trucks.some(x=>strokesOn(x,pk)>0))return recon(pk)[t.id]||0;
+ if(cs.n>0)return seqAlloc(pk)[t.id]||0;return n}
 // Confirmed count ≠ my count: trucks keep what they were counted up to their switch; the difference goes to the truck that
 // was feeding at the end, then to the next trucks in feeding order, each only up to what it had on board. Too few strokes come
 // off the end first. Whatever doesn't fit stays as a visible gap (estimated split).
@@ -213,16 +214,24 @@ function recon(pk){const my=pileRec(pk).strokes||0,cs=confStrokes(pk),cy=calYd()
 function feedOrder(pk){const seen=[],add=id=>{if(id&&tk(id)&&!seen.includes(id))seen.push(id)};
  for(const e of pev(null,pk))if(e.type==='truck_carry'||e.type==='truck_switch')add(e.truck);
  if(pk===S.pile.key)add(S.active);
- // then trucks that were on site for this pile (arrived or carried in) as overflow, in arrival order
  for(const e of pev(null,pk))if(e.type==='truck_arrival'||e.type==='truck_carry')add(e.truck);
- // trucks waiting on site take over in the order they arrived (one truck pumps at a time)
- if(pk===S.pile.key)S.trucks.filter(t=>!t.pk0&&t.onsite&&!t.emptied).sort((a,b)=>(a.arrived||0)-(b.arrived||0)).forEach(t=>add(t.id));return seen}
+ // Imported field sheets have pile totals and truck arrival times, but often no
+ // pump-switch events. Allocate against eligible loads in chronological arrival order.
+ const p=pileRec(pk),g=stages(p).groutStart,at=g&&g.t||null;
+ S.trucks.filter(t=>!t.rejected&&num(t.qty)!==null&&(!at||!arrOf(t)||arrOf(t)<=at))
+  .sort((x,y)=>(arrOf(x)||Infinity)-(arrOf(y)||Infinity)||(x.seq||0)-(y.seq||0))
+  .forEach(t=>add(t.id));
+ if(pk===S.pile.key)S.trucks.filter(t=>!t.pk0&&t.onsite&&!t.emptied).sort((a,b)=>(a.arrived||0)-(b.arrived||0)).forEach(t=>add(t.id));
+ return seen}
 function onBoard(t,pk){const order=orderKeys(),i=order.indexOf(pk),q=parseFloat(t.qty);if(!(q>=0))return Infinity;
  if(t.pk0===pk||i<=0)return q-sy(t);const prev=leftAfter(t,order[i-1]);return prev===null?Infinity:Math.max(0,prev)}
 function seqAlloc(pk){const all=feedOrder(pk),c=confStrokes(pk).n,cy=calYd(),out={};let rest=c;
- // trucks with a typed used amount keep it; the rest of the strokes go to the others
- const ids=all.filter(id=>{const u=num(tk(id).used[pk]);if(u!==null&&cy>0){out[id]=u/cy;rest-=u/cy;return false}return true});rest=rest<0.5?0:rest; // under half a stroke is rounding
- ids.forEach((id,i)=>{const cap=cy>0?onBoard(tk(id),pk)/cy:Infinity,take=i===ids.length-1?rest:Math.min(rest,cap);out[id]=Math.max(0,take);rest-=out[id]});return out}
+ const ids=all.filter(id=>{const u=num(tk(id).used[pk]);if(u!==null&&cy>0){out[id]=u/cy;rest-=u/cy;return false}return true});
+ rest=rest<0.5?0:rest;
+ ids.forEach(id=>{const t=tk(id),ob=cy>0?onBoard(t,pk):0,cap=cy>0?Math.max(0,ob/cy):0;
+  const take=Math.min(Math.max(0,rest),cap);out[id]=take;rest-=take});
+ Object.defineProperty(out,'_gap',{value:Math.max(0,rest)});
+ return out}
 function usedOn(t,pk){const m=num(t.used[pk]);if(m!==null)return m;const n=confOn(t,pk);if(!n)return 0;const c=calYd();return c>0?n*c:null}
 // Grout left on a truck at the end of a given pile (piles in the order worked)
 // Field rule: grout a truck carries on to the next pile is rounded to 0.001 and taken down by 0.001
@@ -267,11 +276,18 @@ function calc(t){const q=parseFloat(t.qty),placed=usedAll(t);
 function ledger(pk=S.pile.key){const sum=f=>S.trucks.reduce((a,t)=>a+f(t),0);let pend=false;
  const counts=t=>onsiteUsed(t,pk)||t.pk0===pk&&(!Object.values(t.carryIn).some(c=>c.from===pk)||(usedOn(t,pk)||0)>0);
  const arr=sum(t=>counts(t)?(parseFloat(t.qty)||0):0),cin=sum(t=>(cyd(t,pk))||0);
- const used=sum(t=>{const u=usedOn(t,pk);if(u===null){pend=true;return 0}return u});
+ const allocated=sum(t=>{const u=usedOn(t,pk);if(u===null){pend=true;return 0}return u});
+ const p=pileRec(pk),confirmed=confStrokes(pk),cy=calYd();
+ // Imported field records can have a verified pile total but no truck-by-truck
+ // pump events. Show that total as USED; do not mistake missing allocations for zero grout.
+ const expected=confirmed.n>0&&Number.isFinite(cy)&&cy>0?confirmed.n*cy:null;
+ const gap=expected!==null&&expected>allocated+Math.max(cy*0.5,0.005);
+ const used=pend?null:(gap?expected:allocated);
  const samp=S.trucks.filter(counts).reduce((a,t)=>a+sy(t),0),waste=sum(t=>t.wastePk===pk?(parseFloat(t.waste)||0):0);
- // left on trucks = what each truck on this pile has left after it (same carry-over rule as the truck rows)
- let left=0,lp=pend;for(const t of S.trucks.filter(t=>counts(t)||t.carryIn[pk])){const la=leftAfter(t,pk);if(la===null){lp=true;break}left+=la}
- return{arr,cin,used:pend?null:used,samp,waste,left:lp?null:left}}
+ // A truck's carry-over cannot be verified until its share of USED is assigned.
+ // Do not print a plausible but false 0.000 balance for an imported pile.
+ let left=0,lp=pend||gap;for(const t of S.trucks.filter(t=>counts(t)||t.carryIn[pk])){const la=leftAfter(t,pk);if(la===null){lp=true;break}left+=la}
+ return{arr,cin,used,samp,waste,left:lp?null:left,allocationGap:gap}}
 // End-of-day read-only truck reconciliation. No historical records are rewritten.
 function dayRebalanceH(){
  const order=orderKeys(),rows=[],warnings=[];let received=0,samples=0,placed=0,wasted=0,remaining=0,unknown=false;

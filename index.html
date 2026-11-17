@@ -86,7 +86,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v133';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v134';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -1164,7 +1164,7 @@ function truckPumpWindows(P,used){
  const events=pev(null,P.key).filter(e=>e.type==='truck_switch'&&e.truck&&e.t>=a&&e.t<=b).sort((x,y)=>x.t-y.t);
  const switchAt=id=>events.find(e=>e.truck===id);
  const nov17=PROF==='nov17field'&&P.date==='11/17/26'&&String(P.id)==='61'&&feeders.length===2&&String(feeders[0].num)==='625'&&String(feeders[1].num)==='688';
- const correctedFinish=nov17?new Date(2026,10,17,10,15).getTime():null;
+ const correctedFinish=nov17?new Date(2026,10,17,10,16).getTime():null;
  const correctedStart=nov17?new Date(2026,10,17,10,16).getTime():null;
  for(let i=0;i<feeders.length;i++){
   const t=feeders[i],incoming=i?switchAt(t.id):null,outgoing=feeders[i+1]?switchAt(feeders[i+1].id):null;

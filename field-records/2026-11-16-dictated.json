@@ -1,0 +1,106 @@
+{
+  "date": "2026-11-16",
+  "timezone": "America/New_York",
+  "source": "Inspector dictated field notes; uncertain values explicitly flagged. This is an archival record, not browser-local app data.",
+  "piles": [
+    {
+      "id": "50",
+      "drill_start": "11:40",
+      "drill_end": "11:46",
+      "grout_start": "11:46",
+      "grout_end": "11:53",
+      "reinforcement_start": "11:53",
+      "reinforcement_end": null,
+      "strokes": 180,
+      "notes": "12:05 was mentioned earlier but assignment uncertain; do not assign."
+    },
+    {
+      "id": "57",
+      "drill_start": "12:05",
+      "drill_end": "12:08",
+      "grout_start": "12:08",
+      "grout_end": "12:15",
+      "reinforcement_start": "12:15",
+      "reinforcement_end": "12:29",
+      "strokes": 180
+    },
+    {
+      "id": "58",
+      "drill_start": "12:30",
+      "drill_end": "12:32",
+      "grout_start": null,
+      "grout_end": "12:39",
+      "grout_end_approximate": true,
+      "strokes": 180,
+      "strokes_provisional": true,
+      "notes": "Earlier dictated as pile forty-eight; likely pile 58 but unconfirmed."
+    },
+    {
+      "id": "59",
+      "drill_start": "12:51",
+      "drill_end": "12:54",
+      "grout_start": "12:54",
+      "grout_end": "13:01",
+      "grout_times_inferred": true,
+      "reinforcement_start": null,
+      "reinforcement_end": null,
+      "strokes": 182
+    },
+    {
+      "id": "60",
+      "drill_start": "13:15",
+      "drill_end": "13:18",
+      "grout_start": "13:18",
+      "grout_end": "13:24",
+      "reinforcement_start": "13:24",
+      "reinforcement_end": "13:37",
+      "strokes": 180
+    }
+  ],
+  "trucks": [
+    {
+      "id": "688",
+      "batch": "10:39",
+      "arrival": "11:29",
+      "departure": "12:11"
+    },
+    {
+      "id": "2206",
+      "batch": "11:10",
+      "batch_approximate": true,
+      "arrival": "12:00",
+      "arrival_approximate": true,
+      "departure": "12:38",
+      "departure_approximate": true
+    },
+    {
+      "id": "2449",
+      "batch": "11:24",
+      "batch_approximate": true,
+      "arrival": "12:21",
+      "departure": "13:20",
+      "departure_approximate": true
+    },
+    {
+      "id": "630",
+      "batch": "12:03",
+      "batch_approximate": true,
+      "arrival": "12:53",
+      "departure": "13:55",
+      "departure_approximate": true
+    }
+  ],
+  "stroke_total": 902,
+  "unrecorded": [
+    "grout return depths",
+    "cumulative depth stroke readings",
+    "truck loads",
+    "samples",
+    "truck-specific pile transitions"
+  ],
+  "notes": [
+    "Truck 688 explicitly supplied pile 50; do not infer other truck-to-pile mappings.",
+    "Do not overwrite phone localStorage or assume app imported this file.",
+    "Do not assume 1.1 yd3 sample taken."
+  ]
+}

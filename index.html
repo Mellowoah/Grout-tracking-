@@ -86,7 +86,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v115';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v116';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -115,8 +115,8 @@ S.piles=S.piles||[];S.piles.forEach((p,i)=>{if(p.n==null)p.n=i});if(S.pile&&S.pi
 if(!S.pile.key||S.ev.some(e=>!e.pk)){let n=0;for(const e of S.ev){if(e.type==='new_pile')n++;if(!e.pk)e.pk='p'+n}S.piles.forEach((p,i)=>{if(!p.key)p.key='p'+i});if(!S.pile.key)S.pile.key='p'+n}
 // Trucks: per-pile strokes/used yd³, carry-in, leftover handling
 S.trucks.forEach(t=>{t.used=t.used||{};t.carryIn=t.carryIn||{};t.left=t.left||'';t.samples=t.samples||[];t.tests=t.tests||[];
- if(!t.pk0){const a=S.ev.find(e=>e.type==='truck_arrival'&&e.truck===t.id);t.pk0=a?a.pk:S.pile.key}
- if(!t.ps)t.ps={[t.pk0]:t.strokes||0};if(t.qty===''&&S.defLoad)t.qty=String(S.defLoad);if(t.waste&&!t.wastePk)t.wastePk=t.pk0});
+ if(!t.pk0){const a=S.ev.find(e=>e.type==='truck_switch'&&e.truck===t.id)||S.ev.find(e=>e.type==='truck_arrival'&&e.truck===t.id&&e.attached&&((t.ps||{})[e.pk]>0||num((t.used||{})[e.pk])!==null));t.pk0=a?a.pk:null}
+ if(!t.ps)t.ps=t.pk0?{[t.pk0]:t.strokes||0}:{};if(t.qty===''&&S.defLoad)t.qty=String(S.defLoad);if(t.waste&&!t.wastePk)t.wastePk=t.pk0});
 const $=id=>document.getElementById(id);
 // Next pile number: 42 → 43, P-09 → P-10; blank if the last one had no number
 const nextId=id=>{const m=String(id||'').match(/^(.*?)(\d+)$/);if(!m)return'';const n=String(+m[2]+1);return m[1]+n.padStart(m[2].length,'0')};
@@ -212,7 +212,7 @@ function recon(pk){const my=pileRec(pk).strokes||0,cs=confStrokes(pk),cy=calYd()
  else if(d<0){for(let i=ord.length-1;i>=0&&d<-1e-6;i--){const take=Math.min(-d,out[ord[i]]);out[ord[i]]-=take;d+=take}}
  Object.defineProperty(out,'_gap',{value:ord.length&&Math.abs(d)>1e-6?d:0});Object.defineProperty(out,'_ord',{value:ord});return out}
 function feedOrder(pk){const seen=[],add=id=>{if(id&&tk(id)&&!seen.includes(id))seen.push(id)};
- for(const e of pev(null,pk))if(e.type==='truck_switch'||(e.type==='truck_carry'&&tk(e.truck)&&tk(e.truck).fed))add(e.truck);
+ for(const e of pev(null,pk))if(e.type==='truck_switch')add(e.truck);
  if(pk===S.pile.key)add(S.active);
  
  // Imported field sheets have pile totals and truck arrival times, but often no
@@ -361,7 +361,7 @@ $('fold').onclick=()=>{$('tray').classList.toggle('min');$('fold').textContent=$
 const armed={};
 function twoTap(k,btnId,label){if(Date.now()-(armed[k]||0)>4000){armed[k]=Date.now();const b=$(btnId);if(b)b.textContent=label||'Tap again to confirm';setTimeout(render,4200);return false}armed[k]=0;return true}
 const A={
- newPile(want){if(!isLatest()){const L=latestPile();A.openPile(L.key);return}undoSnap=JSON.stringify(S);for(const t of S.trucks)if(onsiteUsed(t,S.pile.key))attach(t,S.pile.key);if(fc){clearInterval(fcT);fc=null}let done='';act(()=>{closeSeg();const ok=S.pile.key;done='Pile '+(S.pile.id||'?')+' done: '+(pileTrucks(ok).map(t=>'truck '+tname(t)+' '+(usedOn(t,ok)===null?'?':r1(usedOn(t,ok)))+' yd³').join(', ')||'no trucks')+'. ';const loose=S.trucks.filter(t=>!t.emptied&&!t.pk0&&(t.onsite||!arrOf(t)||arrOf(t)<=Date.now()));const open=S.trucks.filter(t=>!t.emptied&&t.pk0).map(t=>{const c=calc(t);return[t,c.rem!==null?c.rem:(c.q>=0&&usedAll(t)===0?c.q:null)]});
+ newPile(want){if(!isLatest()){const L=latestPile();A.openPile(L.key);return}undoSnap=JSON.stringify(S);for(const t of S.trucks)if(onsiteUsed(t,S.pile.key))attach(t,S.pile.key);if(fc){clearInterval(fcT);fc=null}let done='';act(()=>{closeSeg();const ok=S.pile.key;done='Pile '+(S.pile.id||'?')+' done: '+(pileTrucks(ok).map(t=>'truck '+tname(t)+' '+(usedOn(t,ok)===null?'?':r1(usedOn(t,ok)))+' yd³').join(', ')||'no trucks')+'. ';const loose=S.trucks.filter(t=>!t.emptied&&!t.pk0&&(t.onsite||!arrOf(t)||arrOf(t)<=Date.now()));const open=S.trucks.filter(t=>!t.emptied&&t.pk0&&((t.ps||{})[S.pile.key]>0||num(t.used[S.pile.key])!==null||S.active===t.id)).map(t=>{const c=calc(t);return[t,c.rem!==null?c.rem:(c.q>=0&&usedAll(t)===0?c.q:null)]});
   // a truck the strokes say ran out here isn't carried on: it's flagged so you can confirm it empty (at this pile's grout finish)
   {const gf=stages().groutFinish;for(const [t,yd] of open.filter(([t,yd])=>yd!==null&&yd<=0.005&&usedOn(t,S.pile.key)>0)){t.pend={t:gf?gf.t:Date.now(),pk:S.pile.key};log('truck_maybe_empty',{truck:t.id})}}
   for(let i=open.length-1;i>=0;i--)if(open[i][0].pend&&!open[i][0].noPend)open.splice(i,1);
@@ -560,7 +560,7 @@ function render(){clearTimeout(rT);
  h+=`<h3>Timeline</h3>`+[...pev()].reverse().map(e=>`<div class="tl">${ft(e.t)} · ${e.type.replace('_',' ')}${e.name?' '+e.name:''}${e.depth!=null?' @ '+e.depth+' ft':''}${e.countOff?'':' · strokes '+e.strokes}${e.truck?' · '+esc(tname(tk(e.truck))||'truck'):''}${e.missing?' <span class=flag>missed</span>':''}</div>`).join('');
  h=h.slice(0,g2)+sec('review','Review & timeline',h.slice(g2));
  const g3=h.length;
- if(S.piles.length)h+=allPiles().filter(p=>p!==S.pile).reverse().map(p=>{const tr=pileTrucks(p.key),L=ledger(p.key);return `<div class="card"><div class="row"><b style="flex:1">Pile ${esc(p.id||'?')}</b><small>${esc(p.date)} · ${confStrokes(p.key).n} strokes</small></div>${tr.map(t=>{const u=usedOn(t,p.key),la=leftAfter(t,p.key);return `<div>Truck <b>${esc(tname(t))}</b> · used ${u===null?'?':r1(u)} yd³ · left ${la===null?'?':r1(la)}<br><small style="color:var(--mut)">batch ${t.batch?esc(t.batch):'—'} · arrived ${t.arrived?hm(t.arrived):'—'} · empty ${t.emptied&&pev(null,p.key).some(e=>e.truck===t.id&&(e.type==='truck_empty'||e.type==='truck_waste'))?hm(t.emptied):'—'}</small></div>`}).join('')||'<div style="color:var(--mut)">No trucks</div>'}
+ if(S.piles.length)h+=allPiles().filter(p=>p!==S.pile).reverse().map(p=>{const tr=pileTrucks(p.key).filter(t=>usedOn(t,p.key)>0||pev('truck_switch',p.key).some(e=>e.truck===t.id)),L=ledger(p.key);return `<div class="card"><div class="row"><b style="flex:1">Pile ${esc(p.id||'?')}</b><small>${esc(p.date)} · ${confStrokes(p.key).n} strokes</small></div>${tr.map(t=>{const u=usedOn(t,p.key),la=leftAfter(t,p.key);return `<div>Truck <b>${esc(tname(t))}</b> · used ${u===null?'?':r1(u)} yd³ · left ${la===null?'?':r1(la)}<br><small style="color:var(--mut)">batch ${t.batch?esc(t.batch):'—'} · arrived ${t.arrived?hm(t.arrived):'—'} · empty ${t.emptied&&pev(null,p.key).some(e=>e.truck===t.id&&(e.type==='truck_empty'||e.type==='truck_waste'))?hm(t.emptied):'—'}</small></div>`}).join('')||'<div style="color:var(--mut)">No trucks</div>'}
   <div class="row"><input id="op-${p.key}" placeholder="Contractor count" inputmode="numeric" value="${esc(p.opCount)}" onchange="A.oldSet('${p.key}','opCount',this.value)"><input id="rv-${p.key}" placeholder="Agreed total" inputmode="numeric" value="${esc(p.reviewed)}" onchange="A.oldSet('${p.key}','reviewed',this.value)"></div><div class="row"><button style="flex:1" onclick="A.openPile('${p.key}')">Open pile ${esc(p.id||'')}</button><button class="sec" style="flex:1" onclick="showForm('${p.key}',true)">View form</button></div><button class="sec" id="dp-${p.key}" style="width:100%;min-height:40px;font-size:15px" onclick="A.dropPile('${p.key}')">Delete pile ${esc(p.id||'')} (skipped / mistake)</button></div>`}).join('');
  h=h.slice(0,g3)+(S.piles.length?sec('piles','Other piles ('+S.piles.length+')',h.slice(g3)):'');
  const g4=h.length;

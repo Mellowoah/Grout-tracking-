@@ -334,7 +334,8 @@
           "num": "688",
           "batch": "10:39",
           "arrival": "11:29",
-          "departure": "12:11"
+          "departure": "12:11",
+          "qty": "9"
         },
         {
           "seq": 2,
@@ -342,7 +343,8 @@
           "batch": "11:10",
           "arrival": "12:00",
           "departure": "12:38",
-          "add": true
+          "add": true,
+          "qty": "9"
         },
         {
           "seq": 3,
@@ -350,7 +352,8 @@
           "batch": "11:24",
           "arrival": "12:21",
           "departure": "13:20",
-          "add": true
+          "add": true,
+          "qty": "9"
         },
         {
           "seq": 4,
@@ -358,7 +361,8 @@
           "batch": "12:03",
           "arrival": "12:53",
           "departure": "13:55",
-          "add": true
+          "add": true,
+          "qty": "9"
         }
       ]
     }

@@ -139,6 +139,9 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 #remv .remote-sample .rsub{color:#d4deeb}
 #remv .remote-links button{height:52px;min-height:52px;padding:7px;font-size:14px;text-decoration:none}
 #remv .rtrucks button{min-height:48px;padding:7px 10px;font-size:13px}
+#remv .rtrucks{flex-direction:row;flex-wrap:nowrap;align-items:stretch;justify-content:flex-start;overflow-x:auto;overflow-y:hidden;width:100%;max-height:none}
+#remv .rtrucks .rtruck{display:flex;gap:6px;flex:none}
+#remv .rtrucks .rtruck button{flex:none;white-space:nowrap}
 #remv .remote-stroke-bottom .rstroke{min-height:96px;padding:10px}
 #remv .remote-stroke-bottom .rstroke .rtop{font-size:22px}
 #remv .rhead button{border-radius:12px}
@@ -259,7 +262,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v152';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v153';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -296,7 +299,7 @@ const nextId=id=>{const m=String(id||'').match(/^(.*?)(\d+)$/);if(!m)return'';co
 const ft=ms=>ms?new Date(ms).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'}):'—';
 // ---- Undo / redo: every change is a step you can take back, as many times as you need (kept through reloads)
 const HK='hist'+(PROF?':'+PROF:''),HMAX=80;let hist=[],fut=[],lastJ=null,histAt=0,noHist=false,histT;
-const EVN={depth_mark:'depth mark',truck_arrival:'truck arrival',truck_onsite:'truck arrival',truck_empty:'truck empty',truck_waste:'leftover waste',sample:'sample',grout_return:'grout return',qc_test:'QC test',new_pile:'new pile',truck_carry:'carry over',stage:'step time',edit:'edit',truck_reject:'truck sent back'};
+const EVN={depth_mark:'depth mark',truck_arrival:'truck arrival',truck_onsite:'truck arrival',truck_empty:'truck empty',truck_waste:'leftover waste',sample:'sample',grout_return:'grout return',qc_test:'QC test',new_pile:'new pile',truck_carry:'carry over',stage:'step time',edit:'edit',truck_reject:'truck sent back',truck_unreject:'undo sent back',truck_timeout:'timed out, left with waste',truck_timeout_undo:'undo timed out'};
 function histNote(j){if(lastJ===null||j===lastJ){lastJ=j;return}
  if(noHist){noHist=false;lastJ=j;return}
  const now=Date.now(),e=S.ev[S.ev.length-1],lab=histLabel||(e&&e.t>histAt&&now-e.t<3000?(EVN[e.type]||e.type.replace(/_/g,' ')):'edit');histLabel='';
@@ -410,7 +413,8 @@ function seqAlloc(pk){const all=feedOrder(pk),c=confStrokes(pk).n,cy=calYd(),out
 function usedOn(t,pk){const m=num(t.used[pk]);if(m!==null)return m;const n=confOn(t,pk);if(!n)return 0;const c=calYd();return c>0?n*c:null}
 // Grout left on a truck at the end of a given pile (piles in the order worked).
 // Shown to 0.001. The extra 0.001 that used to be taken off a carry was removed in v100.
-const emptyOn=(t,k)=>pev(null,k).some(e=>e.truck===t.id&&(e.type==='truck_empty'||e.type==='truck_waste'));
+// An undone empty or waste event no longer counts, so bringing a truck back restores the carry.
+const emptyOn=(t,k)=>pev(null,k).some(e=>!e.undone&&e.truck===t.id&&(e.type==='truck_empty'||e.type==='truck_waste'));
 function leftAfter(t,pk){const order=orderKeys(),idx=order.indexOf(pk),q=parseFloat(t.qty);if(idx<0||!(q>=0))return null;let rem=q-sy(t);
  for(const k of order.slice(0,idx+1)){const x=usedOn(t,k);if(x===null)return null;rem-=x;if(t.wastePk===k)rem-=parseFloat(t.waste)||0;
   }
@@ -521,7 +525,7 @@ function stroke(d){if(d<0&&S.strokes===0)return;S.strokes+=d;S.ctrAt=Date.now();
 // A truck that can take over the pump: on site (or attached), not empty, not sent back, not waiting on an empty check, not
 // arriving later. One past its batch-time limit is never picked by itself.
 const pastLimit=x=>{const c=cutoff(x);return c!==null&&c<Date.now()};
-function nextFeeder(t){const c=S.trucks.filter(x=>x!==t&&!x.emptied&&!x.rejected&&!x.pend&&(x.pk0||x.onsite)&&!(x.arrived&&x.arrived>Date.now()+60000)).sort((a,b)=>(arrOf(a)||Infinity)-(arrOf(b)||Infinity)||(a.seq||0)-(b.seq||0));
+function nextFeeder(t){const c=S.trucks.filter(x=>x!==t&&!x.emptied&&!x.rejected&&!x.leftWaste&&!x.pend&&(x.pk0||x.onsite)&&!(x.arrived&&x.arrived>Date.now()+60000)).sort((a,b)=>(arrOf(a)||Infinity)-(arrOf(b)||Infinity)||(a.seq||0)-(b.seq||0));
  return{ok:c.find(x=>!pastLimit(x)),late:c.find(pastLimit)}}
 function autoHandoff(){const t=tk(S.active);if(!t||t.pend||t.noPend||!(calYd()>0)||!(parseFloat(t.qty)>0)||num(t.used[S.pile.key])!==null)return;const c=calc(t);if(c.rem===null||c.rem>0)return;
  const pk=S.pile.key,cy=calYd(),n=strokesOn(t,pk),bnd=Math.max(0,Math.floor((c.rem+n*cy)/cy+1e-9)),over=Math.max(0,Math.round(n-bnd));
@@ -538,7 +542,7 @@ $('fold').onclick=()=>{$('tray').classList.toggle('min');$('fold').textContent=$
 const armed={};
 function twoTap(k,btnId,label){if(Date.now()-(armed[k]||0)>4000){armed[k]=Date.now();const b=$(btnId);if(b)b.textContent=label||'Tap again to confirm';setTimeout(render,4200);return false}armed[k]=0;return true}
 const A={
- newPile(want){if(!isLatest()){const L=latestPile();A.openPile(L.key);return}undoSnap=JSON.stringify(S);for(const t of S.trucks)if(onsiteUsed(t,S.pile.key))attach(t,S.pile.key);if(fc){clearInterval(fcT);fc=null}let done='';act(()=>{closeSeg();const ok=S.pile.key;done='Pile '+(S.pile.id||'?')+' done: '+(pileTrucks(ok).map(t=>'truck '+tname(t)+' '+(usedOn(t,ok)===null?'?':r1(usedOn(t,ok)))+' yd³').join(', ')||'no trucks')+'. ';const loose=S.trucks.filter(t=>!t.emptied&&!t.pk0&&(t.onsite||!arrOf(t)||arrOf(t)<=Date.now()));const open=S.trucks.filter(t=>!t.emptied&&t.pk0&&!t.pend&&(S.active===t.id||((t.ps||{})[S.pile.key]>0||num(t.used[S.pile.key])>0)&&calc(t).rem>0)).map(t=>{const c=calc(t);return[t,c.rem!==null?c.rem:(c.q>=0&&usedAll(t)===0?c.q:null)]});
+ newPile(want){if(!isLatest()){const L=latestPile();A.openPile(L.key);return}undoSnap=JSON.stringify(S);for(const t of S.trucks)if(onsiteUsed(t,S.pile.key))attach(t,S.pile.key);if(fc){clearInterval(fcT);fc=null}let done='';act(()=>{closeSeg();const ok=S.pile.key;done='Pile '+(S.pile.id||'?')+' done: '+(pileTrucks(ok).map(t=>'truck '+tname(t)+' '+(usedOn(t,ok)===null?'?':r1(usedOn(t,ok)))+' yd³').join(', ')||'no trucks')+'. ';const loose=S.trucks.filter(t=>!t.emptied&&!t.pk0&&(t.onsite||!arrOf(t)||arrOf(t)<=Date.now()));const open=S.trucks.filter(t=>!t.emptied&&!t.rejected&&!t.leftWaste&&t.pk0&&!t.pend&&(S.active===t.id||((t.ps||{})[S.pile.key]>0||num(t.used[S.pile.key])>0)&&calc(t).rem>0)).map(t=>{const c=calc(t);return[t,c.rem!==null?c.rem:(c.q>=0&&usedAll(t)===0?c.q:null)]});
   // a truck the strokes say ran out here isn't carried on: it's flagged so you can confirm it empty (at this pile's grout finish)
   {const gf=stages().groutFinish;for(const [t,yd] of open.filter(([t,yd])=>yd!==null&&yd<=0.005&&usedOn(t,S.pile.key)>0)){t.pend={t:gf?gf.t:Date.now(),pk:S.pile.key};log('truck_maybe_empty',{truck:t.id})}}
   for(let i=open.length-1;i>=0;i--)if(open[i][0].pend&&!open[i][0].noPend)open.splice(i,1);
@@ -558,7 +562,7 @@ const A={
  mark(){act(()=>{const d=nextMark();if(d===undefined)return msg('All depth marks for this pile are done.');log('depth_mark',{depth:d,truck:S.active});S.pile.mi++;vib()})},
  miss(){act(()=>{const d=nextMark();if(d===undefined)return;log('depth_mark',{depth:d,missing:true,truck:S.active});S.pile.mi++})},
  ret(){act(()=>{log('grout_return',{depth:null,source:''})})},
- sw(id){const t=tk(id);if(!t)return msg('No truck yet. Add a truck (times optional) or tap Truck arrived.');act(()=>{attach(t,S.pile.key);const o=tk(S.active);closeSeg();S.active=id;S.segStart=S.strokes;t.fed=true;log('truck_switch',{truck:id,from:o?o.id:null,depth:nextMark()??null})})},
+ sw(id){const t=tk(id);if(!t)return msg('No truck yet. Add a truck (times optional) or tap Truck arrived.');if(t.rejected)return msg('Truck '+tname(t)+' was sent back. It cannot feed the pump.');if(t.leftWaste)return msg('Truck '+tname(t)+' timed out and left with waste. It cannot feed the pump.');act(()=>{attach(t,S.pile.key);const o=tk(S.active);closeSeg();S.active=id;S.segStart=S.strokes;t.fed=true;log('truck_switch',{truck:id,from:o?o.id:null,depth:nextMark()??null})})},
  next(){const t=S.trucks.find(t=>!t.fed&&!t.emptied);if(!t)return msg('No truck yet. Add a truck (times optional) or tap Truck arrived.');A.sw(t.id)},
  depart(id){const t=tk(id);if(!t)return;act(()=>{t.departed=Date.now();log('truck_departed',{truck:id,estimatedPumpOut:t.pumpOutAt||null});msg('Truck '+tname(t)+' left site at '+ft(t.departed)+'.')})},
  empty(id){let nxMsg='';act(()=>{const t=tk(id),wasA=S.active===id;if(wasA){closeSeg();S.active=null}if(!t.pk0&&t.onsite)attach(t,S.pile.key);t.emptied=Date.now();log('truck_empty',{truck:id});if(wasA){const nf=nextFeeder(t),nx=nf.ok;if(!nx&&nf.late)nxMsg='Truck '+tname(t)+' empty. Truck '+tname(nf.late)+' is past its batch time, so it wasn\'t started: tap Feed pump on it to use it anyway.';if(nx){attach(nx,S.pile.key);S.active=nx.id;S.segStart=S.strokes;nx.fed=true;log('truck_switch',{truck:nx.id,from:id,auto:true,at:S.strokes,depth:nextMark()??null});nxMsg='Truck '+tname(t)+' empty. Now allocating pump strokes to truck '+tname(nx)+'.'}}});if(nxMsg)msg(nxMsg)},
@@ -585,7 +589,7 @@ const A={
  remove(id){const t=tk(id);if(!t||t.fed||t.samples.length||t.tests.length)return;if(!twoTap('rm'+id,'rm'+id))return;act(()=>{S.trucks=S.trucks.filter(x=>x!==t);S.ev=S.ev.filter(e=>!(e.type==='truck_arrival'&&e.truck===id));msg('Truck removed')})},
  sample(id){const t=tk(id);if(!t)return;if(sHere(t)&&!twoTap('smp'+id,'ts-'+id,'Tap again: 2nd sample'))return;act(()=>{const e=takeSample(t);msg('Sample taken from truck '+tname(t)+' ('+r1(e.yd)+' yd³) at '+ft(e.t)+'. Temp and flow cone go on its card.')})},
  test(id){act(()=>{const t=tk(id);log('qc_test',{truck:id});t.tests.push({id:uid(),t:Date.now(),temp:'',flow:'',pk:S.pile.key})});setTimeout(()=>{const t=tk(id),e=t&&$('t-'+id+'-tt'+(t.tests.length-1));if(e)e.scrollIntoView({block:'center',behavior:'smooth'})},50)},
- setT(id,f,v){const t=tk(id);t[f]=v;if(f==='waste'&&v&&!t.wastePk)t.wastePk=S.pile.key;log('edit',{truck:id,field:f,value:v});save();render()},
+ setT(id,f,v){const t=tk(id);t[f]=v;if(f==='waste'&&v&&!t.wastePk)t.wastePk=S.pile.key;if(f==='waste'&&t.leftWaste){const base=parseFloat(t.leftWaste.base)||0,n=parseFloat(v)||0;t.leftWaste.yd=String(+Math.max(0,n-base).toFixed(3))}log('edit',{truck:id,field:f,value:v});save();render()},
  setTest(id,i,f,v){tk(id).tests[i][f]=v;save()},
  setDepth(id,v){const e=S.ev.find(x=>x.id===id);e.depth=v===''?null:Number(v);e.source='entered later';e.entered=Date.now();save();render()},
  stage(k){act(()=>{const st=S.pile.st;st[k]=Date.now();if(S.pile.resetStages)delete S.pile.resetStages[k];log('stage',{name:k})});
@@ -637,7 +641,7 @@ const A={
   if(!into)return;if(!twoTap('dp'+k,'dp-'+k,'Tap again: delete pile '+(P.id||'?')))return;
   act(()=>{if(k===S.pile.key){A.openPile(into)}const T=into===S.pile.key?S.pile:S.piles.find(p=>p.key===into);
    for(const f of ['station','elev','wall','opCount','reviewed','myCount'])if((T[f]===''||T[f]==null)&&P[f])T[f]=P[f];T.st=Object.assign({},P.st||{},T.st||{});
-   S.ev.forEach(e=>{if(e.pk===k&&!['new_pile','open_pile'].includes(e.type))e.pk=into});ISS().forEach(x=>{if(x.pk===k)x.pk=into});S.trucks.forEach(t=>{if(t.rejected&&t.rejected.pk===k)t.rejected.pk=into});S.ev=S.ev.filter(e=>e.pk!==k);
+   S.ev.forEach(e=>{if(e.pk===k&&!['new_pile','open_pile'].includes(e.type))e.pk=into});ISS().forEach(x=>{if(x.pk===k)x.pk=into});S.trucks.forEach(t=>{if(t.rejected&&t.rejected.pk===k)t.rejected.pk=into;if(t.leftWaste&&t.leftWaste.pk===k)t.leftWaste.pk=into});S.ev=S.ev.filter(e=>e.pk!==k);
    for(const t of S.trucks){if(t.pk0===k)t.pk0=into;delete t.carryIn[k];if(t.used[k]!=null&&t.used[into]==null)t.used[into]=t.used[k];delete t.used[k];if(t.ps[k]){t.ps[into]=(t.ps[into]||0)+t.ps[k];delete t.ps[k]}
     for(const c of Object.keys(t.carryIn))if(t.carryIn[c].from===k)t.carryIn[c].from=o[i-1]||into;if(t.wastePk===k)t.wastePk=into;(t.tests||[]).forEach(x=>{if(x.pk===k)x.pk=into})}
    S.piles=S.piles.filter(p=>p.key!==k);for(const t of S.trucks)if(t.pk0===into||t.carryIn[into]){const oo=orderKeys(),ii=oo.indexOf(into);if(t.pk0!==into&&oo.indexOf(t.pk0)>=ii)delete t.carryIn[into]}
@@ -685,7 +689,7 @@ function render(){clearTimeout(rT);
    <div class="row"><label style="flex:1;min-width:95px"><small>Batch</small><input id="t-${t.id}-batch" type="time" ${tIn(t,'batch')} onchange="A.setT('${t.id}','batch',this.value)"></label><label style="flex:1;min-width:95px"><small>Arrived</small><input id="t-${t.id}-arr" type="time" ${tIn(t,'arrived')} onchange="A.setTime('${t.id}','arrived',this.value)"></label><label style="flex:1;min-width:95px"><small>Empty</small><input id="t-${t.id}-emp" type="time" ${tIn(t,'emptied')} onchange="A.setTime('${t.id}','emptied',this.value)"></label></div>${tErr[t.id]?`<div class="flag" id="t-${t.id}-terr">${esc(tErr[t.id])}</div>`:''}
    ${on.map(k=>{const u=usedOn(t,k),la=leftAfter(t,k);return `<div>Pile <b>${esc(pname(k))}</b>: used ${u===null?'?':r1(u)} yd³ · left ${la===null?'?':r1(la)}</div>`}).join('')}
    <div class="row"><input id="t-${t.id}-sn" placeholder="Sample #" value="${esc(t.sampleNo||'')}" onchange="A.setT('${t.id}','sampleNo',this.value)"><button style="flex:1;min-height:48px" id="ts-${t.id}" onclick="A.sample('${t.id}')">${(t.samples||[]).length?'✓ Sample taken · add another':'Take sample · '+r1(Number(S.sampleYd)||0)+' yd³'}</button></div>
-   <div style="color:var(--mut);font-size:14px">${(t.samples||[]).length?'Samples taken: '+t.samples.length+' · '+r1(sRec(t))+' yd³ deducted · ':''}${tt.map(x=>esc(x.temp||'?')+'°F / '+esc(x.flow||'?')+' s').join(' · ')}${t.left==='waste'?' · leftover wasted':''}</div></div>`;};
+   <div style="color:var(--mut);font-size:14px">${(t.samples||[]).length?'Samples taken: '+t.samples.length+' · '+r1(sRec(t))+' yd³ deducted · ':''}${tt.map(x=>esc(x.temp||'?')+'°F / '+esc(x.flow||'?')+' s').join(' · ')}${t.leftWaste?' · timed out, left with waste':t.left==='waste'?' · leftover wasted':''}</div>${dispBtns(t)}</div>`;};
  if(loose.length)h+=`<div class="card" style="border:2px dashed var(--line)"><b>Trucks not on a pile yet (${loose.length})</b><div style="color:var(--mut);font-size:14px">Type the arrival time and the app puts it on the right pile, or it joins the pile it feeds / the next pile you start.</div>${loose.map(compact).join('')}</div>`;
  if(!shown.length&&!loose.length)h+=`<div class="card">No trucks yet. That's fine: the pile, pumping and counts work without one. Add a truck when you have it (times optional), or tap Truck arrived when one pulls up.</div>`;
  const list=[...shown,...olderL];
@@ -697,12 +701,13 @@ function render(){clearTimeout(rT);
   ${t.ticketNo||t.mix?`<div style="color:var(--mut);font-size:14px">${t.ticketNo?'Ticket '+esc(t.ticketNo):''}${t.ticketNo&&t.mix?' · ':''}${t.mix?'Mix '+esc(t.mix):''}</div>`:''}
   ${ci?`<div class="trayw" style="color:var(--mut)">Carried from pile ${esc(pname(ci.from))}: ${cyd(t,pk)==null?'?':r1(cyd(t,pk))} yd³ on board</div>`:''}
   <div class="row"><label style="flex:1;min-width:95px"><small>Batch</small><input id="t-${t.id}-batch" type="time" ${tIn(t,'batch')} onchange="A.setT('${t.id}','batch',this.value)"></label><label style="flex:1;min-width:95px"><small>Arrived</small><input id="t-${t.id}-arr" type="time" ${tIn(t,'arrived')} onchange="A.setTime('${t.id}','arrived',this.value)"></label><label style="flex:1;min-width:95px"><small>Empty</small><input id="t-${t.id}-emp" type="time" ${tIn(t,'emptied')} onchange="A.setTime('${t.id}','emptied',this.value)"></label></div>${tErr[t.id]?`<div class="flag" id="t-${t.id}-terr">${esc(tErr[t.id])}</div>`:''}
-  <div>${t.emptied?'Emptied'+(t.left==='waste'?' · leftover wasted':''):t.fed?(S.active===t.id?'<b>Feeding pump</b>':'Fed earlier'):(!t.pk0?'Waiting on site':'Waiting')}${t.left==='carry'&&!t.emptied?' · <b>carry to next pile</b>':''}${t.pend&&!t.emptied?' · <b class=flag>looks used up (confirm)</b>':''} · cutoff ${co?ft(co):'<span class=flag>enter batch time</span>'}</div>
+  <div>${t.emptied?'Emptied'+(t.leftWaste?' · <b>timed out, left with waste</b>':t.left==='waste'?' · leftover wasted':''):t.fed?(S.active===t.id?'<b>Feeding pump</b>':'Fed earlier'):(!t.pk0?'Waiting on site':'Waiting')}${t.left==='carry'&&!t.emptied?' · <b>carry to next pile</b>':''}${t.pend&&!t.emptied?' · <b class=flag>looks used up (confirm)</b>':''} · cutoff ${co?ft(co):'<span class=flag>enter batch time</span>'}</div>
   ${(()=>{const e=[...pev('truck_switch',pk)].reverse().find(x=>x.from===t.id&&x.est&&!x.confirmed);return e||(t.pend&&t.pend.est&&t.pend.pk===pk&&!t.emptied)?`<div class="row"><label style="flex:1"><small>Handoff estimated: its strokes on this pile (fix if you know the real switch)</small><input id="t-${t.id}-bnd" type="number" inputmode="numeric" value="${Math.round(t.ps[pk]||0)}" onchange="A.setBoundary('${t.id}',this.value)"></label></div>`:''})()}
   <div class="row"><input id="t-${t.id}-sn" placeholder="Sample #" value="${esc(t.sampleNo)}" onchange="A.setT('${t.id}','sampleNo',this.value)"><button style="flex:1" id="ts-${t.id}" onclick="A.sample('${t.id}')">${sHere(t)?'✓ Sample taken':'Take sample'}</button></div>
   ${t.samples.length?`<div style="font-size:14px">Samples taken: ${t.samples.length} · ${r1(sRec(t))} yd³ off this truck</div>`:''}
   <div class="row" style="text-align:center">${[['Strokes this pile'+(['agreed total','contractor count'].includes(confStrokes(pk).src)?' (confirmed)':confStrokes(pk).est?' (≈ est.)':''),+confOn(t,pk).toFixed(1)],['Used this pile yd³'+(man?' (typed)':''),u===null?'?':r1(u)],['Left for next pile yd³',(()=>{const la=leftAfter(t,pk);return la===null?'?':r1(la)+(sLeft(la)!==null?' <small>~'+sLeft(la)+' str</small>':'')})()]].map(([l,v])=>`<div style="flex:1;min-width:95px;background:var(--bg);border-radius:6px;padding:4px"><small style="color:var(--mut)">${l}</small><div class="num" style="font-size:24px">${v}</div></div>`).join('')}</div>
   ${c.rem!==null&&c.rem>0.05&&t.left!=='waste'?`<div class="row"><button style="flex:1" onclick="A.waste('${t.id}')">Leftover is waste</button>${t.emptied?'':`<button class="sec" style="flex:1" onclick="A.carry('${t.id}')">${t.left==='carry'?'✓ Carrying to next pile':'Carry to next pile'}</button>`}</div>`:''}
+  ${dispBtns(t)}
   ${c.rem!==null&&c.rem<-0.05?`<div class=flag>Used more than the load by ${r1((-c.rem))} yd³. Check the load or used amount.</div>`:''}
   <div class="row"><button class="sec" style="flex:1" onclick="A.scan('${t.id}')">${t.photo?'Rescan ticket':'Scan ticket'}</button><button class="sec" style="flex:1" onclick="A.sw('${t.id}')">Feed pump</button><button class="sec" style="flex:1" onclick="A.empty('${t.id}')">Empty</button></div><div class="row"><small style="flex:1">Pump runout: ${t.pumpOutAt?hm(t.pumpOutAt)+' (estimated)':'—'} · Left site: ${t.departed?hm(t.departed):'not recorded'}</small><button class="sec" onclick="A.depart('${t.id}')">Left site now</button></div>
   <details data-s="more-${t.id}" ${secOpen['more-'+t.id]?'open':''} ontoggle="secT(this)"><summary style="font-weight:700;padding:6px 0">More for truck ${esc(t.seq||'')}</summary>  <div class="row"><label style="flex:1"><small>Correct used yd³ for pile ${esc(S.pile.id)} (leave blank to use strokes)</small><input id="t-${t.id}-used" inputmode="decimal" placeholder="${autoU?autoU+' from strokes':'Enter yd³'}" value="${man?esc(t.used[pk]):''}" onchange="A.setUsed('${t.id}',this.value)"></label></div>
@@ -739,7 +744,7 @@ function render(){clearTimeout(rT);
  h+=`<h3>Timeline</h3>`+[...pev()].reverse().map(e=>`<div class="tl">${ft(e.t)} · ${e.type.replace('_',' ')}${e.name?' '+e.name:''}${e.depth!=null?' @ '+e.depth+' ft':''}${e.countOff?'':' · strokes '+e.strokes}${e.truck?' · '+esc(tname(tk(e.truck))||'truck'):''}${e.missing?' <span class=flag>missed</span>':''}</div>`).join('');
  h=h.slice(0,g2)+sec('review','Review & timeline',h.slice(g2));
  const g3=h.length;
- if(S.piles.length)h+=allPiles().filter(p=>p!==S.pile).reverse().map(p=>{const tr=pileTrucks(p.key).filter(t=>usedOn(t,p.key)>0||pev('truck_switch',p.key).some(e=>e.truck===t.id)),L=ledger(p.key);return `<div class="card"><div class="row"><b style="flex:1">Pile ${esc(p.id||'?')}</b><small>${esc(p.date)} · ${confStrokes(p.key).n} strokes</small></div>${tr.map(t=>{const u=usedOn(t,p.key),la=leftAfter(t,p.key);return `<div>Truck <b>${esc(tname(t))}</b> · used ${u===null?'?':r1(u)} yd³ · left ${la===null?'?':r1(la)}<br><small style="color:var(--mut)">batch ${t.batch?esc(t.batch):'—'} · arrived ${t.arrived?hm(t.arrived):'—'} · empty ${t.emptied&&pev(null,p.key).some(e=>e.truck===t.id&&(e.type==='truck_empty'||e.type==='truck_waste'))?hm(t.emptied):'—'}</small></div>`}).join('')||'<div style="color:var(--mut)">No trucks</div>'}
+ if(S.piles.length)h+=allPiles().filter(p=>p!==S.pile).reverse().map(p=>{const tr=pileTrucks(p.key).filter(t=>usedOn(t,p.key)>0||pev('truck_switch',p.key).some(e=>e.truck===t.id)),L=ledger(p.key);return `<div class="card"><div class="row"><b style="flex:1">Pile ${esc(p.id||'?')}</b><small>${esc(p.date)} · ${confStrokes(p.key).n} strokes</small></div>${tr.map(t=>{const u=usedOn(t,p.key),la=leftAfter(t,p.key);return `<div>Truck <b>${esc(tname(t))}</b> · used ${u===null?'?':r1(u)} yd³ · left ${la===null?'?':r1(la)}<br><small style="color:var(--mut)">batch ${t.batch?esc(t.batch):'—'} · arrived ${t.arrived?hm(t.arrived):'—'} · empty ${t.emptied&&pev(null,p.key).some(e=>!e.undone&&e.truck===t.id&&(e.type==='truck_empty'||e.type==='truck_waste'))?hm(t.emptied):'—'}</small></div>`}).join('')||'<div style="color:var(--mut)">No trucks</div>'}
   <div class="row"><input id="op-${p.key}" placeholder="Contractor count" inputmode="numeric" value="${esc(p.opCount)}" onchange="A.oldSet('${p.key}','opCount',this.value)"><input id="rv-${p.key}" placeholder="Agreed total" inputmode="numeric" value="${esc(p.reviewed)}" onchange="A.oldSet('${p.key}','reviewed',this.value)"></div><div class="row"><button style="flex:1" onclick="A.openPile('${p.key}')">Open pile ${esc(p.id||'')}</button><button class="sec" style="flex:1" onclick="showForm('${p.key}',true)">View form</button></div><button class="sec" id="dp-${p.key}" style="width:100%;min-height:40px;font-size:15px" onclick="A.dropPile('${p.key}')">Delete pile ${esc(p.id||'')} (skipped / mistake)</button></div>`}).join('');
  h=h.slice(0,g3)+(S.piles.length?sec('piles','Other piles ('+S.piles.length+')',h.slice(g3)):'');
  const g4=h.length;
@@ -857,7 +862,8 @@ function planGo(i){const e=PL()[i];if(!e)return;if(S.pile.id===e.id)return msg('
 // A truck sent back keeps its record but comes off every pile's yardage and the sample count.
 const IK=[['drill','Drill broke down'],['pump','Pump broke down'],['trucks','Waiting on trucks'],['weather','Weather'],['other','Other']];
 const IB=['Contractor','Supplier','Weather','Other'];
-const RR=['Over the 2-hour cutoff','Wrong mix','Failed QC (temp / flow)','Not needed','End of day leftover','Other'];
+const RR=['Too old / over time','Failed QC (flow, temp)','Wrong mix','Water added','Other'];
+const TO_REASONS=['Timed out','Too old / over time','Failed QC (flow, temp)','Wrong mix','Water added','Other'];
 const ISS=()=>S.issues||(S.issues=[]);
 const openIss=()=>ISS().find(x=>!x.end&&x.start&&!x.later);
 const ikName=k=>(IK.find(x=>x[0]===k)||[0,k||'Stop'])[1];
@@ -865,7 +871,7 @@ const issMin=x=>x.start&&x.end?Math.max(0,Math.round((x.end-x.start)/60000)):nul
 const sel=(id,opts,v,on,blank)=>`<select id="${id}" ${on?`onchange="${on}"`:''} style="flex:1;min-width:120px;font:600 16px Barlow,system-ui,sans-serif;padding:8px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink)">${blank!=null?`<option value="">${blank}</option>`:''}${opts.map(o=>{const[k,l]=Array.isArray(o)?o:[o,o];return `<option value="${esc(k)}"${k===v?' selected':''}>${esc(l)}</option>`}).join('')}</select>`;
 function phaseNow(){const st=S.pile.st||{};return st.groutStart&&!st.groutFinish?'grouting':st.drillStart&&!st.drillFinish&&!st.groutStart?'drilling':'between'}
 // Trucks that can still be sent back: nothing of theirs has gone in a pile
-const rejectable=()=>S.trucks.filter(t=>!t.rejected&&!(usedAll(t)>0.005)&&(!t.emptied||t.pk0||t.onsite)&&!(t.emptied&&t.left==='waste'));
+const rejectable=()=>S.trucks.filter(t=>!t.rejected&&!t.leftWaste&&!truckPumped(t)&&(!t.emptied||t.pk0||t.onsite)&&!(t.emptied&&t.left==='waste'));
 function issOpen(focus){const o=openIss(),ph=phaseNow(),R=rejectable().sort((a,b)=>(a.id===focus?-1:b.id===focus?1:0));
  scanShow(`<h2>Problem / delay</h2>
  <div class="card"><b>Work stopped</b> <small style="color:var(--mut)">breakdown, waiting, weather</small>
@@ -878,7 +884,7 @@ function issOpen(focus){const o=openIss(),ph=phaseNow(),R=rejectable().sort((a,b
  <div class="card"><b>Send a truck back</b> <small style="color:var(--mut)">load wasted or returned; comes off the yardage and sample count</small>
  ${R.length?R.map(t=>{const co=cutoff(t),late=co&&Date.now()>co;return `<div style="border-top:1px solid var(--line);margin-top:6px;padding-top:6px"><b>Truck ${esc(tname(t))}</b> · ${esc(t.qty||'?')} yd³${t.batch?' · batch '+esc(t.batch):''}${late?' · <span class=flag>past cutoff</span>':''}
   <div class="row">${sel('rj-r-'+t.id,RR,late?RR[0]:'',null,late?null:'Reason…')}</div><div class="row"><input id="rj-n-${t.id}" placeholder="Note (optional)"></div>
-  <button class="sec" style="width:100%;border-color:var(--red)" onclick="truckReject('${t.id}')">Send truck ${esc(tname(t))} back</button></div>`}).join(''):'<div style="color:var(--mut)">No unused trucks. A truck that already pumped: use <b>Leftover is waste</b> on its card.</div>'}</div>
+  <button class="sec" style="width:100%;border-color:var(--red)" onclick="truckReject('${t.id}')">Send truck ${esc(tname(t))} back</button></div>`}).join(''):'<div style="color:var(--mut)">No unused trucks. A truck that already pumped: use <b>Timed out, left with waste</b> on its card if it left with grout, or <b>Leftover is waste</b> if the leftover was dumped.</div>'}</div>
  <button class="sec" style="width:100%" onclick="scanClose()">Close</button>`)}
 function issStop(){const k=$('is-k').value,b=$('is-b').value,n=$('is-n').value.trim();scanClose();
  act(()=>{const ph=phaseNow(),dm=pev('depth_mark').filter(e=>!e.missing),last=dm.length?dm[dm.length-1].depth:(Number(S.pile.len)||null),nx=nextMark();
@@ -902,18 +908,98 @@ function issH(pk){const L=ISS().filter(x=>x.pk===pk);if(!L.length)return'';
  ${x.phase==='grouting'?`<div style="font-size:15px">Stopped while grouting${x.depth?' ('+esc(x.depth)+')':''}${x.strokes!==''&&x.strokes!=null?' at '+esc(x.strokes)+' strokes':''}</div>`:x.phase==='drilling'?'<div style="font-size:15px">Stopped while drilling</div>':''}
  <div class="row"><input id="in-${x.id}" placeholder="${x.phase==='grouting'?'What was done (e.g. re-drilled 5 ft below)':'What happened'}" value="${esc(x.note)}" onchange="issSet('${x.id}','note',this.value)"></div>
  <button class="sec" id="ix-${x.id}" style="width:100%;min-height:40px;font-size:15px" onclick="issDel('${x.id}')">Delete this stop</button></div>`}).join('')}</div>`}
-function truckReject(id){const t=tk(id);if(!t)return;const reason=$('rj-r-'+id).value,note=$('rj-n-'+id).value.trim();if(!reason)return msg('Pick a reason for sending truck '+tname(t)+' back.');scanClose();
+// A truck has put grout in a pile when strokes or a typed used amount are on it. Sending that truck back would wipe a real delivery.
+function truckPumped(t){if(!t)return false;if(S.active===t.id&&seg()>0)return true;for(const k of orderKeys()){const u=usedOn(t,k);if(u>0.005)return true;if(((t.ps&&t.ps[k])||0)>0)return true;if(num(t.used[k])>0)return true}return false}
+function dispBtns(t){if(!t||t.rejected||t.leftWaste)return'';
+ return `<div class="row"><button class="sec" style="flex:1;min-height:48px;border-color:var(--red)" onclick="dispOpen('${t.id}','back')">Sent back</button><button class="sec" style="flex:1;min-height:48px;border-color:var(--red)" onclick="dispOpen('${t.id}','timeout')">Timed out, left with waste</button></div>`}
+function dispOpen(id,kind){const t=tk(id);if(!t)return;
+ if(kind==='back'){if(t.rejected)return msg('Truck '+tname(t)+' was already sent back.');if(t.leftWaste)return msg('Truck '+tname(t)+' already left with waste.');if(truckPumped(t)||(parseFloat(t.waste)>0)||t.left==='waste')return msg('Truck '+tname(t)+' already pumped grout. Use Timed out, left with waste for what is still on the truck.')}
+ else{if(t.rejected)return msg('Truck '+tname(t)+' was sent back, so it has no grout left on board.');if(t.leftWaste)return msg('Truck '+tname(t)+' is already recorded as timed out.');if(!truckPumped(t))return msg('Truck '+tname(t)+' has not pumped. Send it back instead. That takes the whole load off the piles.');
+  const later=orderKeys(),i=later.indexOf(S.pile.key);if(later.slice(i+1).some(k=>(usedOn(t,k)||0)>0.005))return msg('Truck '+tname(t)+' was already used on a later pile. Open that pile to record the leftover.')}
+ const reasons=kind==='back'?RR:TO_REASONS,c=kind==='timeout'?calc(t):null,shown=c&&c.rem!==null?r1(Math.max(0,c.rem)):'';
+ scanShow(`<h2>${kind==='back'?'Send truck '+esc(tname(t))+' back':'Truck '+esc(tname(t))+' timed out, left with waste'}</h2>
+ <div class="card"><b>Why</b>
+ <div class="row" style="flex-wrap:wrap">${reasons.map(r=>`<button type="button" class="sec" style="flex:1;min-width:140px;min-height:48px" data-r="${esc(r)}" onclick="dispPick(this.getAttribute('data-r'))">${esc(r)}</button>`).join('')}</div>
+ <div class="row">${sel('dp-reason',reasons,kind==='timeout'?'Timed out':'',null,kind==='back'?'Reason…':null)}</div>
+ <div class="row"><input id="dp-note" placeholder="Add anything else (optional)"></div>
+ ${kind==='timeout'?`<label><small>Waste yd³ still on the truck</small><input id="dp-yd" inputmode="decimal" value="${esc(shown)}" placeholder="yd³ still on the truck"></label><div style="color:var(--mut);font-size:14px">Starts as the yd³ the app still has on this truck. Change it if the real amount left is different. This leftover is waste. It does not carry to the next pile.</div>`:''}
+ </div>
+ <button style="width:100%;min-height:52px;background:var(--red);color:#fff" onclick="dispSave('${id}','${kind}')">${kind==='back'?'Send back':'Record timed out, left'}</button>
+ <button class="sec" style="width:100%;margin-top:8px;min-height:48px" onclick="scanClose();if(remOn())remRender()">Cancel</button>`)}
+function dispPick(v){const s=$('dp-reason');if(s&&v)s.value=v}
+function dispSave(id,kind){const reason=(($('dp-reason')||{}).value||'').trim(),note=(($('dp-note')||{}).value||'').trim();
+ if(kind==='back'){if(!reason)return msg('Pick a reason for sending the truck back.');return truckReject(id,reason,note)}
+ const ydEl=$('dp-yd'),raw=ydEl?String(ydEl.value||'').trim():'',shown=ydEl?String(ydEl.defaultValue||''):'';
+ applyTimeout(id,reason||'Timed out',note,raw,shown)}
+function truckReject(id,reason,note){const t=tk(id);if(!t||t.rejected)return;
+ if(reason==null){const rs=$('rj-r-'+id),ns=$('rj-n-'+id);reason=rs?rs.value:'';note=ns?ns.value.trim():''}
+ reason=String(reason||'').trim();note=String(note||'').trim();
+ if(!reason)return msg('Pick a reason for sending truck '+tname(t)+' back.');
+ if(truckPumped(t)||(parseFloat(t.waste)>0)||t.left==='waste')return msg('Truck '+tname(t)+' already pumped grout. Use Timed out, left with waste for what is still on the truck.');
+ scanClose();
  act(()=>{if(S.active===id){closeSeg();S.active=null}
-  t.rejected={reason,note,t:Date.now(),pk:S.pile.key,prev:{pk0:t.pk0,onsite:t.onsite,emptied:t.emptied,carryIn:t.carryIn,fed:t.fed}};
+  t.rejected={reason,note,t:Date.now(),pk:S.pile.key,prev:{pk0:t.pk0,onsite:t.onsite,emptied:t.emptied,carryIn:JSON.parse(JSON.stringify(t.carryIn||{})),fed:t.fed}};
   t.pk0=null;t.carryIn={};t.emptied=t.emptied||Date.now();t.fed=false;delete t.pend;t.left='';
-  S.ev=S.ev.filter(e=>!(e.truck===id&&(e.type==='truck_arrival'||e.type==='truck_carry')));log('truck_reject',{truck:id,name:reason});
-  msg('Truck '+tname(t)+' sent back ('+reason+'). Its '+(t.qty||'?')+' yd³ is off the yardage and sample count.')})}
+  S.ev=S.ev.filter(e=>!(e.truck===id&&(e.type==='truck_arrival'||e.type==='truck_carry')));log('truck_reject',{truck:id,name:reason,note});
+  msg('Truck '+tname(t)+' sent back ('+reason+'). Its '+(t.qty||'?')+' yd³ is off the yardage and sample count.')});if(remOn())remRender()}
 function truckUnreject(id){const t=tk(id);if(!t||!t.rejected||!twoTap('ur'+id,'ur-'+id,'Tap again: put it back'))return;
- act(()=>{const p=t.rejected.prev||{},o=orderKeys();delete t.rejected;t.emptied=p.emptied||null;t.onsite=p.onsite;t.fed=!!p.fed;t.carryIn={};
+ act(()=>{const p=t.rejected.prev||{},o=orderKeys(),why=t.rejected.reason;delete t.rejected;t.emptied=p.emptied||null;t.onsite=p.onsite;t.fed=!!p.fed;t.carryIn={};
   if(p.pk0&&o.includes(p.pk0))attach(t,p.pk0);for(const k of Object.keys(p.carryIn||{}))if(o.includes(k)){t.carryIn[k]=p.carryIn[k];log('truck_carry',{truck:id,pk:k})}
-  log('truck_unreject',{truck:id});msg('Truck '+tname(t)+' is back on.')})}
-function rejectedH(){const R=S.trucks.filter(t=>t.rejected);if(!R.length)return'';
- return `<div class="card" style="border:2px dashed var(--red)"><b>Sent back today (${R.length})</b>${R.map(t=>`<div class="row"><span style="flex:1">Truck <b>${esc(tname(t))}</b> · ${esc(t.qty||'?')} yd³ · ${esc(t.rejected.reason)} · ${hm(t.rejected.t)}${t.rejected.note?' · '+esc(t.rejected.note):''}</span><button class="sec" id="ur-${t.id}" style="min-height:40px;font-size:15px;padding:4px 10px" onclick="truckUnreject('${t.id}')">Undo</button></div>`).join('')}</div>`}
+  log('truck_unreject',{truck:id,reason:why});msg('Truck '+tname(t)+' is back on.')});if(remOn())remRender()}
+function applyTimeout(id,reason,note,ydRaw,shown){const t=tk(id);if(!t||t.rejected||t.leftWaste)return;
+ if(!truckPumped(t))return msg('Truck '+tname(t)+' has not pumped. Send it back instead. That takes the whole load off the piles.');
+ const order=orderKeys(),pk=S.pile.key,i=order.indexOf(pk);
+ if(order.slice(i+1).some(k=>(usedOn(t,k)||0)>0.005))return msg('Truck '+tname(t)+' was already used on a later pile. Open that pile to record the leftover.');
+ const c=calc(t);let yd=parseFloat(String(ydRaw).replace(',','.'));
+ if(!(yd>=0))return msg('Enter the waste yd³ still on truck '+tname(t)+'.');
+ if(c.rem!==null&&shown&&String(ydRaw).trim()===String(shown).trim())yd=Math.max(0,c.rem);
+ reason=String(reason||'Timed out').trim()||'Timed out';note=String(note||'').trim();scanClose();
+ act(()=>{const prev={waste:t.waste||'',wastePk:t.wastePk||null,left:t.left||'',emptied:t.emptied||null,departed:t.departed||null,active:S.active===t.id,fed:!!t.fed,carryIn:JSON.parse(JSON.stringify(t.carryIn||{})),carryEvs:[]};
+  if(S.active===t.id){closeSeg();S.active=null}
+  for(const k of Object.keys(t.carryIn))if(order.indexOf(k)>i)delete t.carryIn[k];
+  S.ev.forEach(e=>{if(!e.undone&&e.type==='truck_carry'&&e.truck===t.id&&order.indexOf(e.pk)>i){e.undone=true;prev.carryEvs.push(e.id)}});
+  const base=t.waste||'';t.waste=String(+((parseFloat(t.waste)||0)+yd).toFixed(3));t.wastePk=pk;t.left='waste';t.fed=false;delete t.pend;
+  if(!t.emptied)t.emptied=Date.now();if(!t.departed)t.departed=t.emptied;
+  const e=log('truck_timeout',{truck:t.id,yd:+yd.toFixed(3),reason,note,name:reason});
+  const w=log('truck_waste',{truck:t.id,yd:+yd.toFixed(3),timeout:true,prevWaste:prev.waste,prevPk:prev.wastePk});
+  t.leftWaste={reason,note,t:e.t,pk,yd:String(+yd.toFixed(3)),base,prev,ev:e.id,wasteEv:w.id};
+  msg('Truck '+tname(t)+' timed out and left with '+r1(yd)+' yd³ waste. It does not carry to the next pile.')});if(remOn())remRender()}
+function truckUntimeout(id){const t=tk(id);if(!t||!t.leftWaste||!twoTap('ut'+id,'ur-'+id,'Tap again: put it back'))return;
+ act(()=>{const rec=t.leftWaste,p=rec.prev||{};t.waste=p.waste||'';t.wastePk=p.wastePk||null;t.left=p.left||'';t.emptied=p.emptied||null;t.departed=p.departed||null;t.fed=!!p.fed;
+  if(p.carryIn)t.carryIn=JSON.parse(JSON.stringify(p.carryIn));
+  (p.carryEvs||[]).forEach(eid=>{const e=S.ev.find(x=>x.id===eid);if(e)delete e.undone});
+  const w=S.ev.find(e=>e.id===rec.wasteEv);if(w)w.undone=true;
+  if(p.active&&!tk(S.active)){S.active=t.id;S.segStart=S.strokes}
+  log('truck_timeout_undo',{truck:id,yd:rec.yd,reason:rec.reason,note:rec.note||'',at:rec.t,pk:rec.pk});
+  delete t.leftWaste;msg('Truck '+tname(t)+' is back on. The leftover is no longer waste.')});if(remOn())remRender()}
+function dispEdit(id,kind,field,value){const t=tk(id);if(!t)return;const rec=kind==='back'?t.rejected:t.leftWaste;if(!rec)return;
+ if(field==='time'){if(!value){render();return msg('The time stays on the record.')}
+  const mm=String(value).match(/^(\d{1,2}):(\d{2})/);if(!mm)return;const d=new Date(rec.t||Date.now());d.setHours(+mm[1],+mm[2],0,0);const from=hm(rec.t);rec.t=d.getTime();
+  log('edit',{truck:id,field:(kind==='back'?'sent back time':'timed out time'),from,to:hm(rec.t)})}
+ else if(field==='yd'){const n=parseFloat(String(value).replace(',','.'));if(!(n>=0)){render();return msg('Waste yd³ needs a number, 0 or more.')}
+  const from=rec.yd;rec.yd=String(+n.toFixed(3));const base=parseFloat(rec.base)||0;t.waste=String(+(base+n).toFixed(3));if((parseFloat(t.waste)||0)>0&&!t.wastePk)t.wastePk=rec.pk;
+  log('edit',{truck:id,field:'timed out waste yd³',from,to:rec.yd})}
+ else if(field==='reason'||field==='note'){const from=rec[field]||'',v=String(value??'');if(field==='reason'&&!v.trim()){render();return msg('Pick a reason.')}
+  rec[field]=field==='reason'?v.trim():v;log('edit',{truck:id,field:(kind==='back'?'sent back ':'timed out ')+field,from,to:rec[field]})}
+ save();render();if(remOn())remRender()}
+function dispRows(){const rows=[];for(const t of S.trucks){if(t.rejected)rows.push({t,kind:'back',time:t.rejected.t||0,pk:t.rejected.pk,reason:t.rejected.reason||'',note:t.rejected.note||'',yd:null});
+ if(t.leftWaste)rows.push({t,kind:'timeout',time:t.leftWaste.t||0,pk:t.leftWaste.pk,reason:t.leftWaste.reason||'Timed out',note:t.leftWaste.note||'',yd:num(t.leftWaste.yd)})}
+ return rows.sort((a,b)=>(a.time||0)-(b.time||0)||String(a.t.seq||0)-String(b.t.seq||0))}
+function dispLine(r,withPile){const what=r.kind==='back'?'Sent back':'Timed out, left';const why=[r.reason,r.note].filter(Boolean).join(' · ');
+ const yd=r.kind==='timeout'?' · waste '+(r.yd===null?'?':r1(r.yd))+' yd³':'';
+ return 'Truck '+tname(r.t)+' · '+(r.time?ft(r.time):'—')+' · '+what+' · '+why+yd+(withPile&&r.pk?' · pile '+(pname(r.pk)||'?'):'')}
+function dispPrint(pk){const rows=dispRows().filter(r=>pk==null||r.pk===pk);if(!rows.length)return'';
+ return `<div class="sent-back-sec" style="margin-top:14px;border:2px solid #0d1b2a;background:#fff;color:#0d1b2a;padding:8px 10px;max-width:640px;font:600 15px/1.35 Barlow,system-ui,sans-serif"><div style="font:800 16px Barlow,system-ui,sans-serif;margin-bottom:4px">Trucks sent back / left with waste</div>${rows.map(r=>`<div style="border-top:1px solid #6b7c99;padding:4px 0">${esc(dispLine(r,pk==null))}</div>`).join('')}</div>`}
+function dispDayCard(){const rows=dispRows();if(!rows.length)return'';
+ return `<div class="card" id="sent-back-day"><b>Trucks sent back / left with waste</b>${rows.map(r=>`<div>• ${esc(dispLine(r,true))}</div>`).join('')}</div>`}
+function dispSheet(){const ex=v=>v?new Date(v).toISOString():'';return dispRows().map(r=>({Truck:tname(r.t),TruckId:r.t.num||'',Seq:r.t.seq||'',Pile:pname(r.pk)||'',Time:ex(r.time),What:r.kind==='back'?'Sent back':'Timed out, left',Reason:r.reason,Note:r.note,WasteYd3:r.kind==='timeout'&&r.yd!==null?+r1(r.yd):''}))}
+function rejectedH(){const R=dispRows();if(!R.length)return'';
+ return `<div class="card" id="sent-back-card" style="border:2px dashed var(--red)"><b>Trucks sent back / left with waste (${R.length})</b>${R.map(r=>{const t=r.t,kind=r.kind,rec=kind==='back'?t.rejected:t.leftWaste,reasons=(kind==='back'?RR:TO_REASONS).slice();if(rec.reason&&!reasons.includes(rec.reason))reasons.unshift(rec.reason);
+  return `<div style="border-top:1px solid var(--line);margin-top:8px;padding-top:6px"><div>Truck <b>${esc(tname(t))}</b> · ${kind==='back'?'Sent back · '+esc(t.qty||'?')+' yd³ off the piles':'Timed out, left · waste '+esc(r1(num(rec.yd)||0))+' yd³'}${rec.pk?' · pile '+esc(pname(rec.pk)||'?'):''}</div>
+  <div class="row">${sel('dpr-'+t.id,reasons,rec.reason||'',`dispEdit('${t.id}','${kind}','reason',this.value)`)}</div>
+  <div class="row"><input id="dpn-${t.id}" placeholder="Note" value="${esc(rec.note||'')}" onchange="dispEdit('${t.id}','${kind}','note',this.value)"></div>
+  <div class="row"><label style="flex:1"><small>Time</small><input id="dpt-${t.id}" type="time" value="${hm(rec.t)}" onchange="dispEdit('${t.id}','${kind}','time',this.value)"></label>${kind==='timeout'?`<label style="flex:1"><small>Waste yd³</small><input id="dpy-${t.id}" inputmode="decimal" value="${esc(rec.yd)}" onchange="dispEdit('${t.id}','${kind}','yd',this.value)"></label>`:''}</div>
+  <button class="sec" id="ur-${t.id}" style="min-height:44px" onclick="${kind==='back'?`truckUnreject('${t.id}')`:`truckUntimeout('${t.id}')`}">Undo</button></div>`}).join('')}</div>`}
 // Day totals for End day and the export
 function issDay(){const L=ISS().filter(x=>x.start),by={};let tot=0;for(const x of L){const m=issMin(x);if(m==null)continue;tot+=m;const k=x.by||'Not set';by[k]=(by[k]||0)+m}
  return{L,tot,by,rej:S.trucks.filter(t=>t.rejected)}}
@@ -1060,7 +1146,7 @@ let etaBuzzed=null;
 function pourTruckH(){const at=tk(S.active),wait=S.trucks.filter(t=>!t.emptied&&!t.rejected&&t!==at&&(t.onsite||t.pk0));
  let h=`<div class="card">`;
  if(at){const c=calc(at);h+=`<div class="row" style="justify-content:space-between"><div><small style="color:var(--mut)">Feeding pump</small><div style="font-size:22px"><b>Truck ${esc(tname(at))}</b></div></div><div style="text-align:right"><b class="num" style="font-size:30px">${c.rem===null?'?':r1(c.rem)}</b> yd³ left${sLeft(c.rem)!==null?'<br><small>~'+sLeft(c.rem)+' strokes</small>':''}</div></div>
-  <div id="pv-eta">${etaText()}</div><div class="row"><button class="sec" style="flex:1;min-height:48px" onclick="A.empty('${at.id}');depthRender()">Truck ${esc(tname(at))} empty</button></div>`}
+  <div id="pv-eta">${etaText()}</div><div class="row"><button class="sec" style="flex:1;min-height:48px" onclick="A.empty('${at.id}');depthRender()">Truck ${esc(tname(at))} empty</button></div>${dispBtns(at)}`}
  else h+=`<div class="flag">No truck feeding the pump</div>`;
  h+=wait.length?`<div class="row">${wait.map(t=>`<button style="flex:1;min-height:56px" onclick="A.sw('${t.id}');depthRender()">Switch to truck ${esc(tname(t))}</button>`).join('')}</div>`
   :`<div class="row"><button class="sec" style="flex:1;min-height:48px" onclick="A.arrive();depthRender()">Truck arrived</button></div>`;
@@ -1076,6 +1162,7 @@ function topMenu(){scanShow(`<h2>Forms &amp; voice</h2>
  <small style="color:var(--mut);display:block;margin:4px 0 10px">Pick one or more photos. What can be read fills in; anything missing is filled in by the app and shown in red.${aiKey()?'':' Handwriting reads best with the Claude key in Settings.'}</small>
  <button class="sec" style="width:100%" onclick="scanClose();formGrid({},'')">Type in a form</button>
  <button class="sec" style="width:100%;margin-top:8px" onclick="scanClose();showForm(allPiles()[0].key)">View all pile forms</button>
+ <button class="sec" style="width:100%;margin-top:8px" onclick="scanClose();showForm(allPiles()[0].key,false,true)">View QC / truck form</button>
  <button class="sec" style="width:100%;margin-top:8px" onclick="remoteOpen()">▦ Remote (5 keys)</button><button class="sec" style="width:100%;margin-top:8px" onclick="voiceOpen()">🎤 Voice / type a command</button>
  <button class="sec" style="width:100%;margin-top:8px" onclick="scanClose()">Close</button>`)}
 // ---- Voice commands: say (or type) "truck arrived", "drill start", "truck 3 empty", "passed 15", "pump count 180"…
@@ -1217,9 +1304,9 @@ document.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;
  if(pumpOn()){if(PK.includes(e.key)||[' ','Enter','ArrowRight','PageDown','ArrowDown'].includes(e.key)){e.preventDefault();pumpTap('key')}return}
  if(!remOn())return;let m={'1':1,'2':2,'3':3,'4':4,' ':5,'Enter':5,'ArrowRight':5,'PageDown':5,'ArrowDown':5,'ArrowLeft':1,'PageUp':1,'ArrowUp':1}[e.key];if(PK.includes(e.key))m=6;if(m===5&&S.noCount)m=6;if(!m)return;e.preventDefault();remKey(m,e.shiftKey)});
 // Small close-out buttons under the remote: one per truck still on site, feeding truck first. Tap = truck ended now.
-function remTrucksH(){const at=tk(S.active),open=S.trucks.filter(t=>!t.emptied&&!t.rejected&&(t.pk0||t.onsite)).sort((a,b)=>(b===at)-(a===at));
+function remTrucksH(){const at=tk(S.active),open=S.trucks.filter(t=>!t.emptied&&!t.rejected&&!t.leftWaste&&(t.pk0||t.onsite)).sort((a,b)=>(b===at)-(a===at));
  if(!open.length)return '<div id="rm-trucks" style="text-align:center;color:var(--mut);font-size:14px;flex:none">No trucks on site</div>';
- return `<div id="rm-trucks" class="rtrucks">${open.map(t=>`<button class="sec" style="${t===at?'border-color:var(--red)':''}" onclick="remEnd('${t.id}')">End truck ${esc(tname(t))}${t===at?' (feeding)':''}</button>`).join('')}</div>`}
+ return `<div id="rm-trucks" class="rtrucks">${open.map(t=>`<div class="rtruck"><button class="sec" style="${t===at?'border-color:var(--red)':''}" onclick="remEnd('${t.id}')">End ${esc(tname(t))}</button><button class="sec" onclick="dispOpen('${t.id}','back')">Sent back</button><button class="sec" onclick="dispOpen('${t.id}','timeout')">Left w/ waste</button></div>`).join('')}</div>`}
 // Truck times screen: type or change any truck's arrival / empty / left-site time. The remote header button that opened this was removed on purpose. The truck card still edits the same times.
 function ttOpen(){const L=S.trucks.filter(t=>!t.rejected),at=tk(S.active),ord=[...L.filter(t=>t===at),...L.filter(t=>t!==at&&!t.emptied).reverse(),...L.filter(t=>t!==at&&t.emptied).reverse()];
  const box=(t,f,l)=>`<label style="flex:1;min-width:130px;font-size:22px"><small style="font-size:14px">${l}</small><input id="tt-${t.id}-${f}" type="time" value="${hm(t[f])}" style="width:100%;min-height:52px" onchange="ttSet('${t.id}','${f}',this.value)"></label>`;
@@ -1286,6 +1373,7 @@ function remUnSample(){
  remSay('Un-sampled truck '+tname(x.t));remRender();
 }
 function remForm(){remoteClose();showForm(S.pile.key,true)}
+function remQcForm(){remoteClose();showForm(S.pile.key,false,true)}
 function remRender(){const P=S.pile,n=remNext(),d=nextLine(P),key=(k,top,sub,extra='',al)=>`<button class="rkey" ${k===3||k===5?`onpointerdown="remDown(${k},event)" onpointerup="remUp(${k},event)" onpointerleave="clearTimeout(remHold)"`:`onclick="remKey(${k})"`} ${extra} aria-label="${al||top}"><span class="rtop">${top}</span>${sub?`<span class="rsub">${sub}</span>`:''}</button>`;
  $('remv').innerHTML=`<div class="rwrap"><div class="rhead"><b style="font-size:17px">Remote</b><span style="display:flex;gap:6px"><button class="sec" id="rm-help" aria-label="Remote colors and help" title="Choose remote color" style="padding:7px 12px;min-width:96px;min-height:48px;border:2px solid #ffd100;font-weight:700" onclick="remHelp()">🎨 Colors</button><button class="sec" onclick="remoteClose()">Close</button></span></div>
  <div id="rm-stat" class="card" style="padding:6px 10px;font-size:15px;margin:0;flex:none">${remStat()}</div>
@@ -1299,7 +1387,7 @@ function remRender(){const P=S.pile,n=remNext(),d=nextLine(P),key=(k,top,sub,ext
    <button class="rkey rpump" id="rm-pump" data-pumping="${S.pumping?'on':'off'}" onclick="remKey(6)" aria-label="Pump on or off" style="background:${S.pumping?'#d00000':'#4a4f55'}"><span class="rtop" style="font-size:24px">PUMP ${S.pumping?'ON':'OFF'}</span><span class="rsub" style="color:#eee">tap: turn ${S.pumping?'off':'on'} · clicker: B / F5${S.noCount?' or ▶ / Page Down':''} · keypad: 5</span></button>
   </div>
  <div class="remote-utility"><button class="sec remote-return" onclick="remKey(7)">↩ Grout return · <span style="white-space:nowrap">time + depth</span></button><button class="remote-sample" onclick="remSample()" aria-label="Record QC sample and choose truck"><span class="rtop">QC Sample</span><span class="rsub">select truck</span></button><button class="remote-sample" onclick="remUnSample()" aria-label="Undo a recorded QC sample"><span class="rtop">Un-sample</span><span class="rsub">remove mistaken</span></button></div>
- <div class="remote-links"><button class="sec" onclick="remForm()">View pile form</button><button class="sec" onclick="remForm()">View QC / truck form</button></div>
+ <div class="remote-links"><button class="sec" onclick="remForm()">View pile form</button><button class="sec" onclick="remQcForm()">View QC / truck form</button></div>
  ${remTrucksH()}
  <div class="remote-stroke-bottom">${S.noCount?'':key(5,`<span class="num" style="font-size:40px;line-height:1">${S.strokes}</span>`,'+1 stroke · hold: −1','','Add one stroke').replace('class="rkey"','class="rkey rstroke"')}</div>
  </div>
@@ -1414,11 +1502,11 @@ function formCellEdit(pk,truckId,label,col){
  else if(label.startsWith('DEPTH ')&&col===0){const n=Number(v);if(v!==''&&(!Number.isInteger(n)||n<0))return alert('Enter a whole stroke count');const band=label.slice(6);P.bandIn=P.bandIn||{};from=P.bandIn[band]??null;if(v==='')delete P.bandIn[band];else P.bandIn[band]=n;applied=true}
  // Pump handoff is one event shared by both trucks; never edit just one side.
  else if((label==='GROUT / HOLE START'||label==='GROUT / HOLE FINISH')&&t){const ms=v?timeMs():null;if(v&&ms===null)return alert('Enter a valid time');const feeders=pileTrucks(pk).filter(x=>(usedOn(x,pk)||0)>0);const idx=feeders.findIndex(x=>x.id===t.id);if(idx<0)return alert('Truck is not assigned to this pile');const isStart=label.endsWith('START');if((isStart&&idx===0)||(!isStart&&idx===feeders.length-1)){const k=isStart?'groutStart':'groutFinish';P.st=P.st||{};from=P.st[k]||null;if(v)P.st[k]=ms;else delete P.st[k];applied=true}else{const incoming=isStart?t:feeders[idx+1];if(!incoming)return alert('Cannot identify incoming truck');let e=pev('truck_switch',pk).find(x=>x.truck===incoming.id);from=e?e.t:null;if(!v&&e){S.ev=S.ev.filter(x=>x.id!==e.id)}else if(v){if(e){e.t=ms;e.correctedAt=Date.now()}else S.ev.push({id:uid(),type:'truck_switch',t:ms,entered:Date.now(),pk,pile:P.id,truck:incoming.id,from:feeders[feeders.indexOf(incoming)-1]?.id||null,source:'form_correction'})}applied=true}}
- if(applied){audit(from,v,'source_record');if(S.formCorrections)delete S.formCorrections[correctionKey];save();render();showForm(pk,formMode.only);return}
+ if(applied){audit(from,v,'source_record');if(S.formCorrections)delete S.formCorrections[correctionKey];save();render();showForm(pk,formMode.only,formMode.qc);return}
  // Unmapped display fields are retained as explicit paper annotations, not calculations.
  S.formCorrections=S.formCorrections||{};
  if(!v)delete S.formCorrections[correctionKey];else S.formCorrections[correctionKey]={value:v,previous:prior,edited:Date.now()};
- audit(prior,v,'paper_annotation');save();showForm(pk,formMode.only);
+ audit(prior,v,'paper_annotation');save();showForm(pk,formMode.only,formMode.qc);
 }
 function formHTML(pk,pair){
  const fh=ms=>{if(!ms)return'';const d=new Date(ms);return (d.getHours()%12||12)+':'+String(d.getMinutes()).padStart(2,'0')};
@@ -1432,7 +1520,7 @@ function formHTML(pk,pair){
  const svForTruck=stages(P),gs=svForTruck.groutStart&&svForTruck.groutStart.t,gf=svForTruck.groutFinish&&svForTruck.groutFinish.t;
  const timed=gs&&gf?S.trucks.filter(t=>{if(t.rejected)return false;const x=truckTimes(t),a=x.arrived.t,e=x.emptied.t;return a&&a<=gf&&(!e||e>=gs)}).sort((a,b)=>(truckTimes(a).arrived.t||0)-(truckTimes(b).arrived.t||0)):[];
  const used=[...linked,...timed.filter(t=>!linked.some(x=>x.id===t.id)&&((num(t.used[P.key])||0)>0||((t.ps||{})[P.key]||0)>0))].sort((a,b)=>(truckTimes(a).arrived.t||0)-(truckTimes(b).arrived.t||0));
- const emptyHere=t=>!t.blank&&usedOn(t,P.key)>0&&(pev(null,P.key).some(e=>e.truck===t.id&&(e.type==='truck_empty'||e.type==='truck_waste'))||!!(t.emptied&&gs&&gf&&t.emptied>=gs&&t.emptied<=gf));
+ const emptyHere=t=>!t.blank&&usedOn(t,P.key)>0&&(pev(null,P.key).some(e=>!e.undone&&e.truck===t.id&&(e.type==='truck_empty'||e.type==='truck_waste'))||!!(t.emptied&&gs&&gf&&t.emptied>=gs&&t.emptied<=gf));
  const ts=[...used];while(ts.length<2)ts.push({seq:'',num:'',tests:[],blank:true});
  const CL={y:'#ffe600',g:'#d3d6da',t:'#f2c27a',b:'#a9b9d3',u:'#cfe8d4'};
  const TW=truckPumpWindows(P,used);
@@ -1460,6 +1548,7 @@ function formHTML(pk,pair){
  comb.forEach(r=>extra.push(['Missed mark',r.flag.replace('COMBINED: ','')]));
  {const Q=bandQC(P),pq=pileQC(P);if(Q)Q.filter(q=>q.n!=null).forEach(q=>extra.push(['Grout '+dl(q.b),fx(q.f)+(q.under?' UNDER '+fx(q.need??Q.need):'')+(q.auto?' *':'')]));if(Q)extra.push(['Grout check vs',Q.ref+', flagged under '+needTxt(Q)+(Q.find(q=>q.head)?', bottom band less '+Q.find(q=>q.head).head+' head strokes':'')]);if(pq)extra.push(['Grout pile',fx(pq.f)+' of '+pq.ref])}
  ISS().filter(x=>x.pk===P.key).forEach(x=>extra.push(['Stop / delay',issDesc(x)]));S.trucks.filter(t=>t.rejected&&t.rejected.pk===P.key).forEach(t=>extra.push(['Truck sent back',tname(t)+' · '+(t.qty||'?')+' yd³ · '+t.rejected.reason+' · '+hm(t.rejected.t)+(t.rejected.note?' · '+t.rejected.note:'')]));
+ if(!formMode.qc)h+=dispPrint(P.key);
  return h}
 // Forms laid out like the field sheet: two piles side by side, the yardage box between them (left value = left pile, right value = right pile).
 // ARRIVED is only new truck loads. Leftover grout already on a truck at the start of the pile is CARRY OVER INTO (named by truck).
@@ -1473,7 +1562,7 @@ function carryInto(pk){
  S.trucks.forEach(t=>{if(!seen.has(t.id)){seen.add(t.id);ids.push(t.id)}});
  const prevFeed=feedOrder(prev);
  ids.sort((a,b)=>{const ia=prevFeed.indexOf(a),ib=prevFeed.indexOf(b);return (ia<0?999:ia)-(ib<0?999:ib)||((tk(a)?.seq||0)-(tk(b)?.seq||0))});
- for(const id of ids){const t=tk(id);if(!t||t.rejected)continue;
+ for(const id of ids){const t=tk(id);if(!t||t.rejected||t.leftWaste)continue;
   // A truck handed to this pile still has its leftover before the first stroke here.
   // Requiring strokes on this pile wiped the carry off the form as soon as Next pile was tapped.
   const usedHere=(usedOn(t,pk)||0)>0,carried=!!(t.carryIn&&t.carryIn[pk]);
@@ -1487,7 +1576,7 @@ function carryOut(pk){
  const order=orderKeys(),idx=order.indexOf(pk);
  if(idx>=0&&order[idx+1])return carryInto(order[idx+1]);
  const rows=[];
- for(const t of S.trucks){if(t.rejected||!(usedOn(t,pk)>0)||emptyOn(t,pk)||t.wastePk===pk)continue;rows.push({t,yd:leftAfter(t,pk)})}
+ for(const t of S.trucks){if(t.rejected||t.leftWaste||!(usedOn(t,pk)>0)||emptyOn(t,pk)||t.wastePk===pk)continue;rows.push({t,yd:leftAfter(t,pk)})}
  return rows}
 function carryCell(rows,prep){
  if(rows.some(r=>r.yd==null))return '?';
@@ -1525,15 +1614,15 @@ function midBox(a,b){const A=midVals(a),B=b?midVals(b):{},c='border:1px solid #6
  const keys=order.filter(k=>(k in A||k in B)&&((k!=='CARRY OVER INTO'&&k!=='CARRY OVER OUT')||!blank(A[k])||!blank(B[k])));
  return `<table style="margin-top:46px">`+keys.map(k=>`<tr><td style="${c};white-space:nowrap">${cellV(A[k]??'')}</td><td style="${c};background:#a9b9d3;font:600 13px Barlow,system-ui,sans-serif;text-align:center;white-space:nowrap">${k}</td><td style="${c};white-space:nowrap">${cellV(B[k]??'')}</td></tr>`).join('')+`</table>`}
 // Form view: all piles in sheet pairs, or one pile on its own. Email / Text send pictures of the forms through the phone's share menu.
-let formMode={pk:null,only:false};
-function showForm(pk,only){const keys=orderKeys();const go=pk||S.pile.key;formMode={pk:go,only:!!only};let pairs=[];
+let formMode={pk:null,only:false,qc:false};
+function showForm(pk,only,qc){const keys=orderKeys();const go=pk||S.pile.key;formMode={pk:go,only:!!only,qc:qc===true};let pairs=[];
  if(only)pairs=[[go]];else for(let i=0;i<keys.length;i+=2)pairs.push([keys[i],keys[i+1]]);
  const el=$('formv');el.innerHTML=`<div style="position:sticky;top:0;left:0;background:var(--bg);padding:4px 0;z-index:2"><div class="row"><button onclick="document.getElementById('formv').style.display='none'">Close</button><button onclick="sendForms('email')">Email</button><button onclick="sendForms('text')">Text</button>
-  ${only?`<button class="sec" onclick="showForm('${go}')">All piles</button>`:`<button class="sec" onclick="showForm('${go}',true)">Pile ${esc(pname(go))} only</button>`}</div>
+  ${only?`<button class="sec" onclick="showForm('${go}',false,${formMode.qc})">All piles</button>`:`<button class="sec" onclick="showForm('${go}',true,${formMode.qc})">Pile ${esc(pname(go))} only</button>`}</div>
   <div id="sendst" class="trayw" style="color:var(--ink)"></div></div>`+
-  pairs.map(([a,b])=>`<div style="overflow-x:auto"><div class="fpair" data-name="${esc(only?'pile-'+pname(a):'piles-'+pname(a)+(b?'-'+pname(b):''))}" style="display:flex;gap:12px;align-items:flex-start;width:max-content;background:#fff;color:#0d1b2a;padding:6px">
-   <div style="width:420px">${formHTML(a,true)}</div>${midBox(a,b)}${only?'':`<div style="width:420px">${b?formHTML(b,true):'<h2 style="margin-top:20px;color:#9aa5b1">Next pile</h2>'}</div>`}</div></div>`).join('<hr style="margin:20px 0;border:0;border-top:2px dashed var(--line)">');
- el.style.display='block';const a=$('fp-'+go);if(a)setTimeout(()=>{a.scrollIntoView({block:'start',inline:'start'})},0)}
+  pairs.map(([a,b],i)=>`<div style="overflow-x:auto"><div class="fpair" data-name="${esc(only?'pile-'+pname(a):'piles-'+pname(a)+(b?'-'+pname(b):''))}" style="display:block;width:max-content;background:#fff;color:#0d1b2a;padding:6px"><div style="display:flex;gap:12px;align-items:flex-start;width:max-content">
+   <div style="width:420px">${formHTML(a,true)}</div>${midBox(a,b)}${only?'':`<div style="width:420px">${b?formHTML(b,true):'<h2 style="margin-top:20px;color:#9aa5b1">Next pile</h2>'}</div>`}</div>${formMode.qc&&i===pairs.length-1?`<div id="trucks-sent-back">${dispPrint(null)}</div>`:''}</div></div>`).join('<hr style="margin:20px 0;border:0;border-top:2px dashed var(--line)">');
+ el.style.display='block';const anchor=formMode.qc?$('trucks-sent-back'):$('fp-'+go);if(anchor)setTimeout(()=>{anchor.scrollIntoView({block:'start',inline:'start'})},0);else{const a=$('fp-'+go);if(a)setTimeout(()=>{a.scrollIntoView({block:'start',inline:'start'})},0)}}
 function pileText(pk){const P=pileRec(pk),L=ledger(pk),SV=stages(P),f=k=>SV[k]?hm(SV[k].t)+(SV[k].est?'*':''):'—',c=confStrokes(pk);
  const lines=[`PILE ${P.id||'?'} · ${P.date||''}${P.station?' · Sta '+P.station:''}${P.elev?' · Elev '+P.elev:''}`];
  for(const t of pileTrucks(pk)){const u=usedOn(t,pk),la=leftAfter(t,pk),ts=testFor(t,pk);
@@ -1543,8 +1632,9 @@ function pileText(pk){const P=pileRec(pk),L=ledger(pk),SV=stages(P),f=k=>SV[k]?h
  const bi=P.bandIn||{},iv=intervals(P),EB=estBands(P),bd=bands(P).slice().reverse().map(b=>{const r=iv.find(r=>r.band===b),v=bi[dl2(b)]??(r&&r.d!=null?r.d:(EB?EB[b]:null));return v!=null?dl2(b)+': '+v:null}).filter(Boolean);
  lines.push(`Strokes ${c.n||'—'} (${c.src})${num(P.myCount)!==null?' · my count '+num(P.myCount):''}${num(P.opCount)!==null?' · contractor '+P.opCount:''}${num(P.reviewed)!==null?' · agreed '+P.reviewed:''}${c.n?' · head '+headOf(P):''}${bd.length?' · '+bd.join(', '):''}`);
  const plain=rows=>{if(rows.some(r=>r.yd==null))return '?';const parts=rows.filter(r=>ydShows(r.yd));return parts.length?r1(parts.reduce((a,r)=>a+r.yd,0))+' '+parts.map(r=>tname(r.t)).join('+'):''};
- lines.push(`Arrived ${ydShows(L.arr)?r1(L.arr):'—'} · Carry in ${plain(carryInto(pk))||'—'} · Used ${L.used===null?'?':r1(L.used)} · Carry out ${plain(carryOut(pk))||'—'} yd³`);return lines.join('\n')}
-function sendText(kind){const keys=formMode.only?[formMode.pk]:orderKeys(),body=keys.map(pileText).join('\n\n'),sub='Grout log '+(formMode.only?'pile '+pname(formMode.pk):'piles '+keys.map(pname).join(', '));
+ lines.push(`Arrived ${ydShows(L.arr)?r1(L.arr):'—'} · Carry in ${plain(carryInto(pk))||'—'} · Used ${L.used===null?'?':r1(L.used)} · Carry out ${plain(carryOut(pk))||'—'} yd³`);
+ const gone=dispRows().filter(r=>r.pk===pk);if(gone.length){lines.push('Trucks sent back / left with waste');gone.forEach(r=>lines.push(dispLine(r)))}return lines.join('\n')}
+function sendText(kind){const keys=formMode.only?[formMode.pk]:orderKeys();let body=keys.map(pileText).join('\n\n');if(formMode.qc){const rows=dispRows();if(rows.length)body+='\n\nTrucks sent back / left with waste\n'+rows.map(r=>dispLine(r,true)).join('\n')}const sub='Grout log '+(formMode.only?'pile '+pname(formMode.pk):'piles '+keys.map(pname).join(', '));
  location.href=kind==='email'?'mailto:?subject='+encodeURIComponent(sub)+'&body='+encodeURIComponent(body):'sms:?&body='+encodeURIComponent(sub+'\n\n'+body)}
 async function sendForms(kind){const st=$('sendst'),say=t=>{if(st)st.textContent=t};say('Making pictures of the forms…');
  try{await loadOnce('ocr/html2canvas.min.js','html2canvas');const files=[];
@@ -1565,13 +1655,14 @@ async function offer(filename,data,fallback){let dl=null;try{dl=window.claude&&w
 function stamp(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function exportX(){if(typeof XLSX==='undefined')return msg('Excel export needs a connection to load. Try again with signal.');try{const ex=v=>v?new Date(v).toISOString():'';const P=S.pile;
  const ev=S.ev.map(e=>({ID:e.id,Type:e.type,EventTime:new Date(e.t).toISOString(),EnteredTime:new Date(e.entered).toISOString(),Pile:e.pile,Truck:tk(e.truck)?.num||e.truck||'',DepthFt:e.depth??'',CumStrokes:e.countOff?'':e.strokes,Missing:e.missing?'MISSING':''}));
- const tr=S.trucks.map(t=>{const c=calc(t);return{ID:t.id,Seq:t.seq,TruckID:t.num,SampleNo:t.sampleNo||'',TicketNo:t.ticketNo||'',Mix:t.mix||'',TicketPhoto:t.photo?'on phone':'',LoadYd3:t.qty,Batch:t.batch||t.dispatch,Arrived:ex(t.arrived),Emptied:t.emptied?new Date(t.emptied).toISOString():'',LeftSite:t.departed?new Date(t.departed).toISOString():'',CutoffEst:cutoff(t)?new Date(cutoff(t)).toISOString():'',Strokes:S.noCount&&!tStrokes(t)?'':tStrokes(t),UsedYd3:c.placed??'PENDING',SamplesYd3:c.s,WasteYd3:c.w,LeftOnTruckYd3:c.rem??'UNRESOLVED',Leftover:t.rejected?'SENT BACK':t.left==='waste'?'WASTED':t.emptied?'':'ON TRUCK',SentBack:t.rejected?[t.rejected.reason,t.rejected.note,ex(t.rejected.t)].filter(Boolean).join(' · '):'',Tests:t.tests.map(x=>x.temp+'F/'+x.flow+'s@'+ft(x.t)).join('; ')}});
+ const tr=S.trucks.map(t=>{const c=calc(t);return{ID:t.id,Seq:t.seq,TruckID:t.num,SampleNo:t.sampleNo||'',TicketNo:t.ticketNo||'',Mix:t.mix||'',TicketPhoto:t.photo?'on phone':'',LoadYd3:t.qty,Batch:t.batch||t.dispatch,Arrived:ex(t.arrived),Emptied:t.emptied?new Date(t.emptied).toISOString():'',LeftSite:t.departed?new Date(t.departed).toISOString():'',CutoffEst:cutoff(t)?new Date(cutoff(t)).toISOString():'',Strokes:S.noCount&&!tStrokes(t)?'':tStrokes(t),UsedYd3:c.placed??'PENDING',SamplesYd3:c.s,WasteYd3:c.w,LeftOnTruckYd3:c.rem??'UNRESOLVED',Leftover:t.rejected?'SENT BACK':t.leftWaste?'TIMED OUT, LEFT':t.left==='waste'?'WASTED':t.emptied?'':'ON TRUCK',SentBack:t.rejected?[t.rejected.reason,t.rejected.note,ex(t.rejected.t)].filter(Boolean).join(' · '):'',TimedOut:t.leftWaste?[t.leftWaste.reason||'Timed out',t.leftWaste.note,ex(t.leftWaste.t)].filter(Boolean).join(' · '):'',TimedOutWasteYd3:t.leftWaste&&num(t.leftWaste.yd)!==null?+r1(num(t.leftWaste.yd)):'',Tests:t.tests.map(x=>x.temp+'F/'+x.flow+'s@'+ft(x.t)).join('; ')}});
  const all=allPiles().map(p=>p===S.pile?{...p,strokes:S.strokes}:p);
  const pr=a=>{const V=stages(a),x=k=>ex(V[k]&&V[k].t);return{Pile:a.id,Wall:a.wall,Date:a.date,LengthFt:a.len,Elev:a.elev,Station:a.station,DrillStart:x('drillStart'),DrillFinish:x('drillFinish'),GroutStart:x('groutStart'),GroutFinish:x('groutFinish'),ReinforceStart:x('reinfStart'),ReinforceFinish:x('reinfFinish'),AutoFilledStages:Object.keys(V).filter(k=>V[k].est).join(' '),MyStrokes:num(a.myCount)!==null?num(a.myCount):(a.noCount&&!a.tapped?'':(a.strokes||'')),HeadStrokes:headOf(a),OperatorCount:a.opCount,ReviewedTotal:a.reviewed,Explanation:a.note}};
  const iv=all.flatMap(p=>{const bi=p.bandIn||{},iv0=intervals(p),bl=bands(p);if(!bl.some(b=>bi[dl2(b)]!=null))return iv0.map(r=>({Pile:p.id,Band:r.band,CumStrokes:r.cum,Strokes:r.d??'',Flag:r.flag}));return bl.map(b=>{const r=iv0.find(x=>x.band===b),typed=bi[dl2(b)];return{Pile:p.id,Band:b,CumStrokes:r?r.cum:'',Strokes:typed!=null?typed:(r&&r.d!=null?r.d:''),Flag:typed!=null?'typed':(r?r.flag:'')}}).filter(r=>r.Strokes!==''||r.Flag)});
  const wb=XLSX.utils.book_new();[['Events',ev],['Trucks_QC',tr],['Piles',all.map(pr)],['Intervals',iv],['Truck_by_pile',S.trucks.flatMap(t=>[...new Set([...Object.keys(t.ps),...Object.keys(t.used),...Object.keys(t.carryIn)])].map(k=>({Truck:t.num||'#'+t.seq,Pile:pname(k),CarriedInYd3:(()=>{const hit=carryInto(k).find(r=>r.t.id===t.id);if(!hit)return '';if(hit.yd==null)return '?';return ydShows(hit.yd)?+r1(hit.yd):0})(),Strokes:(()=>{const r=pileRec(k);return r.noCount&&!r.tapped?'':strokesOn(t,k)})(),ConfirmedStrokes:+confOn(t,k).toFixed(1),StrokeSource:confStrokes(k).src,UsedYd3:usedOn(t,k)??'PENDING',UsedSource:num(t.used[k])!==null?'typed':'strokes x cal',WasteYd3:t.wastePk===k?(parseFloat(t.waste)||0):''})))],
- ['Problems_delays',[...ISS().map(x=>({Pile:pname(x.pk),What:ikName(x.kind),CausedBy:x.by,Stopped:ex(x.start),RunningAgain:ex(x.end),Minutes:issMin(x)??'',During:x.phase||'',Depth:x.depth||'',StrokesAtStop:x.strokes??'',Note:x.note})),...S.trucks.filter(t=>t.rejected).map(t=>({Pile:pname(t.rejected.pk),What:'Truck sent back: '+tname(t)+' ('+(t.qty||'?')+' yd3)',CausedBy:'',Stopped:ex(t.rejected.t),RunningAgain:'',Minutes:'',During:'',Depth:'',StrokesAtStop:'',Note:[t.rejected.reason,t.rejected.note].filter(Boolean).join(' · ')}))]],
- ['Pile_yardage',all.map(p=>{const L=ledger(p.key),inn=carryInto(p.key),out=carryOut(p.key);return{Pile:p.id,ArrivedYd3:L.arr,CarriedInYd3:carryNum(inn),CarryInTrucks:carryWho(inn,'from'),UsedYd3:L.used??'PENDING',SamplesYd3:L.samp,WasteYd3:L.waste,CarryOutYd3:carryNum(out),CarryOutTrucks:carryWho(out,'on'),LeftOnTrucksYd3:L.left??'PENDING'}})]].forEach(([n,d])=>XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(d.length?d:[{}]),n));
+ ['Problems_delays',[...ISS().map(x=>({Pile:pname(x.pk),What:ikName(x.kind),CausedBy:x.by,Stopped:ex(x.start),RunningAgain:ex(x.end),Minutes:issMin(x)??'',During:x.phase||'',Depth:x.depth||'',StrokesAtStop:x.strokes??'',Note:x.note})),...S.trucks.filter(t=>t.rejected).map(t=>({Pile:pname(t.rejected.pk),What:'Truck sent back: '+tname(t)+' ('+(t.qty||'?')+' yd3)',CausedBy:'',Stopped:ex(t.rejected.t),RunningAgain:'',Minutes:'',During:'',Depth:'',StrokesAtStop:'',Note:[t.rejected.reason,t.rejected.note].filter(Boolean).join(' · ')})),...S.trucks.filter(t=>t.leftWaste).map(t=>({Pile:pname(t.leftWaste.pk),What:'Timed out, left: '+tname(t),CausedBy:'',Stopped:ex(t.leftWaste.t),RunningAgain:'',Minutes:'',During:'',Depth:'',StrokesAtStop:'',Note:[t.leftWaste.reason||'Timed out',t.leftWaste.note,t.leftWaste.yd!=null&&t.leftWaste.yd!==''?t.leftWaste.yd+' yd3 waste':''].filter(Boolean).join(' · ')}))]],
+ ['Sent_back_waste',dispSheet()],
+ ['Pile_yardage',all.map(p=>{const L=ledger(p.key),inn=carryInto(p.key),out=carryOut(p.key);return{Pile:p.id,ArrivedYd3:L.arr,CarriedInYd3:carryNum(inn),CarryInTrucks:carryWho(inn,'from'),UsedYd3:L.used??'PENDING',SamplesYd3:L.samp,WasteYd3:L.waste,CarryOutYd3:carryNum(out),CarryOutTrucks:carryWho(out,'on'),LeftOnTrucksYd3:L.left??'PENDING'}})]].forEach(([n,d])=>{const ws=n==='Sent_back_waste'?XLSX.utils.json_to_sheet(d,{header:['Truck','TruckId','Seq','Pile','Time','What','Reason','Note','WasteYd3']}):XLSX.utils.json_to_sheet(d.length?d:[{}]);XLSX.utils.book_append_sheet(wb,ws,n)});
  const name='grout-'+stamp()+(P.id?'-pile-'+P.id.replace(/[^\w-]/g,''):'')+'.xlsx';
  const buf=XLSX.write(wb,{bookType:'xlsx',type:'array'});
  offer(name,new Blob([buf]),()=>XLSX.writeFile(wb,name))}catch(e){msg('Export failed: '+e.message)}}
@@ -1810,6 +1901,7 @@ function endDayOpen(){const sm=daySummary(),open=S.trucks.filter(t=>!t.emptied&&
  ${open.length?`<div class="card"><b>Trucks still open</b><div style="color:var(--mut);font-size:14px">Their leftover won't carry into tomorrow. Choose for each:</div>${open.map(t=>{const c=calc(t),left=c.rem!==null&&c.rem>0.005?r1(c.rem):null;return `<div class="row"><span style="flex:1">Truck <b>${esc(tname(t))}</b>${left?' · '+left+' yd³ left':''}</span><select id="ed-${t.id}" style="padding:7px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:600 15px Barlow,system-ui,sans-serif">${left?'<option value="waste" selected>Leftover is waste</option>':''}<option value="empty"${left?'':' selected'}>Mark empty</option><option value="keep">Leave open</option></select></div>`}).join('')}</div>`:''}
  ${(()=>{const L=(S.plan||[]).filter(e=>!pileWorked(e.id));return L.length?`<div class="card"><b>On today's list, not done</b><div>${esc(L.map(e=>e.id).join(', '))}</div><div style="color:var(--mut);font-size:14px">They stay on the list for tomorrow (clear it under Today's piles if not).</div></div>`:''})()}
  ${(()=>{const I=issDay();return I.L.length||I.rej.length?`<div class="card"><b>Problems today</b>${I.L.length?`<div>${I.L.length} stop${I.L.length===1?'':'s'} · <b>${I.tot} min</b> down${Object.keys(I.by).length?' ('+Object.entries(I.by).map(([k,v])=>esc(k)+' '+v+' min').join(', ')+')':''}</div>`:''}${I.L.map(x=>`<div style="font-size:14px">• Pile ${esc(pname(x.pk)||'?')}: ${esc(issDesc(x))}</div>`).join('')}${I.rej.length?`<div>${I.rej.length} truck${I.rej.length===1?'':'s'} sent back: ${esc(I.rej.map(t=>tname(t)+' ('+t.rejected.reason+')').join(', '))}</div>`:''}</div>`:''})()}
+ ${dispDayCard()}
  ${d.length?`<div class="card"><b>Check before you finish</b>${d.map(x=>`<div>• ${esc(x)}</div>`).join('')}</div>`:''}
  <div class="row"><button style="flex:1" onclick="endDayTrucks();showForm(allPiles()[0].key)">Send forms (Email / Text)</button></div>
  <div class="row"><button class="sec" style="flex:1" onclick="endDayTrucks();exportX()">Export Excel</button><button class="sec" style="flex:1" onclick="endDayTrucks();backup()">Save backup</button></div>

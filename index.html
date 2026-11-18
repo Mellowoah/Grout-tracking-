@@ -1273,7 +1273,7 @@ function formHTML(pk,pair){
  for(const [l,f,c] of rows)h+=`<tr><td style="${lab(c)}">${esc(l)}</td>`+ts.map((t,i)=>{const raw=String(f(t,i)??''),estimated=raw.endsWith('*'),v=estimated?raw.slice(0,-1):raw;const id=t.blank?'':t.id,ek=[P.key,id||'pile',l,i].join('|'),cor=(S.formCorrections||{})[ek],shown=cor?cor.value:v;return `<td onclick="formCellEdit('${P.key}','${id}','${l}',${i})" title="Tap to edit" style="${cell};min-width:84px;color:#0d1b2a;cursor:pointer;position:relative;${estimated&&!cor?'font-style:italic;border:2px dashed #b45309;':''}${cor?'background:#fff5d5;':''}">${esc(shown)}${estimated&&!cor?'<small title="Estimated time"> est.</small>':''}<span style="float:right;font-size:10px;color:#64748b">✎</span></td>`}).join('')+'</tr>';
  const L=ledger(P.key),f2=v=>v===null?'?':r1(v);
  const box=(r)=>`<table style="background:#fff;color:#0d1b2a;margin-top:12px">`+r.map(([l,v])=>`<tr><td style="${lab('g')};text-align:center;min-width:90px;font-weight:600">${esc(l)}</td><td style="${cell};min-width:100px">${cellV(v)}</td></tr>`).join('')+`</table>`;
- h+=`</table></div>`+(pair?'':box([['ARRIVED',arrCell(L)],['USED',L.used!==null?f2(L.used):'?'],['CARRY OVER',L.left!==null?f2(L.left):'?'],['ELEV',P.elev],['STATION',P.station]]));
+ h+=`</table></div>`+(pair?'':box(Object.entries(midVals(P.key)).filter(([,v])=>v!==''&&v!=null)));
  const comb=iv.filter(r=>r.flag.startsWith('COMBINED')),extra=[];
  if(L.samp)extra.push(['Samples',r1(L.samp)]);if(L.waste)extra.push(['Waste',r1(L.waste)]);
  if(L.arr+L.cin)extra.push(['Left on trucks',f2(L.left)]);if(P.wall)extra.push(['Wall',P.wall]);if(P.opCount)extra.push(['My count / contractor',(myCount({...P,strokes:PS})||'—')+' / '+P.opCount]);
@@ -1281,9 +1281,37 @@ function formHTML(pk,pair){
  {const Q=bandQC(P),pq=pileQC(P);if(Q)Q.filter(q=>q.n!=null).forEach(q=>extra.push(['Grout '+dl(q.b),fx(q.f)+(q.under?' UNDER '+fx(q.need??Q.need):'')+(q.auto?' *':'')]));if(Q)extra.push(['Grout check vs',Q.ref+', flagged under '+needTxt(Q)+(Q.find(q=>q.head)?', bottom band less '+Q.find(q=>q.head).head+' head strokes':'')]);if(pq)extra.push(['Grout pile',fx(pq.f)+' of '+pq.ref])}
  ISS().filter(x=>x.pk===P.key).forEach(x=>extra.push(['Stop / delay',issDesc(x)]));S.trucks.filter(t=>t.rejected&&t.rejected.pk===P.key).forEach(t=>extra.push(['Truck sent back',tname(t)+' · '+(t.qty||'?')+' yd³ · '+t.rejected.reason+' · '+hm(t.rejected.t)+(t.rejected.note?' · '+t.rejected.note:'')]));
  return h}
-// Forms laid out like the field sheet: two piles side by side, the Arrived / Used box between them (left value = left pile, right value = right pile)
-// Arrived = new trucks + grout carried in; when some was carried in, show the new-truck part small in brackets
-function arrCell(L){if(!(L.arr+L.cin))return{html:''};const tr=v=>String(+r1(v));return{html:esc(r1(L.arr+L.cin))+(L.cin>0.0005?` <small style="font-size:12px;color:#555">(${tr(L.arr)} new)</small>`:'')}}
+// Forms laid out like the field sheet: two piles side by side, the yardage box between them (left value = left pile, right value = right pile).
+// ARRIVED is only new truck loads. Leftover grout already on a truck at the start of the pile is CARRY OVER INTO (named by truck).
+// CARRY OVER OUT is what the next pile shows as CARRY OVER INTO. A truck marked empty carries nothing. No carry shows as a blank, not 0 or ?.
+const ydShows=v=>v!=null&&Math.abs(v)>=0.005;
+// Grout a previous pile left on trucks that this pile actually starts with. An emptied truck contributes nothing.
+function carryInto(pk){
+ const order=orderKeys(),idx=order.indexOf(pk);if(idx<=0)return [];
+ const prev=order[idx-1],ids=[],seen=new Set(),rows=[];
+ feedOrder(pk).forEach(id=>{if(!seen.has(id)){seen.add(id);ids.push(id)}});
+ S.trucks.forEach(t=>{if(!seen.has(t.id)){seen.add(t.id);ids.push(t.id)}});
+ for(const id of ids){const t=tk(id);if(!t||t.rejected||!(usedOn(t,pk)>0))continue;
+  if(!order.slice(0,idx).some(k=>(usedOn(t,k)||0)>0))continue;
+  if(order.slice(0,idx).some(k=>emptyOn(t,k)))continue;
+  rows.push({t,yd:leftAfter(t,prev)})}
+ return rows}
+// What this pile hands to the next one. Same trucks and amounts as that pile's carry-in, so the two sides match.
+function carryOut(pk){
+ const order=orderKeys(),idx=order.indexOf(pk);
+ if(idx>=0&&order[idx+1])return carryInto(order[idx+1]);
+ const rows=[];
+ for(const t of S.trucks){if(t.rejected||!(usedOn(t,pk)>0)||emptyOn(t,pk)||t.wastePk===pk)continue;rows.push({t,yd:leftAfter(t,pk)})}
+ return rows}
+function carryCell(rows,prep){
+ if(rows.some(r=>r.yd==null))return '?';
+ const parts=rows.filter(r=>ydShows(r.yd));if(!parts.length)return '';
+ const bit=r=>esc(r1(r.yd))+' '+esc(tname(r.t));
+ const note=parts.length===1?esc(prep)+' '+esc(tname(parts[0].t)):esc(prep)+' '+parts.map(bit).join(' + ');
+ const sum=parts.reduce((a,r)=>a+r.yd,0);
+ return {html:esc(r1(sum))+` <small style="font-size:12px;color:#555">${note}</small>`}}
+function carryNum(rows){if(rows.some(r=>r.yd==null))return '?';const sum=rows.reduce((a,r)=>a+(ydShows(r.yd)?r.yd:0),0);return ydShows(sum)?+r1(sum):0}
+function carryWho(rows,prep){if(rows.some(r=>r.yd==null))return '';return rows.filter(r=>ydShows(r.yd)).map(r=>prep+' '+tname(r.t)).join(', ')}
 function midVals(pk){const P=pileRec(pk),L=ledger(pk),f=v=>v===null?'?':r1(v),order=orderKeys(),idx=order.indexOf(pk);
  // November 17 verified field reconciliation: only the paper form's center
  // yardage box. Preserve the inspector's original count and all raw records.
@@ -1295,17 +1323,21 @@ function midVals(pk){const P=pileRec(pk),L=ledger(pk),f=v=>v===null?'?':r1(v),or
    const u51=180*cy,u61=142*cy;
    // The user confirmed 2.167 yd³ carried from the first load.
    // Derive the sample debit from the confirmed 9-yard ticket and carry.
-   const carry=2.167,avail=5+carry;
-   const common={ELEV:P.elev||'',STATION:P.station||''};
-   if(P.id==='51')return{ARRIVED:r1(9),USED:r1(u51),'CARRY OVER':r1(carry),...common};
+   const carry=2.167,avail=5+carry,tail={ELEV:P.elev||'',STATION:P.station||''};
+   const tagged=(yd,prep,who)=>({html:esc(r1(yd))+` <small style="font-size:12px;color:#555">${esc(prep)} ${esc(who)}</small>`});
+   if(P.id==='51')return{ARRIVED:r1(9),'CARRY OVER INTO':'',USED:r1(u51),'CARRY OVER OUT':tagged(carry,'on','625'),...tail};
    const left=avail-u61,recorded=second.wastePk===pk?num(second.waste):null;
-   return{ARRIVED:{html:esc(r1(avail))+' <small style="font-size:12px;color:#555">(5 new + 2.167 carry)</small>'},USED:r1(u61),'CARRY OVER':'—',WASTE:r1(Math.max(0,recorded!==null?recorded:left)),...common};
+   return{ARRIVED:r1(5),'CARRY OVER INTO':tagged(carry,'from','625'),USED:r1(u61),'CARRY OVER OUT':'',WASTE:r1(Math.max(0,recorded!==null?recorded:left)),...tail};
   }
  }
-const usedHere=S.trucks.filter(t=>usedOn(t,pk)>0);const finalWaste=usedHere.reduce((sum,t)=>{const later=order.slice(idx+1).some(k=>usedOn(t,k)>0);if(later)return sum;const recorded=t.wastePk===pk?num(t.waste):null;return sum+(recorded!==null?Math.max(0,recorded):0)},0);const hasWaste=usedHere.some(t=>t.wastePk===pk&&num(t.waste)!==null);return{ARRIVED:arrCell(L),USED:f(L.used),'CARRY OVER':hasWaste?'—':f(L.left),...(hasWaste?{WASTE:r1(finalWaste)}:{}),ELEV:P.elev||'',STATION:P.station||''}}
-function cellV(v){return v&&v.html!=null?v.html:esc(v)}
-function midBox(a,b){const A=midVals(a),B=b?midVals(b):{},c='border:1px solid #6b7c99;height:34px;padding:2px 6px;font-size:18px;min-width:70px;background:#fff;color:#0d1b2a';
- const keys=[...new Set([...Object.keys(A),...Object.keys(B)])];return `<table style="margin-top:46px">`+keys.map(k=>`<tr><td style="${c};white-space:nowrap">${cellV(A[k]??'')}</td><td style="${c};background:#a9b9d3;font:600 13px Barlow,system-ui,sans-serif;text-align:center;white-space:nowrap">${k}</td><td style="${c};white-space:nowrap">${cellV(B[k]??'')}</td></tr>`).join('')+`</table>`}
+ const usedHere=S.trucks.filter(t=>usedOn(t,pk)>0);const finalWaste=usedHere.reduce((sum,t)=>{const later=order.slice(idx+1).some(k=>usedOn(t,k)>0);if(later)return sum;const recorded=t.wastePk===pk?num(t.waste):null;return sum+(recorded!==null?Math.max(0,recorded):0)},0);const hasWaste=usedHere.some(t=>t.wastePk===pk&&num(t.waste)!==null);
+ return{ARRIVED:ydShows(L.arr)?r1(L.arr):'','CARRY OVER INTO':carryCell(carryInto(pk),'from'),USED:f(L.used),'CARRY OVER OUT':carryCell(carryOut(pk),'on'),...(hasWaste?{WASTE:r1(finalWaste)}:{}),ELEV:P.elev||'',STATION:P.station||''}}
+function cellV(v){return v&&v.html!=null?v.html:esc(v??'')}
+function midBox(a,b){const A=midVals(a),B=b?midVals(b):{},c='border:1px solid #6b7c99;min-height:34px;padding:2px 6px;font-size:18px;min-width:70px;background:#fff;color:#0d1b2a';
+ const blank=v=>v==null||v==='';
+ const order=['ARRIVED','CARRY OVER INTO','USED','CARRY OVER OUT','WASTE','ELEV','STATION'];
+ const keys=order.filter(k=>(k in A||k in B)&&((k!=='CARRY OVER INTO'&&k!=='CARRY OVER OUT')||!blank(A[k])||!blank(B[k])));
+ return `<table style="margin-top:46px">`+keys.map(k=>`<tr><td style="${c};white-space:nowrap">${cellV(A[k]??'')}</td><td style="${c};background:#a9b9d3;font:600 13px Barlow,system-ui,sans-serif;text-align:center;white-space:nowrap">${k}</td><td style="${c};white-space:nowrap">${cellV(B[k]??'')}</td></tr>`).join('')+`</table>`}
 // Form view: all piles in sheet pairs, or one pile on its own. Email / Text send pictures of the forms through the phone's share menu.
 let formMode={pk:null,only:false};
 function showForm(pk,only){const keys=orderKeys();const go=pk||S.pile.key;formMode={pk:go,only:!!only};let pairs=[];
@@ -1324,7 +1356,8 @@ function pileText(pk){const P=pileRec(pk),L=ledger(pk),SV=stages(P),f=k=>SV[k]?h
  const g=pev('grout_return',pk)[0];if(g)lines.push('Grout return '+(g.depth!=null?g.depth+' ft':'?'));
  const bi=P.bandIn||{},iv=intervals(P),EB=estBands(P),bd=bands(P).slice().reverse().map(b=>{const r=iv.find(r=>r.band===b),v=bi[dl2(b)]??(r&&r.d!=null?r.d:(EB?EB[b]:null));return v!=null?dl2(b)+': '+v:null}).filter(Boolean);
  lines.push(`Strokes ${c.n||'—'} (${c.src})${bd.length?' · '+bd.join(', '):''}`);
- lines.push(`Arrived ${r1(L.arr+L.cin)}${L.cin>0.0005?' ('+(+r1(L.arr))+' new + '+r1(L.cin)+' carried)':''} · Used ${L.used===null?'?':r1(L.used)} · Carry over ${L.left===null?'?':r1(L.left)} yd³`);return lines.join('\n')}
+ const plain=rows=>{if(rows.some(r=>r.yd==null))return '?';const parts=rows.filter(r=>ydShows(r.yd));return parts.length?r1(parts.reduce((a,r)=>a+r.yd,0))+' '+parts.map(r=>tname(r.t)).join('+'):''};
+ lines.push(`Arrived ${ydShows(L.arr)?r1(L.arr):'—'} · Carry in ${plain(carryInto(pk))||'—'} · Used ${L.used===null?'?':r1(L.used)} · Carry out ${plain(carryOut(pk))||'—'} yd³`);return lines.join('\n')}
 function sendText(kind){const keys=formMode.only?[formMode.pk]:orderKeys(),body=keys.map(pileText).join('\n\n'),sub='Grout log '+(formMode.only?'pile '+pname(formMode.pk):'piles '+keys.map(pname).join(', '));
  location.href=kind==='email'?'mailto:?subject='+encodeURIComponent(sub)+'&body='+encodeURIComponent(body):'sms:?&body='+encodeURIComponent(sub+'\n\n'+body)}
 async function sendForms(kind){const st=$('sendst'),say=t=>{if(st)st.textContent=t};say('Making pictures of the forms…');
@@ -1350,9 +1383,9 @@ function exportX(){if(typeof XLSX==='undefined')return msg('Excel export needs a
  const all=allPiles().map(p=>p===S.pile?{...p,strokes:S.strokes}:p);
  const pr=a=>{const V=stages(a),x=k=>ex(V[k]&&V[k].t);return{Pile:a.id,Wall:a.wall,Date:a.date,LengthFt:a.len,Elev:a.elev,Station:a.station,DrillStart:x('drillStart'),DrillFinish:x('drillFinish'),GroutStart:x('groutStart'),GroutFinish:x('groutFinish'),ReinforceStart:x('reinfStart'),ReinforceFinish:x('reinfFinish'),AutoFilledStages:Object.keys(V).filter(k=>V[k].est).join(' '),MyStrokes:a.noCount&&!a.tapped?(num(a.myCount)??''):a.strokes,OperatorCount:a.opCount,ReviewedTotal:a.reviewed,Explanation:a.note}};
  const iv=all.flatMap(p=>intervals(p).map(r=>({Pile:p.id,Band:r.band,CumStrokes:r.cum,Strokes:r.d??'',Flag:r.flag})));
- const wb=XLSX.utils.book_new();[['Events',ev],['Trucks_QC',tr],['Piles',all.map(pr)],['Intervals',iv],['Truck_by_pile',S.trucks.flatMap(t=>[...new Set([...Object.keys(t.ps),...Object.keys(t.used),...Object.keys(t.carryIn)])].map(k=>({Truck:t.num||'#'+t.seq,Pile:pname(k),CarriedInYd3:t.carryIn[k]?(cyd(t,k)??'?'):'',Strokes:(()=>{const r=pileRec(k);return r.noCount&&!r.tapped?'':strokesOn(t,k)})(),ConfirmedStrokes:+confOn(t,k).toFixed(1),StrokeSource:confStrokes(k).src,UsedYd3:usedOn(t,k)??'PENDING',UsedSource:num(t.used[k])!==null?'typed':'strokes x cal',WasteYd3:t.wastePk===k?(parseFloat(t.waste)||0):''})))],
+ const wb=XLSX.utils.book_new();[['Events',ev],['Trucks_QC',tr],['Piles',all.map(pr)],['Intervals',iv],['Truck_by_pile',S.trucks.flatMap(t=>[...new Set([...Object.keys(t.ps),...Object.keys(t.used),...Object.keys(t.carryIn)])].map(k=>({Truck:t.num||'#'+t.seq,Pile:pname(k),CarriedInYd3:(()=>{const hit=carryInto(k).find(r=>r.t.id===t.id);if(!hit)return '';if(hit.yd==null)return '?';return ydShows(hit.yd)?+r1(hit.yd):0})(),Strokes:(()=>{const r=pileRec(k);return r.noCount&&!r.tapped?'':strokesOn(t,k)})(),ConfirmedStrokes:+confOn(t,k).toFixed(1),StrokeSource:confStrokes(k).src,UsedYd3:usedOn(t,k)??'PENDING',UsedSource:num(t.used[k])!==null?'typed':'strokes x cal',WasteYd3:t.wastePk===k?(parseFloat(t.waste)||0):''})))],
  ['Problems_delays',[...ISS().map(x=>({Pile:pname(x.pk),What:ikName(x.kind),CausedBy:x.by,Stopped:ex(x.start),RunningAgain:ex(x.end),Minutes:issMin(x)??'',During:x.phase||'',Depth:x.depth||'',StrokesAtStop:x.strokes??'',Note:x.note})),...S.trucks.filter(t=>t.rejected).map(t=>({Pile:pname(t.rejected.pk),What:'Truck sent back: '+tname(t)+' ('+(t.qty||'?')+' yd3)',CausedBy:'',Stopped:ex(t.rejected.t),RunningAgain:'',Minutes:'',During:'',Depth:'',StrokesAtStop:'',Note:[t.rejected.reason,t.rejected.note].filter(Boolean).join(' · ')}))]],
- ['Pile_yardage',all.map(p=>{const L=ledger(p.key);return{Pile:p.id,ArrivedYd3:L.arr,CarriedInYd3:L.cin,UsedYd3:L.used??'PENDING',SamplesYd3:L.samp,WasteYd3:L.waste,LeftOnTrucksYd3:L.left??'PENDING'}})]].forEach(([n,d])=>XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(d.length?d:[{}]),n));
+ ['Pile_yardage',all.map(p=>{const L=ledger(p.key),inn=carryInto(p.key),out=carryOut(p.key);return{Pile:p.id,ArrivedYd3:L.arr,CarriedInYd3:carryNum(inn),CarryInTrucks:carryWho(inn,'from'),UsedYd3:L.used??'PENDING',SamplesYd3:L.samp,WasteYd3:L.waste,CarryOutYd3:carryNum(out),CarryOutTrucks:carryWho(out,'on'),LeftOnTrucksYd3:L.left??'PENDING'}})]].forEach(([n,d])=>XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(d.length?d:[{}]),n));
  const name='grout-'+stamp()+(P.id?'-pile-'+P.id.replace(/[^\w-]/g,''):'')+'.xlsx';
  const buf=XLSX.write(wb,{bookType:'xlsx',type:'array'});
  offer(name,new Blob([buf]),()=>XLSX.writeFile(wb,name))}catch(e){msg('Export failed: '+e.message)}}

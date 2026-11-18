@@ -143,6 +143,23 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 #remv .remote-stroke-bottom .rstroke .rtop{font-size:22px}
 #remv .rhead button{border-radius:12px}
 @media(max-height:750px){#remv .rgrid .rkey{min-height:60px}#remv .remote-utility button{height:54px;min-height:54px}#remv .remote-links button{height:44px;min-height:44px}#remv .remote-stroke-bottom .rstroke{min-height:82px}}
+
+/* v146: one unified visual material for every remote control. */
+#remv .rdev button.rkey,
+#remv .rdev .remote-utility button,
+#remv .rdev .remote-links button,
+#remv .rdev .rtrucks button,
+#remv .rdev .remote-stroke-bottom button{
+ appearance:none;background:#242b34!important;color:#fff!important;
+ border:2px solid #101820!important;border-radius:16px!important;
+ box-shadow:inset 0 -3px 0 #101820!important;
+ font-family:Barlow,system-ui,sans-serif!important;
+ font-weight:700!important;text-decoration:none!important;
+}
+#remv .rdev button .rtop,#remv .rdev button .rsub{color:#fff!important}
+#remv .rdev button .rsub{opacity:.75}
+#remv .rdev button:active{transform:translateY(2px);box-shadow:inset 0 -1px 0 #101820!important}
+#remv .rdev #rm-pump[data-pumping="on"]{border-color:#d00000!important;box-shadow:inset 0 -3px 0 #101820,0 0 0 2px #d00000!important}
 </style>
 </head><body>
 
@@ -160,7 +177,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v145';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v146';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -1181,7 +1198,7 @@ function remRender(){const P=S.pile,n=remNext(),d=nextLine(P),key=(k,top,sub,ext
    ${key(2,n.l,n.k==='next'?'press twice':'tap when it happens')}
    ${key(3,'Truck arrived','end trucks below')}
    ${key(4,'🎤 Speak','say a command')}
-   <button class="rkey rpump" id="rm-pump" onclick="remKey(6)" aria-label="Pump on or off" style="background:${S.pumping?'#d00000':'#4a4f55'}"><span class="rtop" style="font-size:24px">PUMP ${S.pumping?'ON':'OFF'}</span><span class="rsub" style="color:#eee">tap: turn ${S.pumping?'off':'on'} · clicker: B / F5${S.noCount?' or ▶ / Page Down':''} · keypad: 5</span></button>
+   <button class="rkey rpump" id="rm-pump" data-pumping="${S.pumping?'on':'off'}" onclick="remKey(6)" aria-label="Pump on or off" style="background:${S.pumping?'#d00000':'#4a4f55'}"><span class="rtop" style="font-size:24px">PUMP ${S.pumping?'ON':'OFF'}</span><span class="rsub" style="color:#eee">tap: turn ${S.pumping?'off':'on'} · clicker: B / F5${S.noCount?' or ▶ / Page Down':''} · keypad: 5</span></button>
   </div>
  <div class="remote-utility"><button class="sec remote-return" onclick="remKey(7)">↩ Grout return · time + depth</button><button class="remote-sample" onclick="remSample()" aria-label="Record QC sample and choose truck"><span class="rtop">QC Sample</span><span class="rsub">select truck</span></button></div>
  <div class="remote-links"><button class="sec" onclick="remForm()">View pile form</button><button class="sec" onclick="remForm()">View QC / truck form</button></div>

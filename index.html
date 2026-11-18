@@ -93,6 +93,28 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 /* User-selected remote shell color (buttons retain contrast and safety colors). */
 #remv .rdev{background:var(--remote-shell,#e4e4e1)}
 #remv input[type=color]{width:64px;height:52px;min-height:52px;padding:3px;border-radius:12px;cursor:pointer}
+
+/* v142: all remote actions live on one larger remote shell. */
+#remv .rwrap{gap:5px;padding:4px 4px env(safe-area-inset-bottom,0px)}
+#remv .rdev{width:100%;max-width:540px;margin:2px auto;padding:12px 12px 14px;border-radius:26px;gap:9px}
+#remv .rgrille{height:8px;margin:0 4px 2px}
+#remv .rgrid{gap:8px;margin:0}
+#remv .rgrid .rkey{min-height:64px;padding:7px 6px;border-radius:15px}
+#remv .rgrid .rpump{min-height:68px}
+#remv .rgrid .rstroke{min-height:80px}
+#remv .rtop{font-size:17px}
+#remv .rsub{font-size:11px}
+#remv .remote-utility{gap:8px;grid-template-columns:minmax(0,1fr) 60px}
+#remv .remote-return{min-height:52px;font-size:14px;padding:6px}
+#remv .remote-sample{width:60px;height:60px;min-width:60px;border-width:2px}
+#remv .remote-links{gap:6px}
+#remv .remote-links button{min-height:40px;padding:6px;font-size:12px}
+#remv .rhead{gap:4px}
+#remv .rhead button{min-height:36px!important;padding:4px 6px!important;font-size:12px!important;min-width:0!important}
+#remv #rm-help{border-width:1px!important}
+#remv .rhead b{font-size:15px!important}
+#remv .rtrucks button{min-height:40px;padding:5px 8px;font-size:12px}
+@media(max-height:750px){#remv .rgrid .rkey{min-height:56px}#remv .rgrid .rstroke{min-height:70px}#remv .rgrille{display:none}}
 </style>
 </head><body>
 
@@ -110,7 +132,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v141';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v142';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -1133,10 +1155,10 @@ function remRender(){const P=S.pile,n=remNext(),d=nextLine(P),key=(k,top,sub,ext
    <button class="rkey rpump" id="rm-pump" onclick="remKey(6)" aria-label="Pump on or off" style="background:${S.pumping?'#d00000':'#4a4f55'}"><span class="rtop" style="font-size:24px">PUMP ${S.pumping?'ON':'OFF'}</span><span class="rsub" style="color:#eee">tap: turn ${S.pumping?'off':'on'} · clicker: B / F5${S.noCount?' or ▶ / Page Down':''} · keypad: 5</span></button>
    ${S.noCount?'':key(5,`<span class="num" style="font-size:40px;line-height:1">${S.strokes}</span>`,'+1 stroke · hold: −1','','Add one stroke').replace('class="rkey"','class="rkey rstroke"')}
   </div>
- </div>
  <div class="remote-utility"><button class="sec remote-return" onclick="remKey(7)">↩ Grout return · time + depth</button><button class="remote-sample" onclick="remSample()" aria-label="Record QC sample and choose truck"><span style="font-size:23px;line-height:1">⏻</span><span style="font-size:10px;font-weight:800">SAMPLE</span></button></div>
  <div class="remote-links"><button class="sec" onclick="remForm()">View pile form</button><button class="sec" onclick="remForm()">View QC / truck form</button></div>
  ${remTrucksH()}
+ </div>
  <div style="display:flex;justify-content:center;align-items:center;gap:10px;min-height:26px;flex:none"><div id="rm-last" style="font-weight:700;font-size:17px;visibility:${remLast?'visible':'hidden'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:75vw">✓ ${esc(remLast)}</div>${remLast?'<button class="sec" style="min-height:32px;padding:2px 10px;font-size:14px" onclick="undoAll();remLast=\'\';remRender()">Undo</button>':''}</div>
  <div id="rm-feed" style="flex:none;text-align:center;font-size:13px;color:var(--mut);min-height:18px;padding:0 0 env(safe-area-inset-bottom,0px)">${esc(feedLine())}</div></div>`}
 // keypad / clicker help (was a paragraph under the remote; now behind ⌨︎ Keys so the remote fits the screen)

@@ -222,8 +222,26 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
  #remv .rdev .remote-stroke-bottom .rstroke{min-height:94px!important}
 }
 
-#remv .remote-unsample{width:100%;margin-top:2px}
-#remv .remote-unsample button{width:100%;min-height:48px;background:#202429!important;color:#f8fafc!important;border:3px solid #0d1115!important;border-radius:21px!important;box-shadow:inset 0 -5px 0 #0d1115!important;font:700 14px Barlow,system-ui,sans-serif!important}
+/* Un-sample sits in the utility row, immediately to the right of QC Sample. */
+#remv .rdev .remote-utility{
+ grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,1fr)!important;
+ align-items:stretch!important;min-width:0!important;
+}
+#remv .rdev .remote-utility button{
+ height:auto!important;min-height:70px!important;width:100%!important;min-width:0!important;
+ padding:8px 5px!important;white-space:normal!important;overflow-wrap:break-word!important;
+ text-align:center!important;display:flex!important;flex-direction:column!important;
+ align-items:center!important;justify-content:center!important;gap:2px!important;
+}
+#remv .rdev .remote-utility .remote-return{font-size:14px!important;line-height:1.15!important}
+#remv .rdev .remote-utility .rtop{font-size:15px!important;line-height:1.1!important;text-align:center!important}
+#remv .rdev .remote-utility .rsub{font-size:11px!important;line-height:1.1!important;text-align:center!important}
+@media(max-width:380px){
+ #remv .rdev .remote-utility{gap:6px!important}
+ #remv .rdev .remote-utility button{min-height:64px!important;padding:6px 4px!important}
+ #remv .rdev .remote-utility .remote-return{font-size:13px!important}
+ #remv .rdev .remote-utility .rtop{font-size:14px!important}
+}
 </style>
 </head><body>
 
@@ -241,7 +259,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v151';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v152';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -1280,8 +1298,7 @@ function remRender(){const P=S.pile,n=remNext(),d=nextLine(P),key=(k,top,sub,ext
    ${key(4,'🎤 Speak','say a command')}
    <button class="rkey rpump" id="rm-pump" data-pumping="${S.pumping?'on':'off'}" onclick="remKey(6)" aria-label="Pump on or off" style="background:${S.pumping?'#d00000':'#4a4f55'}"><span class="rtop" style="font-size:24px">PUMP ${S.pumping?'ON':'OFF'}</span><span class="rsub" style="color:#eee">tap: turn ${S.pumping?'off':'on'} · clicker: B / F5${S.noCount?' or ▶ / Page Down':''} · keypad: 5</span></button>
   </div>
- <div class="remote-utility"><button class="sec remote-return" onclick="remKey(7)">↩ Grout return · time + depth</button><button class="remote-sample" onclick="remSample()" aria-label="Record QC sample and choose truck"><span class="rtop">QC Sample</span><span class="rsub">select truck</span></button></div>
- <div class="remote-unsample"><button class="sec" onclick="remUnSample()" aria-label="Undo a recorded QC sample">↶ Un-sample · remove mistaken QC sample</button></div>
+ <div class="remote-utility"><button class="sec remote-return" onclick="remKey(7)">↩ Grout return · <span style="white-space:nowrap">time + depth</span></button><button class="remote-sample" onclick="remSample()" aria-label="Record QC sample and choose truck"><span class="rtop">QC Sample</span><span class="rsub">select truck</span></button><button class="remote-sample" onclick="remUnSample()" aria-label="Undo a recorded QC sample"><span class="rtop">Un-sample</span><span class="rsub">remove mistaken</span></button></div>
  <div class="remote-links"><button class="sec" onclick="remForm()">View pile form</button><button class="sec" onclick="remForm()">View QC / truck form</button></div>
  ${remTrucksH()}
  <div class="remote-stroke-bottom">${S.noCount?'':key(5,`<span class="num" style="font-size:40px;line-height:1">${S.strokes}</span>`,'+1 stroke · hold: −1','','Add one stroke').replace('class="rkey"','class="rkey rstroke"')}</div>

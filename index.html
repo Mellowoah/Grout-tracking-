@@ -106,7 +106,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v138';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v139';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -393,7 +393,7 @@ const A={
   /* Waiting trucks remain unassigned across pile changes until they feed the pump. */
   msg(done+'Pile '+(S.pile.id||'')+' started.'+(open.length?' '+open.map(([t,yd])=>'Truck '+tname(t)+': '+(yd==null?'?':r1(yd))+' yd³ left').join(', '):''))});showUndoPile()},
  undoPile(){if(!undoSnap)return;S=JSON.parse(undoSnap);undoSnap=null;$('undoNP').hidden=true;save();render();msg('Back on pile '+S.pile.id+'. Nothing was lost.')},
- pump(){act(()=>{S.pumping=!S.pumping;log(S.pumping?'pump_start':'pump_pause')})},
+ pump(){act(()=>{const on=!S.pumping;stampPumpStage(on);S.pumping=on;log(on?'pump_start':'pump_pause')})},
  arrive(){act(()=>{const t={id:uid(),seq:S.trucks.length?Math.max(...S.trucks.map(x=>x.seq||0))+1:1,num:'',sampleNo:'',qty:S.defLoad?String(S.defLoad):'',batch:'',dispatch:'',arrived:Date.now(),emptied:null,strokes:0,samples:[],waste:'',tests:[],pk0:null,onsite:true,ps:{},used:{},carryIn:{},left:''};S.trucks.push(t);log('truck_onsite',{truck:t.id});vib();if(sDue(t)>0)msg('Truck '+t.seq+' arrived. Sample due on this truck: report it Taken or Not taken on its card.')})},
  // Strokes come from the physical counter: type the reading; the difference goes to the feeding truck,
  // split at the point a truck's load runs out so the next truck gets the rest
@@ -442,7 +442,7 @@ const A={
   if(k==='groutFinish'&&S.pumping){A.pump();msg('Grout finished: pumping stopped.')}},
  stageReset(k){if(k!=='drillStart')return;const prev=S.pile.st&&S.pile.st[k];if(!prev)return msg('No recorded drill start to reset.');if(!confirm('Clear the accidental Drill start time? You can tap Drill start again when drilling actually begins. The correction stays in the history.'))return;act(()=>{delete S.pile.st[k];S.pile.resetStages=S.pile.resetStages||{};S.pile.resetStages[k]=true;log('edit',{field:k,from:prev,to:'cleared accidental tap'});msg('Drill start cleared. Tap Drill start when work begins.')})},
  stageMiss(k){act(()=>{S.pile.missedStages=S.pile.missedStages||{};S.pile.missedStages[k]=Date.now();log('stage_missing',{name:k,enteredLater:false});msg('Marked '+k+' missed. Keep working; enter its time later if available.')})},
- stageSet(k,v){if(!v){delete S.pile.st[k]}else{const [h,m]=v.split(':').map(Number);const d=new Date(S.pile.st[k]||Date.now());d.setHours(h,m,0,0);S.pile.st[k]=d.getTime();if(S.pile.missedStages)delete S.pile.missedStages[k];if(S.pile.resetStages)delete S.pile.resetStages[k];log('stage',{name:k,edited:true})}save();render()},
+ stageSet(k,v){if(pumpUndo&&pumpUndo.stamp&&pumpUndo.stamp.k===k)pumpUndo.stamp.replaced=true;if(!v){delete S.pile.st[k]}else{const [h,m]=v.split(':').map(Number);const d=new Date(S.pile.st[k]||Date.now());d.setHours(h,m,0,0);S.pile.st[k]=d.getTime();if(S.pile.missedStages)delete S.pile.missedStages[k];if(S.pile.resetStages)delete S.pile.resetStages[k];log('stage',{name:k,edited:true})}save();render()},
  pset(f,v){const o=S.pile[f];pHist(S.pile,f,o,v);S.pile[f]=v;save();render()},
  // D10: fix a counter reading at a depth line (cumulative); the bands either side follow, the first reading is kept
  lineSet(i,v){const P=S.pile,L=lines(P),l=L[i];if(!l)return;const nv=v===''||v==null?null:Number(v);if(nv!==null&&!(nv>=0))return msg('“'+v+'” isn\'t a counter reading.');if(nv===l.c)return;
@@ -591,6 +591,7 @@ function render(){clearTimeout(rT);
  const g4=h.length;
  h+=`<div class="card"><div class="row"><label style="flex:1"><small>Anthropic API key for reading handwritten sheets (kept on this phone only, not in backups)</small><input id="s-ai" type="password" autocomplete="off" placeholder="${aiKey()?'Saved ••••'+esc(aiKey().slice(-4)):'sk-ant-…'}" onchange="setAiKey(this.value)"></label>${aiKey()?'<button class="sec" style="min-height:44px;margin-top:16px" onclick="setAiKey(\'\')">Remove</button>':''}</div>
  <div class="row"><button id="s-cnt" class="sec" style="min-height:48px" onclick="setCount(!!S.noCount)">Count strokes on this phone: <b>${S.noCount?'Off':'On'}</b></button><small style="flex:1">${S.noCount?'Off: no +1 counter or counter prompts. Mark depth lines as usual and type your own counts in strokes by depth / My count afterwards.':'On: +1 stroke counter and counter prompts at each line.'}</small></div>
+ <div class="row" style="align-items:center">${remSkinPick()}<small style="flex:1">Color of the remote body only. The keys stay as they are.</small></div>
  <div class="row"><input id="s-def" inputmode="decimal" style="max-width:90px" value="${esc(S.defLoad)}" onchange="A.cfg('defLoad',Number(this.value)||0)"><small>Default load yd³ for each new truck (scan or type to change one truck)</small></div>
  <div class="row"><input id="s-samp" inputmode="decimal" value="${esc(S.sampleYd)}" onchange="A.cfg('sampleYd',Number(this.value)||0)"><small>yd³ per sample</small></div>
  <div class="row"><input id="s-sev" inputmode="decimal" style="max-width:90px" value="${esc(S.sampleEvery)}" onchange="A.cfg('sampleEvery',Number(this.value)||0)"><small>One sample every this many yd³ (first truck of the day, then each truck crossing the next mark)</small></div>
@@ -1115,7 +1116,8 @@ function remForm(){remoteClose();showForm(S.pile.key,true)}
 function remRender(){const P=S.pile,n=remNext(),d=nextLine(P),key=(k,top,sub,extra='',al)=>`<button class="rkey" ${k===3||k===5?`onpointerdown="remDown(${k},event)" onpointerup="remUp(${k},event)" onpointerleave="clearTimeout(remHold)"`:`onclick="remKey(${k})"`} ${extra} aria-label="${al||top}"><span class="rtop">${top}</span>${sub?`<span class="rsub">${sub}</span>`:''}</button>`;
  $('remv').innerHTML=`<div class="rwrap"><div class="rhead"><b style="font-size:17px">Remote</b><span style="display:flex;gap:6px"><button class="sec" id="rm-help" aria-label="Keypad and clicker keys" style="padding:4px 8px;min-width:40px" onclick="remHelp()">⌨︎</button><button class="sec" id="rm-tt" onclick="ttOpen()">🕑 Truck times</button><button class="sec" onclick="remoteClose()">Close</button></span></div>
  <div id="rm-stat" class="card" style="padding:6px 10px;font-size:15px;margin:0;flex:none">${remStat()}</div>
- <div class="rdev">
+ ${remSkinPick()}
+ <div class="rdev" style="background:${remSkinBg()}">
   <div class="rgrille" aria-hidden="true"></div>
   <div class="rgrid">
    ${key(1,'Passed line',d!=null?d+' ft':'done')}
@@ -1133,9 +1135,22 @@ function remRender(){const P=S.pile,n=remNext(),d=nextLine(P),key=(k,top,sub,ext
  <div id="rm-feed" style="flex:none;text-align:center;font-size:13px;color:var(--mut);min-height:18px;padding:0 0 env(safe-area-inset-bottom,0px)">${esc(feedLine())}</div></div>`}
 // keypad / clicker help (was a paragraph under the remote; now behind ⌨︎ Keys so the remote fits the screen)
 function remHelp(){scanShow(`<h2>Keypad &amp; clicker keys</h2><div class="card">A Bluetooth keypad or clicker works with the Remote: keys 1–4 = the four keys, ◀ / Page Up = passed line, ▶ / Page Down / Space / Enter = ${S.noCount?'pump on / off (counter is off)':'+1 stroke'}. Shift + 3 = end the feeding truck.<br><b>Pump on / off: keypad 5, or the clicker's blank-screen button (B or .) or slideshow button (F5 / Esc).</b><br>The screen stays awake while the Remote is open.</div><button class="sec" style="width:100%;min-height:52px" onclick="scanClose();if(remOn())remRender()">Done</button>`)}
+// ---- Remote skin: body color only. Keys keep their own colors. Saved on this phone, per profile.
+const REMSKINS=[{id:'silver',name:'Silver',bg:'#e4e4e1'},{id:'red',name:'Red',bg:'#c62828'},{id:'blue',name:'Blue',bg:'#1565c0'},{id:'green',name:'Green',bg:'#2e7d32'},{id:'orange',name:'Orange',bg:'#ef6c00'},{id:'yellow',name:'Yellow',bg:'#f9a825'},{id:'purple',name:'Purple',bg:'#6a1b9a'},{id:'white',name:'White',bg:'#f7f7f5'}];
+const SKINK='groutTracker.remoteSkin'+(PROF?':'+PROF:'');
+function remSkinId(){try{const id=localStorage.getItem(SKINK);return REMSKINS.some(s=>s.id===id)?id:'silver'}catch(e){return 'silver'}}
+function remSkinBg(){return (REMSKINS.find(s=>s.id===remSkinId())||REMSKINS[0]).bg}
+function setRemSkin(id){if(!REMSKINS.some(s=>s.id===id))return;try{localStorage.setItem(SKINK,id)}catch(e){}if(remOn())remRender();else render()}
+function remSkinPick(){return `<div data-skin class="row" style="flex:none;align-items:center;gap:6px;margin:0"><span style="font-size:13px;color:var(--mut)">Remote skin</span>${REMSKINS.map(s=>`<button type="button" class="sec" aria-label="${esc(s.name)} remote" title="${esc(s.name)}" aria-pressed="${remSkinId()===s.id}" onclick="setRemSkin('${s.id}')" style="width:32px;height:32px;min-height:32px;padding:0;border-radius:50%;background:${s.bg};border:3px solid ${remSkinId()===s.id?'var(--ink)':'#9a9a96'}"></button>`).join('')}</div>`}
 // ---- Pump mode: the whole screen is one pump On / Off switch (works without looking).
 // Red = PUMP ON, gray = PUMP OFF. One buzz + high beep for on, two buzzes + low beep for off. A second tap within 1.5 s is ignored; Undo for 10 s.
-let pumpLastT=0,pumpUndo=null,pumpT=null,pumpWL=null;
+let pumpLastT=0,pumpUndo=null,pumpT=null,pumpWL=null,pumpStamp=null;
+// Pump on fills an empty Grout start; pump off fills an empty Grout finish. A tapped or typed time stays.
+// A red estimate is not stored, so this stamp replaces it and saves like any other stage time.
+// Problem / delay pauses the pump on its own and does not call this, so it does not fill Grout finish.
+function stampPumpStage(on){pumpStamp=null;const st=S.pile.st||(S.pile.st={}),k=on?'groutStart':'groutFinish';if(st[k])return;
+ st[k]=Date.now();if(S.pile.missedStages)delete S.pile.missedStages[k];if(S.pile.resetStages)delete S.pile.resetStages[k];
+ pumpStamp={k,id:log('stage',{name:k}).id,t:st[k]}}
 const pumpOn=()=>$('pumpv')&&$('pumpv').style.display==='block';
 function pumpOpen(){$('pumpv').style.display='block';try{depAC=depAC||new (window.AudioContext||window.webkitAudioContext)();depAC.resume&&depAC.resume()}catch(e){}
  try{navigator.wakeLock&&navigator.wakeLock.request('screen').then(w=>pumpWL=w).catch(()=>{})}catch(e){}clearInterval(pumpT);pumpT=setInterval(pumpTick,500);pumpRender()}
@@ -1144,9 +1159,10 @@ function pumpFeel(on){try{navigator.vibrate&&navigator.vibrate(on?[350]:[180,140
  if(S.beep!==false)try{const a=depAC||(depAC=new (window.AudioContext||window.webkitAudioContext)());a.resume&&a.resume();(on?[0]:[0,0.3]).forEach(o=>{const os=a.createOscillator(),g=a.createGain();os.frequency.value=on?1400:420;g.gain.value=0.3;os.connect(g);g.connect(a.destination);os.start(a.currentTime+o);os.stop(a.currentTime+o+0.18)})}catch(e){}}
 // Turn the pump to a state through A.pump(): logs pump_start / pump_pause with the time (and the stroke count when this phone counts)
 function pumpSet(on){if(!!S.pumping===!!on)return false;const was=!!S.pumping;A.pump();const e=S.ev[S.ev.length-1];
- pumpUndo={id:e&&/^pump_/.test(e.type)?e.id:null,was,t:Date.now()};pumpFeel(!!S.pumping);pumpRefresh();return true}
+ pumpUndo={id:e&&/^pump_/.test(e.type)?e.id:null,was,t:Date.now(),stamp:pumpStamp};pumpFeel(!!S.pumping);pumpRefresh();return true}
 function pumpTap(){const now=Date.now();if(now-pumpLastT<1500)return false;pumpLastT=now;return pumpSet(!S.pumping)}
-function pumpUndoDo(){const u=pumpUndo;if(!u||Date.now()-u.t>10000)return;pumpUndo=null;act(()=>{S.pumping=u.was;if(u.id)S.ev=S.ev.filter(e=>e.id!==u.id)});pumpFeel(!!S.pumping);msg('Undid pump '+(u.was?'off':'on')+'. Pump is '+(S.pumping?'on':'off')+'.');pumpRefresh()}
+function pumpUndoDo(){const u=pumpUndo;if(!u||Date.now()-u.t>10000)return;pumpUndo=null;act(()=>{S.pumping=u.was;if(u.id)S.ev=S.ev.filter(e=>e.id!==u.id);
+ if(u.stamp&&!u.stamp.replaced&&S.pile.st&&S.pile.st[u.stamp.k]===u.stamp.t){S.ev=S.ev.filter(e=>e.id!==u.stamp.id);delete S.pile.st[u.stamp.k]}});pumpFeel(!!S.pumping);msg('Undid pump '+(u.was?'off':'on')+'. Pump is '+(S.pumping?'on':'off')+'.');pumpRefresh()}
 function pumpRefresh(){if(pumpOn())pumpRender();if(remOn())remRender();if($('depv').style.display==='block'&&!pumpOn())depthRender()}
 function pumpTick(){if(!pumpOn())return;const u=$('pm-undo');if(pumpUndo&&Date.now()-pumpUndo.t>10000){pumpUndo=null;pumpRender()}else if(u&&pumpUndo)u.firstChild.textContent='Undo pump '+(pumpUndo.was?'off':'on')+' ('+Math.max(0,Math.ceil((10000-(Date.now()-pumpUndo.t))/1000))+' s)'}
 function pumpRender(){const v=$('pumpv');if(!v)return;const on=!!S.pumping,P=S.pile,d=nextLine(P),u=pumpUndo&&Date.now()-pumpUndo.t<=10000;
@@ -1257,7 +1273,10 @@ function formHTML(pk,pair){
  const ts=[...used];while(ts.length<2)ts.push({seq:'',num:'',tests:[],blank:true});
  const CL={y:'#ffe600',g:'#d3d6da',t:'#f2c27a',b:'#a9b9d3',u:'#cfe8d4'};
  const TW=truckPumpWindows(P,used);
- const truckPump=(field)=>(t,i)=>{if(t.blank)return'';const x=TW[t.id];if(x){const time=x[field];return time?fh(time)+((field==='start'?x.startEst:x.finishEst)?'*':''):''}return i===0&&SV[field==='start'?'groutStart':'groutFinish']?fh(SV[field==='start'?'groutStart':'groutFinish'].t):''};
+ const truckPump=(field)=>(t,i)=>{const sk=field==='start'?'groutStart':'groutFinish';
+  if(!t.blank){const x=TW[t.id];if(x){const time=x[field];return time?fh(time)+((field==='start'?x.startEst:x.finishEst)?'*':''):''}return i===0&&SV[sk]?fh(SV[sk].t):''}
+  // A pump stamp with no truck yardage yet still belongs on the first form cell. A red guess stays off this sheet.
+  return i===0&&!used.length&&SV[sk]&&!SV[sk].est?fh(SV[sk].t):''};
  const SV=stages(P),anyEst=Object.values(SV).some(x=>x.est)||used.some(t=>{const x=truckTimes(t);return x.batch.est||x.arrived.est||(x.emptied.est&&x.emptied.pk===P.key)});const one=k=>(t,i)=>i||!SV[k]?'':fh(SV[k].t)+(SV[k].est?'*':'');
  const bl=bands(P).slice().reverse(),EB=estBands(P); // Paper display shallow-to-deep; pumping and head accounting are tip-to-zero.
  const dl=b=>b.replace(' ft','').replace('–','-');

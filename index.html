@@ -221,6 +221,9 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
  #remv .rdev .remote-stroke-bottom{padding:0 14px!important}
  #remv .rdev .remote-stroke-bottom .rstroke{min-height:94px!important}
 }
+
+#remv .remote-unsample{width:100%;margin-top:2px}
+#remv .remote-unsample button{width:100%;min-height:48px;background:#202429!important;color:#f8fafc!important;border:3px solid #0d1115!important;border-radius:21px!important;box-shadow:inset 0 -5px 0 #0d1115!important;font:700 14px Barlow,system-ui,sans-serif!important}
 </style>
 </head><body>
 
@@ -238,7 +241,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v149';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v150';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -1248,6 +1251,21 @@ function remSample(){
  act(()=>{const e=takeSample(t);msg('QC sample recorded for truck '+tname(t)+' at '+ft(e.t)+'. Add flow cone, temperature and sample ID in truck details.')});
  remSay('Sample linked to truck '+tname(t));remRender();
 }
+function remUnSample(){
+ const entries=S.trucks.flatMap(t=>(t.samples||[]).map(id=>({t,e:S.ev.find(e=>e.id===id)}))).filter(x=>x.e&&x.e.pk===S.pile.key).sort((a,b)=>b.e.t-a.e.t);
+ if(!entries.length)return remSay('No QC sample to undo on this pile');
+ const choice=entries.length===1?'1':prompt('Remove which QC sample on this pile?\\n'+entries.map((x,i)=>(i+1)+': Truck '+tname(x.t)+' · '+ft(x.e.t)).join('\\n'),'1');
+ if(choice===null)return;const x=entries[Number(choice)-1];if(!x)return remSay('Choose a listed sample number');
+ if(!confirm('Remove QC sample from truck '+tname(x.t)+' at '+ft(x.e.t)+'? This restores the deducted sample yardage.'))return;
+ act(()=>{
+  x.t.samples=x.t.samples.filter(id=>id!==x.e.id);
+  S.ev=S.ev.filter(e=>e.id!==x.e.id);
+  x.t.tests=(x.t.tests||[]).filter(test=>test.sample!==x.e.id||test.temp!==''&&test.temp!=null||test.flow!==''&&test.flow!=null);
+  S.ev.push({id:uid(),type:'sample_correction',t:Date.now(),entered:Date.now(),pk:x.e.pk,pile:x.e.pile,truck:x.t.id,removedSample:x.e.id,originalSampleTime:x.e.t,yd:x.e.yd,action:'removed mistaken sample'});
+  msg('Removed QC sample for truck '+tname(x.t)+'. Sample yardage recalculated.');
+ });
+ remSay('Un-sampled truck '+tname(x.t));remRender();
+}
 function remForm(){remoteClose();showForm(S.pile.key,true)}
 function remRender(){const P=S.pile,n=remNext(),d=nextLine(P),key=(k,top,sub,extra='',al)=>`<button class="rkey" ${k===3||k===5?`onpointerdown="remDown(${k},event)" onpointerup="remUp(${k},event)" onpointerleave="clearTimeout(remHold)"`:`onclick="remKey(${k})"`} ${extra} aria-label="${al||top}"><span class="rtop">${top}</span>${sub?`<span class="rsub">${sub}</span>`:''}</button>`;
  $('remv').innerHTML=`<div class="rwrap"><div class="rhead"><b style="font-size:17px">Remote</b><span style="display:flex;gap:6px"><button class="sec" id="rm-help" aria-label="Remote colors and help" title="Choose remote color" style="padding:7px 12px;min-width:96px;min-height:48px;border:2px solid #ffd100;font-weight:700" onclick="remHelp()">🎨 Colors</button><button class="sec" onclick="remoteClose()">Close</button></span></div>
@@ -1262,6 +1280,7 @@ function remRender(){const P=S.pile,n=remNext(),d=nextLine(P),key=(k,top,sub,ext
    <button class="rkey rpump" id="rm-pump" data-pumping="${S.pumping?'on':'off'}" onclick="remKey(6)" aria-label="Pump on or off" style="background:${S.pumping?'#d00000':'#4a4f55'}"><span class="rtop" style="font-size:24px">PUMP ${S.pumping?'ON':'OFF'}</span><span class="rsub" style="color:#eee">tap: turn ${S.pumping?'off':'on'} · clicker: B / F5${S.noCount?' or ▶ / Page Down':''} · keypad: 5</span></button>
   </div>
  <div class="remote-utility"><button class="sec remote-return" onclick="remKey(7)">↩ Grout return · time + depth</button><button class="remote-sample" onclick="remSample()" aria-label="Record QC sample and choose truck"><span class="rtop">QC Sample</span><span class="rsub">select truck</span></button></div>
+ <div class="remote-unsample"><button class="sec" onclick="remUnSample()" aria-label="Undo a recorded QC sample">↶ Un-sample · remove mistaken QC sample</button></div>
  <div class="remote-links"><button class="sec" onclick="remForm()">View pile form</button><button class="sec" onclick="remForm()">View QC / truck form</button></div>
  ${remTrucksH()}
  <div class="remote-stroke-bottom">${S.noCount?'':key(5,`<span class="num" style="font-size:40px;line-height:1">${S.strokes}</span>`,'+1 stroke · hold: −1','','Add one stroke').replace('class="rkey"','class="rkey rstroke"')}</div>

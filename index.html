@@ -89,6 +89,10 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 #remv .remote-links{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 #remv .remote-links button{min-height:48px;border-radius:14px;text-decoration:underline}
 @media(max-height:720px){#remv .rgrille{display:none}#remv .rgrid .rkey{min-height:68px}#remv .rgrid .rstroke{min-height:84px}}
+
+/* User-selected remote shell color (buttons retain contrast and safety colors). */
+#remv .rdev{background:var(--remote-shell,#e4e4e1)}
+#remv input[type=color]{width:64px;height:52px;min-height:52px;padding:3px;border-radius:12px;cursor:pointer}
 </style>
 </head><body>
 
@@ -106,7 +110,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v138';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v139';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -591,6 +595,7 @@ function render(){clearTimeout(rT);
  const g4=h.length;
  h+=`<div class="card"><div class="row"><label style="flex:1"><small>Anthropic API key for reading handwritten sheets (kept on this phone only, not in backups)</small><input id="s-ai" type="password" autocomplete="off" placeholder="${aiKey()?'Saved ••••'+esc(aiKey().slice(-4)):'sk-ant-…'}" onchange="setAiKey(this.value)"></label>${aiKey()?'<button class="sec" style="min-height:44px;margin-top:16px" onclick="setAiKey(\'\')">Remove</button>':''}</div>
  <div class="row"><button id="s-cnt" class="sec" style="min-height:48px" onclick="setCount(!!S.noCount)">Count strokes on this phone: <b>${S.noCount?'Off':'On'}</b></button><small style="flex:1">${S.noCount?'Off: no +1 counter or counter prompts. Mark depth lines as usual and type your own counts in strokes by depth / My count afterwards.':'On: +1 stroke counter and counter prompts at each line.'}</small></div>
+ <div class="row" style="align-items:center;gap:12px"><label for="s-remote-color"><b>Remote color</b><small style="display:block;color:var(--mut)">Choose a color for the remote body. Buttons stay high contrast.</small></label><input type="color" id="s-remote-color" aria-label="Remote body color wheel" value="${esc(/^#[0-9a-f]{6}$/i.test(S.remoteColor||'')?S.remoteColor:'#e4e4e1')}" oninput="remoteColorPreview(this.value)" onchange="remoteColorSave(this.value)"><button class="sec" style="min-height:48px" onclick="remoteColorSave('#e4e4e1')">Reset</button></div>
  <div class="row"><input id="s-def" inputmode="decimal" style="max-width:90px" value="${esc(S.defLoad)}" onchange="A.cfg('defLoad',Number(this.value)||0)"><small>Default load yd³ for each new truck (scan or type to change one truck)</small></div>
  <div class="row"><input id="s-samp" inputmode="decimal" value="${esc(S.sampleYd)}" onchange="A.cfg('sampleYd',Number(this.value)||0)"><small>yd³ per sample</small></div>
  <div class="row"><input id="s-sev" inputmode="decimal" style="max-width:90px" value="${esc(S.sampleEvery)}" onchange="A.cfg('sampleEvery',Number(this.value)||0)"><small>One sample every this many yd³ (first truck of the day, then each truck crossing the next mark)</small></div>
@@ -1031,6 +1036,9 @@ let remT=null,remWL=null,remHold=null,remLast='';
 const remOn=()=>$('remv')&&$('remv').style.display==='block';
 const STEPS=[['drillStart','Drill start'],['drillFinish','Drill finish'],['groutFinish','Grout finish'],['reinfStart','Reinforce start'],['reinfFinish','Reinforce finish']];
 function remNext(){const st=S.pile.st||{};for(const [k,l] of STEPS)if(!st[k])return{k,l};return{k:'next',l:'Next pile'}}
+function remoteColorPreview(v){if(/^#[0-9a-f]{6}$/i.test(v))document.documentElement.style.setProperty('--remote-shell',v)}
+function remoteColorSave(v){if(!/^#[0-9a-f]{6}$/i.test(v))return;S.remoteColor=v;remoteColorPreview(v);save();const input=$('s-remote-color');if(input)input.value=v}
+remoteColorPreview(/^#[0-9a-f]{6}$/i.test(S.remoteColor||'')?S.remoteColor:'#e4e4e1');
 function remoteOpen(){scanClose();$('remv').style.display='block';
  try{depAC=depAC||new (window.AudioContext||window.webkitAudioContext)();depAC.resume&&depAC.resume()}catch(e){}
  try{navigator.wakeLock&&navigator.wakeLock.request('screen').then(w=>remWL=w).catch(()=>{})}catch(e){}

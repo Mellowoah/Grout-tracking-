@@ -245,6 +245,13 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
  #remv .rdev .remote-utility .remote-return{font-size:13px!important}
  #remv .rdev .remote-utility .rtop{font-size:14px!important}
 }
+/* Leaving a truck sits in its own block, under the other keys, so it is not mistaken for a stroke or a sample. */
+#remv .rleave-box{margin-top:10px;padding:8px 4px 4px;border-top:3px solid #0d1115;display:flex;flex-direction:column;gap:8px}
+#remv .rleave-title{font:800 14px/1.2 Barlow,system-ui,sans-serif;text-align:center;letter-spacing:.02em}
+#remv .rleave-truck{display:flex;flex-direction:column;gap:6px}
+#remv .rdev .rleave,#remv .rdev .rleave-toast button{width:100%;min-height:48px;white-space:normal;text-align:center;font-size:14px!important;line-height:1.15!important;background:#202429!important;color:#f8fafc!important;border:3px solid #0d1115!important;border-radius:21px!important;box-shadow:inset 0 -5px 0 #0d1115!important}
+#remv .rleave-toast{display:flex;align-items:center;justify-content:space-between;gap:8px;background:#fff;color:#0d1115;border:3px solid #0d1115;border-radius:14px;padding:8px;font:700 14px/1.2 Barlow,system-ui,sans-serif}
+#remv .rdev .rleave-toast button{width:auto;flex:none;min-height:44px;min-width:108px}
 </style>
 </head><body>
 
@@ -262,7 +269,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v154';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v155';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -951,11 +958,11 @@ function truckReject(id,reason,note){const t=tk(id);if(!t||t.rejected)return;
  if(!reason)return msg('Pick a reason for sending truck '+tname(t)+' back.');
  if(truckPumped(t)||(parseFloat(t.waste)>0)||t.left==='waste')return msg('Truck '+tname(t)+' already pumped grout. Use Timed out, left with waste for what is still on the truck.');
  scanClose();
- act(()=>{if(S.active===id){closeSeg();S.active=null}
+ withLeave(t,'SENT BACK',()=>act(()=>{if(S.active===id){closeSeg();S.active=null}
   t.rejected={reason,note,t:Date.now(),pk:S.pile.key,prev:{pk0:t.pk0,onsite:t.onsite,emptied:t.emptied,carryIn:JSON.parse(JSON.stringify(t.carryIn||{})),fed:t.fed}};
   t.pk0=null;t.carryIn={};t.emptied=t.emptied||Date.now();t.fed=false;delete t.pend;t.left='';
   S.ev=S.ev.filter(e=>!(e.truck===id&&(e.type==='truck_arrival'||e.type==='truck_carry')));log('truck_reject',{truck:id,name:reason,note});
-  msg('Truck '+tname(t)+' sent back ('+reason+'). Its '+(t.qty||'?')+' yd³ is off the yardage and sample count.')});if(remOn())remRender()}
+  msg('Truck '+tname(t)+' sent back ('+reason+'). Its '+(t.qty||'?')+' yd³ is off the yardage and sample count.')}))}
 function truckUnreject(id){const t=tk(id);if(!t||!t.rejected||!twoTap('ur'+id,'ur-'+id,'Tap again: put it back'))return;
  act(()=>{const p=t.rejected.prev||{},o=orderKeys(),why=t.rejected.reason;delete t.rejected;t.emptied=p.emptied||null;t.onsite=p.onsite;t.fed=!!p.fed;t.carryIn={};
   if(p.pk0&&o.includes(p.pk0))attach(t,p.pk0);for(const k of Object.keys(p.carryIn||{}))if(o.includes(k)){t.carryIn[k]=p.carryIn[k];log('truck_carry',{truck:id,pk:k})}
@@ -968,7 +975,7 @@ function applyTimeout(id,reason,note,ydRaw,shown){const t=tk(id);if(!t||t.reject
  if(!(yd>=0))return msg('Enter the waste yd³ still on truck '+tname(t)+'.');
  if(c.rem!==null&&shown&&String(ydRaw).trim()===String(shown).trim())yd=Math.max(0,c.rem);
  reason=String(reason||'Timed out').trim()||'Timed out';note=String(note||'').trim();scanClose();
- act(()=>{const prev={waste:t.waste||'',wastePk:t.wastePk||null,left:t.left||'',emptied:t.emptied||null,departed:t.departed||null,active:S.active===t.id,fed:!!t.fed,carryIn:JSON.parse(JSON.stringify(t.carryIn||{})),carryEvs:[]};
+ withLeave(t,'TIMED OUT - left with waste',()=>act(()=>{const prev={waste:t.waste||'',wastePk:t.wastePk||null,left:t.left||'',emptied:t.emptied||null,departed:t.departed||null,active:S.active===t.id,fed:!!t.fed,carryIn:JSON.parse(JSON.stringify(t.carryIn||{})),carryEvs:[]};
   if(S.active===t.id){closeSeg();S.active=null}
   for(const k of Object.keys(t.carryIn))if(order.indexOf(k)>i)delete t.carryIn[k];
   S.ev.forEach(e=>{if(!e.undone&&e.type==='truck_carry'&&e.truck===t.id&&order.indexOf(e.pk)>i){e.undone=true;prev.carryEvs.push(e.id)}});
@@ -977,7 +984,7 @@ function applyTimeout(id,reason,note,ydRaw,shown){const t=tk(id);if(!t||t.reject
   const e=log('truck_timeout',{truck:t.id,yd:+yd.toFixed(3),reason,note,name:reason});
   const w=log('truck_waste',{truck:t.id,yd:+yd.toFixed(3),timeout:true,prevWaste:prev.waste,prevPk:prev.wastePk});
   t.leftWaste={reason,note,t:e.t,pk,yd:String(+yd.toFixed(3)),base,prev,ev:e.id,wasteEv:w.id};
-  msg('Truck '+tname(t)+' timed out and left with '+r1(yd)+' yd³ waste. It does not carry to the next pile.')});if(remOn())remRender()}
+  msg('Truck '+tname(t)+' timed out and left with '+r1(yd)+' yd³ waste. It does not carry to the next pile.')}))}
 function truckUntimeout(id){const t=tk(id);if(!t||!t.leftWaste||!twoTap('ut'+id,'ur-'+id,'Tap again: put it back'))return;
  act(()=>{const rec=t.leftWaste,p=rec.prev||{};t.waste=p.waste||'';t.wastePk=p.wastePk||null;t.left=p.left||'';t.emptied=p.emptied||null;t.departed=p.departed||null;t.fed=!!p.fed;
   if(p.carryIn)t.carryIn=JSON.parse(JSON.stringify(p.carryIn));
@@ -1302,7 +1309,7 @@ function remKey(k,hold){const P=S.pile;
  if(k===1){const d=nextLine(P);if(d==null)return remSay('All lines done');linePass();remSay('Passed '+d+' ft'+(lines(P).slice(-1)[0].c!=null?' at '+lines(P).slice(-1)[0].c:''))}
  else if(k===2){const n=remNext();if(n.k==='next'){if(!armed.remnp||Date.now()-armed.remnp>4000){armed.remnp=Date.now();return remSay('Press again to start the next pile')}delete armed.remnp;A.newPile();remSay('Pile '+(S.pile.id||'?')+' started')}
   else{A.stage(n.k);remSay(n.l+' '+ft(S.pile.st[n.k]))}}
- else if(k===3){if(hold){const t=tk(S.active)||S.trucks.filter(t=>!t.emptied&&!t.rejected).slice(-1)[0];if(!t)return remSay('No truck to empty');A.empty(t.id);remSay('Truck '+tname(t)+' empty '+ft(t.emptied))}
+ else if(k===3){if(hold){const t=tk(S.active)||S.trucks.filter(t=>!t.emptied&&!t.rejected&&!t.leftWaste).slice(-1)[0];if(!t)return remSay('No truck to empty');remAskEmpty(t.id);return}
   else{A.arrive();const t=S.trucks[S.trucks.length-1];remSay('Truck '+tname(t)+' arrived '+ft(t.arrived))}}
  else if(k===7){A.ret();const e=pev('grout_return').slice(-1)[0];remSay('Grout return time recorded');const v=prompt('Grout return depth (ft). Leave blank to enter later:','');if(v!==null&&v.trim()!==''&&Number.isFinite(Number(v))&&Number(v)>=0){A.setDepth(e.id,Number(v));remSay('Grout return '+v+' ft recorded')}else if(v!==null&&v.trim()!=='')remSay('Time saved; depth not valid — enter later');}
  else if(k===4){voiceOpen();return}
@@ -1317,10 +1324,42 @@ document.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;
  const PK=['5','p','P','b','B','.','F5','Escape'];
  if(pumpOn()){if(PK.includes(e.key)||[' ','Enter','ArrowRight','PageDown','ArrowDown'].includes(e.key)){e.preventDefault();pumpTap('key')}return}
  if(!remOn())return;let m={'1':1,'2':2,'3':3,'4':4,' ':5,'Enter':5,'ArrowRight':5,'PageDown':5,'ArrowDown':5,'ArrowLeft':1,'PageUp':1,'ArrowUp':1}[e.key];if(PK.includes(e.key))m=6;if(m===5&&S.noCount)m=6;if(!m)return;e.preventDefault();remKey(m,e.shiftKey)});
-// Small close-out buttons under the remote: one per truck still on site, feeding truck first. Tap = truck ended now.
+// Leaving a truck is its own block. Every button names the truck number and what will happen, and asks before it does it.
+const truckLabel=t=>t&&(t.num?String(t.num):('#'+(t.seq||'?')));
+let leaveUndo=null;
+function leaveCapture(t){return {id:t.id,emptied:t.emptied||null,departed:t.departed||null,fed:!!t.fed,left:t.left||'',waste:t.waste||'',wastePk:t.wastePk||null,pk0:t.pk0||null,onsite:!!t.onsite,carryIn:JSON.parse(JSON.stringify(t.carryIn||{})),rejected:t.rejected?JSON.parse(JSON.stringify(t.rejected)):null,leftWaste:t.leftWaste?JSON.parse(JSON.stringify(t.leftWaste)):null,pend:t.pend?JSON.parse(JSON.stringify(t.pend)):null}}
+function leaveApply(s){const t=tk(s.id);if(!t)return;t.emptied=s.emptied;t.departed=s.departed;t.fed=s.fed;t.left=s.left;t.waste=s.waste;t.wastePk=s.wastePk;t.pk0=s.pk0;t.onsite=s.onsite;t.carryIn=s.carryIn;if(s.rejected)t.rejected=s.rejected;else delete t.rejected;if(s.leftWaste)t.leftWaste=s.leftWaste;else delete t.leftWaste;if(s.pend)t.pend=s.pend;else delete t.pend}
+function withLeave(t,what,fn){const watch=[t];const nx=nextFeeder(t).ok;if(nx&&nx!==t)watch.push(nx);const before=watch.map(leaveCapture),active=S.active,seg=S.segStart,evBefore=S.ev.slice(),undone0=new Set(S.ev.filter(e=>e.undone).map(e=>e.id));
+ fn();const created=S.ev.filter(e=>!evBefore.includes(e)).map(e=>e.id),removed=evBefore.filter(e=>!S.ev.includes(e)),newly=S.ev.filter(e=>e.undone&&!undone0.has(e.id)).map(e=>e.id);
+ const rec={what,at:Date.now(),before,active,seg,created,removed,newly};
+ t.leavePrev=rec;leaveUndo={id:t.id,at:Date.now(),what,label:truckLabel(t)};
+ log('truck_leave',{truck:t.id,what,name:'Truck '+truckLabel(t)+' '+what});save();if(remOn())remRender()}
+function remBringBack(id){const t=tk(id);if(!t||!t.leavePrev)return msg('Truck '+(t?truckLabel(t):'')+' has no leaving record to undo.');
+ const rec=t.leavePrev;
+ act(()=>{rec.before.forEach(leaveApply);S.active=rec.active;S.segStart=rec.seg;
+  S.ev.forEach(e=>{if(rec.created.includes(e.id))e.undone=true;if(rec.newly.includes(e.id))delete e.undone});
+  rec.removed.forEach(e=>{if(!S.ev.includes(e))S.ev.push(e)});
+  delete t.leavePrev;log('truck_restore',{truck:t.id,what:rec.what,name:'Brought truck '+truckLabel(t)+' back'});
+  msg('Truck '+truckLabel(t)+' is back. Its yards are restored.')});
+ if(leaveUndo&&leaveUndo.id===id)leaveUndo=null;if(remOn())remRender()}
+function remAskEmpty(id){const t=tk(id);if(!t||t.emptied||t.rejected||t.leftWaste)return;const n=truckLabel(t);
+ if(!confirm('Truck '+n+' EMPTY - leaving\n\nTruck number '+n+' will be marked empty and leaving. Grout still on it will not carry to the next pile.'))return remSay('Truck '+n+' stayed');
+ withLeave(t,'EMPTY - leaving',()=>A.empty(id));remSay('Truck '+n+' EMPTY - leaving');if(remOn())remRender()}
+function remAskBack(id){const t=tk(id);if(!t)return;const n=truckLabel(t);
+ if(!confirm('Truck '+n+' SENT BACK\n\nTruck number '+n+' is sent back. If it has not pumped, the whole load comes off the yardage and it will not feed a pile.'))return remSay('Truck '+n+' stayed');
+ dispOpen(id,'back')}
+function remAskTimeout(id){const t=tk(id);if(!t)return;const n=truckLabel(t);
+ if(!confirm('Truck '+n+' TIMED OUT - left with waste\n\nTruck number '+n+' pumped, then left with grout still on board. That leftover becomes waste and does not carry to the next pile.'))return remSay('Truck '+n+' stayed');
+ dispOpen(id,'timeout')}
 function remTrucksH(){const at=tk(S.active),open=S.trucks.filter(t=>!t.emptied&&!t.rejected&&!t.leftWaste&&(t.pk0||t.onsite)).sort((a,b)=>(b===at)-(a===at));
- if(!open.length)return '<div id="rm-trucks" style="text-align:center;color:var(--mut);font-size:14px;flex:none">No trucks on site</div>';
- return `<div id="rm-trucks" class="rtrucks">${open.map(t=>`<div class="rtruck"><button class="sec" style="${t===at?'border-color:var(--red)':''}" onclick="remEnd('${t.id}')">End ${esc(tname(t))}</button><button class="sec" onclick="dispOpen('${t.id}','back')">Sent back</button><button class="sec" onclick="dispOpen('${t.id}','timeout')">Left w/ waste</button></div>`).join('')}</div>`}
+ const back=S.trucks.filter(t=>t.leavePrev);
+ const one=(t,label,fn)=>`<button class="sec rleave" onclick="${fn}('${t.id}')">${esc(label)}</button>`;
+ let h=`<div class="rleave-box" id="rm-trucks"><div class="rleave-title">Leaving a truck — asks first</div>`;
+ h+=open.length?open.map(t=>{const n=truckLabel(t);return `<div class="rleave-truck">${one(t,'Truck '+n+' EMPTY - leaving','remAskEmpty')}${one(t,'Truck '+n+' SENT BACK','remAskBack')}${one(t,'Truck '+n+' TIMED OUT - left with waste','remAskTimeout')}</div>`}).join(''):'<div style="text-align:center;color:var(--mut);font-size:14px">No truck on site</div>';
+ h+=back.map(t=>one(t,'Bring truck '+truckLabel(t)+' back','remBringBack')).join('');
+ if(leaveUndo&&Date.now()-leaveUndo.at<10000){const s=Math.max(1,Math.ceil((10000-(Date.now()-leaveUndo.at))/1000));
+  h+=`<div class="rleave-toast" id="rm-leave-undo"><span>Truck ${esc(leaveUndo.label)} ${esc(leaveUndo.what)}</span><button class="sec" onclick="remBringBack('${leaveUndo.id}')">Undo ${s}s</button></div>`}
+ return h+'</div>'}
 // Truck times screen: type or change any truck's arrival / empty / left-site time. The remote header button that opened this was removed on purpose. The truck card still edits the same times.
 function ttOpen(){const L=S.trucks.filter(t=>!t.rejected),at=tk(S.active),ord=[...L.filter(t=>t===at),...L.filter(t=>t!==at&&!t.emptied).reverse(),...L.filter(t=>t!==at&&t.emptied).reverse()];
  const box=(t,f,l)=>`<label style="flex:1;min-width:130px;font-size:22px"><small style="font-size:14px">${l}</small><input id="tt-${t.id}-${f}" type="time" value="${hm(t[f])}" style="width:100%;min-height:52px" onchange="ttSet('${t.id}','${f}',this.value)"></label>`;
@@ -1347,8 +1386,9 @@ function taSave(){const g=id=>String(($(id)||{}).value||'').trim(),num=g('ta-num
  if(feed&&!et)A.sw(t.id);scanClose();msg('Truck '+tname(t)+(t.pk0?' added on pile '+(S.pile.id||'?')+(feed&&!et?', feeding the pump':''):' added, waiting on site (it goes on the pile it feeds)')+'.');if(remOn())remRender();return true}
 function ttSet(id,f,v){const ok=A.setTime(id,f,v),t=tk(id),e=$('tt-'+id+'-err'),i=$('tt-'+id+'-'+f),m=$('tt-msg');if(e)e.textContent=ok?'':(tErr[id]||'');
  if(i&&t)i.value=hm(t[f]);if(m){m.style.color=ok?'':'var(--red)';m.textContent=ok?'✓ Truck '+tname(t)+(f==='arrived'?' arrived ':' empty ')+(t[f]?hm(t[f]):'cleared'):(tErr[id]||'')}if(remOn())remRender()}
-function remEnd(id){const t=tk(id);if(!t)return;A.empty(id);remSay('Truck '+tname(t)+' ended '+ft(t.emptied));remRender()}
+function remEnd(id){remAskEmpty(id)}
 function remTick(){if(!remOn())return;const P=S.pile,p=linePredict(P);
+ if(leaveUndo){const left=10000-(Date.now()-leaveUndo.at);const bar=$('rm-leave-undo');if(left<=0){leaveUndo=null;if(bar)bar.remove()}else if(bar){const b=bar.querySelector('button');if(b)b.textContent='Undo '+Math.ceil(left/1000)+'s'}}
  if(p&&p.at){const key=P.key+':'+p.d;if(depBuzzed!==key&&Date.now()>=p.at-BUZZ_AHEAD*1000){depBuzzed=key;buzz()}}
  const e=truckETA();if(e&&e.secs<=60){const k=e.t.id+':'+P.key;if(etaBuzzed!==k){etaBuzzed=k;buzz()}}
  const s=$('rm-stat');if(s)s.innerHTML=remStat();const fd=$('rm-feed');if(fd)fd.textContent=feedLine()}
@@ -1394,7 +1434,7 @@ function remRender(){const P=S.pile,n=remNext(),d=nextLine(P),key=(k,top,sub,ext
  <div class="rdev">
   <div class="rgrille" aria-hidden="true"></div>
   <div class="rgrid">
-   ${key(3,'Truck arrived','end trucks below')}
+   ${key(3,'Truck arrived','hold asks before emptying')}
    ${key(1,'Passed line',d!=null?d+' ft':'done')}
    ${key(2,n.l,n.k==='next'?'press twice':'tap when it happens')}
    ${key(4,'🎤 Speak','say a command')}
@@ -1402,8 +1442,8 @@ function remRender(){const P=S.pile,n=remNext(),d=nextLine(P),key=(k,top,sub,ext
   </div>
  <div class="remote-utility"><button class="sec remote-return" onclick="remKey(7)">↩ Grout return · <span style="white-space:nowrap">time + depth</span></button><button class="remote-sample" onclick="remSample()" aria-label="Record QC sample and choose truck"><span class="rtop">QC Sample</span><span class="rsub">select truck</span></button><button class="remote-sample" onclick="remUnSample()" aria-label="Undo a recorded QC sample"><span class="rtop">Un-sample</span><span class="rsub">remove mistaken</span></button></div>
  <div class="remote-links"><button class="sec" onclick="remForm()">View pile form</button><button class="sec" onclick="remQcForm()">View QC / truck form</button></div>
- ${remTrucksH()}
  <div class="remote-stroke-bottom">${S.noCount?'':key(5,`<span class="num" style="font-size:40px;line-height:1">${S.strokes}</span>`,'+1 stroke · hold: −1','','Add one stroke').replace('class="rkey"','class="rkey rstroke"')}</div>
+ ${remTrucksH()}
  </div>
  <div style="display:flex;justify-content:center;align-items:center;gap:10px;min-height:26px;flex:none"><div id="rm-last" style="font-weight:700;font-size:17px;visibility:${remLast?'visible':'hidden'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:75vw">✓ ${esc(remLast)}</div>${remLast?'<button class="sec" style="min-height:32px;padding:2px 10px;font-size:14px" onclick="undoAll();remLast=\'\';remRender()">Undo</button>':''}</div>
  <div id="rm-feed" style="flex:none;text-align:center;font-size:13px;color:var(--mut);min-height:18px;padding:0 0 env(safe-area-inset-bottom,0px)">${esc(feedLine())}</div></div>`}

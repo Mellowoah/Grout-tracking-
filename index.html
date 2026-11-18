@@ -110,7 +110,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v140';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v141';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -1121,7 +1121,7 @@ function remSample(){
 }
 function remForm(){remoteClose();showForm(S.pile.key,true)}
 function remRender(){const P=S.pile,n=remNext(),d=nextLine(P),key=(k,top,sub,extra='',al)=>`<button class="rkey" ${k===3||k===5?`onpointerdown="remDown(${k},event)" onpointerup="remUp(${k},event)" onpointerleave="clearTimeout(remHold)"`:`onclick="remKey(${k})"`} ${extra} aria-label="${al||top}"><span class="rtop">${top}</span>${sub?`<span class="rsub">${sub}</span>`:''}</button>`;
- $('remv').innerHTML=`<div class="rwrap"><div class="rhead"><b style="font-size:17px">Remote</b><span style="display:flex;gap:6px"><button class="sec" id="rm-help" aria-label="Remote help and color settings" title="Remote help and colors" style="padding:4px 8px;min-width:44px" onclick="remHelp()">▦</button><button class="sec" id="rm-tt" onclick="ttOpen()">🕑 Truck times</button><button class="sec" onclick="remoteClose()">Close</button></span></div>
+ $('remv').innerHTML=`<div class="rwrap"><div class="rhead"><b style="font-size:17px">Remote</b><span style="display:flex;gap:6px"><button class="sec" id="rm-help" aria-label="Remote colors and help" title="Choose remote color" style="padding:7px 12px;min-width:96px;min-height:48px;border:2px solid #ffd100;font-weight:700" onclick="remHelp()">🎨 Colors</button><button class="sec" id="rm-tt" onclick="ttOpen()">🕑 Truck times</button><button class="sec" onclick="remoteClose()">Close</button></span></div>
  <div id="rm-stat" class="card" style="padding:6px 10px;font-size:15px;margin:0;flex:none">${remStat()}</div>
  <div class="rdev">
   <div class="rgrille" aria-hidden="true"></div>
@@ -1140,7 +1140,7 @@ function remRender(){const P=S.pile,n=remNext(),d=nextLine(P),key=(k,top,sub,ext
  <div style="display:flex;justify-content:center;align-items:center;gap:10px;min-height:26px;flex:none"><div id="rm-last" style="font-weight:700;font-size:17px;visibility:${remLast?'visible':'hidden'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:75vw">✓ ${esc(remLast)}</div>${remLast?'<button class="sec" style="min-height:32px;padding:2px 10px;font-size:14px" onclick="undoAll();remLast=\'\';remRender()">Undo</button>':''}</div>
  <div id="rm-feed" style="flex:none;text-align:center;font-size:13px;color:var(--mut);min-height:18px;padding:0 0 env(safe-area-inset-bottom,0px)">${esc(feedLine())}</div></div>`}
 // keypad / clicker help (was a paragraph under the remote; now behind ⌨︎ Keys so the remote fits the screen)
-function remHelp(){scanShow(`<h2 style="margin:4px 0 12px">Remote controls &amp; colors</h2>
+function remHelp(){scanShow(`<h2 style="margin:4px 0 12px">🎨 Remote colors &amp; help</h2>
  <div class="card"><b>Remote color wheel</b><p style="margin:6px 0 12px;color:var(--mut)">Tap the color square to open your phone's color wheel. Changes preview on the remote and save automatically.</p>
  <div class="row" style="align-items:center;gap:12px"><input type="color" id="rm-color" aria-label="Choose remote color" style="width:88px;height:68px;min-height:68px;padding:4px;border-radius:14px" value="${esc(/^#[0-9a-f]{6}$/i.test(S.remoteColor||'')?S.remoteColor:'#e4e4e1')}" oninput="remoteColorPreview(this.value)" onchange="remoteColorSave(this.value)"><button class="sec" style="min-height:52px" onclick="remoteColorSave('#e4e4e1');document.getElementById('rm-color').value='#e4e4e1'">Reset silver</button></div></div>
  <div class="card"><b>What each button does</b><p>Passed line records a depth mark. Next stage records drill, grout, and reinforcement times. Truck arrived logs a new truck; hold to end the active truck. Speak opens voice entry. Pump switches pumping on/off. Stroke adds one; hold to subtract one.</p><p>Grout return records the return time and asks for depth. Sample records QC against your selected truck. Form links open the editable inspection sheet.</p></div>

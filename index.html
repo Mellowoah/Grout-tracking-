@@ -56,6 +56,31 @@ h2{font:800 22px "Barlow Condensed",system-ui,sans-serif;margin:18px 0 6px}
 input{font:500 16px Barlow,system-ui,sans-serif;padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);width:100%}
 .row input{flex:1;min-width:90px}.flag{color:var(--red);font-weight:700}
 table{width:100%;border-collapse:collapse;font-size:14px}td,th{padding:4px;border-bottom:1px solid var(--line);text-align:left}
+/* Three day boards: sticky header, sticky id column, sideways swipe, white edit boxes. */
+.daysec{margin:12px 0 16px;border:3px solid var(--ink);border-radius:12px;overflow:hidden;background:var(--card)}
+.daysec h2{margin:0;padding:10px 12px;color:#fff;font-size:28px;display:flex;align-items:center;gap:10px}
+.daysec.trucks h2{background:#143a66}
+.daysec.piles h2{background:#8a5a00}
+.daysec.samples h2{background:#0d5c3d}
+.daysec .secico{font-size:30px;line-height:1}
+.daysec .secsub{margin:0;padding:6px 12px;background:#fff;color:#0d1b2a;font:700 14px/1.3 Barlow,system-ui,sans-serif}
+.daysec .daytools{display:flex;gap:6px;padding:8px;background:var(--card)}
+.daysec .daytools button{flex:1;min-height:48px;font-size:16px}
+.board{overflow:auto;max-height:68vh;-webkit-overflow-scrolling:touch;background:#fff}
+.board table{border-collapse:separate;border-spacing:0;width:max-content;min-width:100%;font-size:15px}
+.board th{position:sticky;top:0;background:#0d1b2a;color:#fff;z-index:3;font:700 13px Barlow,system-ui,sans-serif;white-space:nowrap;padding:8px 6px}
+.board td{padding:4px;border-bottom:1px solid #c9d1d9;background:#fff;color:#0d1b2a;vertical-align:middle}
+.board tr.row-active td{background:#ffe600}
+.board tr.row-done td{background:#d3d6da}
+.board tr.row-future td{background:#fff}
+.board td:first-child,.board th:first-child{position:sticky;left:0;z-index:4;min-width:92px;box-shadow:2px 0 0 rgba(13,27,42,.15)}
+.board th:first-child{z-index:5;background:#0d1b2a}
+.board tr.row-active td:first-child{background:#ffe600}
+.board tr.row-done td:first-child{background:#d3d6da}
+.board tr.row-future td:first-child{background:#fff}
+.board input,.board select{background:#fff;color:#0d1b2a;border:1px solid #6b7c99;min-width:72px;min-height:44px;padding:6px;border-radius:6px;width:100%}
+.board button.xdel{min-width:44px;min-height:44px;padding:4px 8px;background:#fff;color:#d00000;font-size:20px}
+.board .idcell{font-weight:800;white-space:nowrap}
 .wrap{overflow-x:auto}
 #tray{position:fixed;left:0;right:0;bottom:0;background:var(--tray);color:#fff;border-top:1px solid var(--line);padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));z-index:9}
 #tray.min #trayBody{display:none}
@@ -256,7 +281,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 </head><body>
 
 <div id="alert"></div><button id="errb" hidden style="width:100%;border-radius:0;background:var(--red);color:#fff;border:0;min-height:48px" onclick="reportOpen()">Something went wrong. Tap to send a report</button>
-<header><div style="display:flex;justify-content:flex-end;gap:10px;margin-bottom:4px"><button class="sec rnd" onclick="remoteOpen()" aria-label="Remote">▦</button><button class="sec rnd" onclick="voiceOpen()" aria-label="Voice command">🎤</button><button class="sec rnd" onclick="topMenu()" aria-label="Upload forms and more">☰</button></div><div class="stat" id="stat"></div><div id="save">Loading…</div><div id="msg" hidden></div><button id="undoNP" class="sec" hidden style="width:100%;margin-top:6px;min-height:44px" onclick="A.undoPile()">Undo new pile</button></header>
+<header><div style="display:flex;justify-content:flex-end;gap:10px;margin-bottom:4px"><button class="sec rnd" onclick="remoteOpen()" aria-label="Remote">▦</button><button class="sec rnd" onclick="voiceOpen()" aria-label="Voice command">🎤</button><button class="sec rnd" onclick="topMenu()" aria-label="Upload forms and more">☰</button></div><div class="stat" id="stat"></div><div id="save">Loading…</div><div id="msg" hidden></div><button id="undoNP" class="sec" hidden style="width:100%;margin-top:6px;min-height:44px" onclick="A.undoPile()">Undo new pile</button><button id="undoSW" class="sec" hidden style="width:100%;margin-top:6px;min-height:44px" onclick="undoSwitch()">Undo auto switch</button></header>
 <main id="app"></main>
 <div id="tray"><div class="top"><div><b style="font-size:20px">Pile <span id="tp"></span></b><div class="num" id="cnt">0</div></div>
 <div class="row" style="flex-wrap:nowrap"><button class="sec" style="font-size:15px;padding:6px 8px;white-space:nowrap" onclick="endDayOpen()">End day</button><button class="sec" id="npTray" style="font-size:15px;padding:6px 8px;white-space:nowrap" onclick="A.newPile()" aria-label="Finish pile and start next">Next pile ▸</button><button class="sec" style="padding:6px 10px" id="fold" aria-label="Fold counter">▾</button></div></div>
@@ -269,7 +294,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v157';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v159';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -341,7 +366,7 @@ const seg=()=>Math.max(0,S.strokes-S.segStart);
 function tStrokes(t){return t.strokes+(S.active===t.id?seg():0)}
 function strokesOn(t,pk){return (t.ps[pk]||0)+(S.active===t.id&&pk===S.pile.key?seg():0)}
 // Close the feeding truck's current stroke segment onto this pile
-function closeSeg(){const t=tk(S.active);if(t){const d=seg();t.strokes+=d;t.ps[S.pile.key]=(t.ps[S.pile.key]||0)+d}S.segStart=S.strokes}
+function closeSeg(){const t=tk(S.active);if(t){const d=seg();if(d>0){noteFeed(t,S.pile.key);t.strokes+=d;t.ps[S.pile.key]=(t.ps[S.pile.key]||0)+d}}S.segStart=S.strokes}
 // About how many strokes a truck has left at the pump calibration
 const sLeft=rem=>rem!==null&&calYd()>0?Math.max(0,Math.floor(rem/calYd())):null;
 // Sample yd³ taken off a truck: its own value if set, else the Settings default
@@ -364,7 +389,7 @@ const num=v=>v===undefined||v===null||v===''?null:(parseFloat(v)||0);
 // Strokes confirmed with the contractor: agreed total, else contractor count, else my count
 // Piles in the order they were worked (you can reopen an older pile, so the current one isn't always last)
 const allPiles=()=>[...S.piles,S.pile].sort((a,b)=>(a.n??0)-(b.n??0));
-const orderKeys=()=>allPiles().map(p=>p.key);
+const orderKeys=()=>allPiles().filter(p=>!p.archived).map(p=>p.key);
 const maxN=()=>Math.max(...allPiles().map(p=>p.n??0));
 const isLatest=()=>(S.pile.n??0)>=maxN();
 const latestPile=()=>allPiles().slice(-1)[0];
@@ -403,20 +428,23 @@ function recon(pk){const my=pileRec(pk).strokes||0,cs=confStrokes(pk),cy=calYd()
  if(d>0){for(let i=li;i<ord.length&&d>1e-6;i++){const t=tk(ord[i]);if(t.rejected||num(t.used[pk])!==null)continue;const ob=cy>0?onBoard(t,pk):Infinity,cap=ob===Infinity?Infinity:Math.max(0,ob/cy-out[ord[i]]),take=Math.min(d,cap);out[ord[i]]+=take;d-=take}}
  else if(d<0){for(let i=ord.length-1;i>=0&&d<-1e-6;i--){const take=Math.min(-d,out[ord[i]]);out[ord[i]]-=take;d+=take}}
  Object.defineProperty(out,'_gap',{value:ord.length&&Math.abs(d)>1e-6?d:0});Object.defineProperty(out,'_ord',{value:ord});return out}
-function feedOrder(pk){const seen=[],add=id=>{if(id&&tk(id)&&!seen.includes(id))seen.push(id)};
- for(const e of pev(null,pk))if(e.type==='truck_switch')add(e.truck);
+function feedOrder(pk){const seen=[],add=id=>{const t=id&&tk(id);if(!t||t.rejected||t.archived||seen.includes(t.id))return;seen.push(t.id)};
+ for(const e of pev(null,pk))if(e.type==='truck_switch'&&!e.undone)add(e.truck);
  if(pk===S.pile.key)add(S.active);
- 
  // Imported field sheets have pile totals and truck arrival times, but often no
- // pump-switch events. Allocate against eligible loads in chronological arrival order.
+ // pump-switch events. Only loads that actually supplied this pile are eligible.
  const p=pileRec(pk),g=stages(p).groutStart,at=g&&g.t||null;
- S.trucks.filter(t=>!t.rejected&&num(t.qty)!==null&&(num(t.used[pk])!==null||((t.ps||{})[pk]||0)>0)&&(!at||!arrOf(t)||arrOf(t)<=at))
-  .sort((x,y)=>(arrOf(x)||Infinity)-(arrOf(y)||Infinity)||(x.seq||0)-(y.seq||0))
+ S.trucks.filter(t=>!t.rejected&&!t.archived&&num(t.qty)!==null&&(pumpedHere(t,pk)||num(t.used[pk])>0.005)&&(!at||!arrOf(t)||arrOf(t)<=at))
+  .sort((x,y)=>(x.arrived||arrOf(x)||Infinity)-(y.arrived||arrOf(y)||Infinity)||(x.seq||0)-(y.seq||0))
   .forEach(t=>add(t.id));
- 
  return seen}
-function onBoard(t,pk){const order=orderKeys(),i=order.indexOf(pk),q=parseFloat(t.qty);if(!(q>=0))return Infinity;
- if(t.pk0===pk||i<=0)return q-sy(t);const prev=leftAfter(t,order[i-1]);return prev===null?Infinity:Math.max(0,prev)}
+function onBoard(t,pk){if(!t||t.rejected||t.archived)return 0;const order=orderKeys(),i=order.indexOf(pk),q=parseFloat(t.qty);if(!(q>=0))return 0;
+ if(t.leftWaste&&t.wastePk&&order.indexOf(t.wastePk)>=0&&order.indexOf(t.wastePk)<i)return 0;
+ if(i>0&&order.slice(0,i).some(k=>emptyOn(t,k)))return 0;
+ const prior=i>0&&order.slice(0,i).some(k=>pumpedHere(t,k)||num(t.used[k])>0.005);
+ // Pile 1 used to treat every truck on site as full. A truck holds its ticket here only once it is actually feeding this pile.
+ if(!prior){const onThis=pumpedHere(t,pk)||t.pk0===pk||(pk===S.pile.key&&S.active===t.id)||num(t.used[pk])>0.005;if(!onThis)return 0;return Math.max(0,q-sy(t))}
+ const prev=leftAfter(t,order[i-1]);return prev===null?Infinity:Math.max(0,prev)}
 function seqAlloc(pk){const all=feedOrder(pk),c=confStrokes(pk).n,cy=calYd(),out={};let rest=c;
  const ids=all.filter(id=>{const u=num(tk(id).used[pk]);if(u!==null&&cy>0){out[id]=u/cy;rest-=u/cy;return false}return true});
  rest=rest<0.5?0:rest;
@@ -425,6 +453,33 @@ function seqAlloc(pk){const all=feedOrder(pk),c=confStrokes(pk).n,cy=calYd(),out
  Object.defineProperty(out,'_gap',{value:Math.max(0,rest)});
  return out}
 function usedOn(t,pk){const m=num(t.used[pk]);if(m!==null)return m;const n=confOn(t,pk);if(!n)return 0;const c=calYd();return c>0?n*c:null}
+// Yards a truck can still put on this pile, ignoring whatever strokes are already stored on this pile.
+function yardsBefore(t,pk){if(!t||t.rejected||t.archived||t.leftWaste)return 0;const q=parseFloat(t.qty);if(!(q>=0))return 0;let rem=q-sy(t);const order=orderKeys(),i=order.indexOf(pk);
+ for(const k of order.slice(0,Math.max(0,i))){const u=usedOn(t,k);if(u===null)return 0;rem-=u;if(t.wastePk===k)rem-=parseFloat(t.waste)||0;if(emptyOn(t,k))return 0}
+ return Math.max(0,rem)}
+// A typed pile stroke count (180, contractor count, agreed total) is drawn from the trucks
+// already feeding that pile, then from the next arrived truck. The split is saved on the trucks.
+function balancePileStrokes(pk){const n=Math.round(confStrokes(pk).n||0);if(!(n>=0))return;const cy=calYd(),ids=[],add=id=>{const t=tk(id);if(!t||t.rejected||t.archived||t.leftWaste||ids.includes(id))return;ids.push(id)};
+ feedOrder(pk).forEach(add);
+ const waiting=()=>S.trucks.filter(t=>!t.rejected&&!t.archived&&!t.leftWaste&&!t.emptied&&!ids.includes(t.id)&&(t.onsite||t.arrived)&&!(t.arrived&&t.arrived>Date.now()+60000));
+ const after=t=>t?(t.arrived||0)*1000+(t.seq||0):-1;
+ let guard=0;while(guard++<50){const cursor=ids.length?tk(ids[ids.length-1]):null,line=after(cursor);
+  const nx=waiting().filter(t=>after(t)>line).sort((a,b)=>after(a)-after(b))[0];if(!nx)break;ids.push(nx.id)}
+ const old={};S.trucks.forEach(t=>{old[t.id]=(t.ps&&t.ps[pk])||0});
+ const take={};let rest=n;
+ for(const id of ids){if(rest<=0){take[id]=0;continue}const y=yardsBefore(tk(id),pk),cap=cy>0?Math.floor(y/cy+1e-6):rest,got=Math.min(rest,Math.max(0,cap));take[id]=got;rest-=got}
+ for(const t of S.trucks){const got=take[t.id]||0;if(!got){if(t.ps&&t.ps[pk])delete t.ps[pk]}else{t.ps=t.ps||{};t.ps[pk]=got;noteFeed(t,pk)}
+  t.strokes=orderKeys().reduce((a,k)=>a+((t.ps&&t.ps[k])||0),0);
+  if(!got)pev('truck_switch',pk).forEach(e=>{if(e.truck===t.id&&e.auto&&e.source==='stroke count')e.undone=true})}
+ const used=ids.filter(id=>(take[id]||0)>0);
+ for(let i=1;i<used.length;i++){if(!pev('truck_switch',pk).some(e=>!e.undone&&e.truck===used[i]))log('truck_switch',{truck:used[i],from:used[i-1],auto:true,source:'stroke count',pk,pile:pname(pk),at:used.slice(0,i).reduce((a,id)=>a+(take[id]||0),0)})}
+ const live=pk===S.pile.key,p=live?S.pile:S.piles.find(x=>x.key===pk);
+ if(live){S.strokes=n;S.segStart=n;if(p)p.tapped=true;const last=used.length?tk(used[used.length-1]):null;S.active=last?last.id:S.active}
+ else if(p)p.strokes=n;
+ const parts=used.map(id=>tname(tk(id))+' '+((take[id]||0))+' str');
+ log('edit',{field:'pump strokes',pk,pile:pname(pk),to:n,note:parts.join(', ')||'none'});
+ if(rest>0)msg(n+' strokes: '+parts.join(', ')+'. '+(rest)+' strokes do not fit on the trucks that are here.')
+ else if(parts.length)msg(n+' strokes drawn from '+parts.join(', ')+'.')}
 // Grout left on a truck at the end of a given pile (piles in the order worked).
 // Shown to 0.001. The extra 0.001 that used to be taken off a carry was removed in v100.
 // An undone empty or waste event no longer counts, so bringing a truck back restores the carry.
@@ -439,8 +494,8 @@ function deliveryPile(t){const keys=orderKeys().filter(k=>(usedOn(t,k)||0)>0||pe
  return keys.length?keys[keys.length-1]:(t.pk0||null)}
 // a truck is on a pile if something happened to it there (an edit to its details doesn't count)
 // a truck waiting on site counts for the current pile only once the strokes say it was used here
-const onsiteUsed=(t,pk)=>!t.pk0&&t.onsite&&!t.emptied&&pk===S.pile.key&&(usedOn(t,pk)||0)>0;
-const pileTrucks=pk=>S.trucks.filter(t=>pev(null,pk).some(e=>e.truck===t.id&&!['edit','truck_onsite','truck_reject','truck_unreject'].includes(e.type))||onsiteUsed(t,pk));
+const onsiteUsed=(t,pk)=>!t.pk0&&t.onsite&&!t.emptied&&pk===S.pile.key&&pumpedHere(t,pk);
+const pileTrucks=pk=>S.trucks.filter(t=>supplies(t,pk));
 function usedAll(t){let tot=0;for(const k of orderKeys()){const u=usedOn(t,k);if(u===null)return null;tot+=u}return tot}
 const pname=k=>k===S.pile.key?S.pile.id:((S.piles.find(p=>p.key===k)||{}).id||'?');
 // Stage times: anything tapped/typed wins; gaps are filled from the field rules
@@ -550,25 +605,30 @@ function stroke(d){if(d<0&&S.strokes===0)return;S.strokes+=d;S.ctrAt=Date.now();
 // It is only closed when you tap Empty, or confirm the tag (asked once the next pile starts).
 // A truck that can take over the pump: on site (or attached), not empty, not sent back, not waiting on an empty check, not
 // arriving later. One past its batch-time limit is never picked by itself.
-const pastLimit=x=>{const c=cutoff(x);return c!==null&&c<Date.now()};
-function nextFeeder(t){const c=S.trucks.filter(x=>x!==t&&!x.emptied&&!x.rejected&&!x.leftWaste&&!x.pend&&(x.pk0||x.onsite)&&!(x.arrived&&x.arrived>Date.now()+60000)).sort((a,b)=>(arrOf(a)||Infinity)-(arrOf(b)||Infinity)||(a.seq||0)-(b.seq||0));
- return{ok:c.find(x=>!pastLimit(x)),late:c.find(pastLimit)}}
+// Next truck is the next one that has actually arrived, in arrival order.
+// Sent back, timed out, emptied and archived trucks are skipped. A truck that is only waiting is eligible once it has arrived.
+function nextFeeder(t){const now=Date.now();const c=S.trucks.filter(x=>x!==t&&!x.emptied&&!x.rejected&&!x.leftWaste&&!x.archived&&!x.pend&&(x.onsite||x.arrived)&&!(x.arrived&&x.arrived>now+60000)).sort((a,b)=>(a.arrived||Infinity)-(b.arrived||Infinity)||(a.seq||0)-(b.seq||0));
+ return{ok:c[0]||null,late:null}}
 function autoHandoff(){const t=tk(S.active);if(!t||t.pend||t.noPend||!(calYd()>0)||!(parseFloat(t.qty)>0)||num(t.used[S.pile.key])!==null)return;const c=calc(t);if(c.rem===null||c.rem>0)return;
  const pk=S.pile.key,cy=calYd(),n=strokesOn(t,pk),bnd=Math.max(0,Math.floor((c.rem+n*cy)/cy+1e-9)),over=Math.max(0,Math.round(n-bnd));
  closeSeg();if(over){t.ps[pk]=(t.ps[pk]||0)-over;t.strokes-=over}
- S.segStart=S.strokes-over;const now=Date.now(),{ok:nx,late}=nextFeeder(t);
+ S.segStart=S.strokes-over;const now=Date.now(),nx=nextFeeder(t).ok;
  t.pend={t:now,pk,strokes:S.strokes-over,est:true};t.pumpOutAt=now;t.pumpOutPk=pk;
  log('truck_maybe_empty',{truck:t.id,boundary:bnd,estimatedPumpOut:now});
  S.active=null;
- if(nx){attach(nx,pk);S.active=nx.id;nx.fed=true;log('truck_switch',{truck:nx.id,from:t.id,auto:true,est:true,at:S.strokes-over,depth:nextMark()??null,pumpOutAt:now});msg('Estimated pump handoff at '+ft(now)+': truck '+tname(t)+' ran out at stroke '+bnd+'; now allocating to truck '+tname(nx)+'. Confirm the actual empty time and record departure separately.')}
- else{S.orphan=(S.orphan||0)+over;msg('Truck '+tname(t)+' estimated out at '+ft(now)+'. '+(late?'Next truck is past its batch limit; select Feed pump manually.':'No eligible truck waiting.')+' '+over+' strokes held unassigned.')}
- save();render();vib()}
+ if(nx){S.active=nx.id;if(over>0)noteFeed(nx,pk);log('truck_switch',{truck:nx.id,from:t.id,auto:true,est:true,at:S.strokes-over,depth:nextMark()??null,pumpOutAt:now,over});
+  msg('Truck '+tname(t)+' is empty at stroke '+bnd+'. Now feeding truck '+tname(nx)+(over>0?' ('+over+' strokes on this pile)':'')+'. Undo if that switch is wrong.')}
+ else{S.orphan=(S.orphan||0)+over;msg('Truck '+tname(t)+' is empty at stroke '+bnd+'. No truck has arrived to take over. '+over+' strokes are not on a truck yet.')}
+ histLabel='auto truck switch';save();render();showUndoSwitch();vib()}
+let undoSwT;
+function showUndoSwitch(){const u=$('undoSW');if(!u)return;u.hidden=false;clearTimeout(undoSwT);undoSwT=setTimeout(()=>{u.hidden=true},20000)}
+function undoSwitch(){if(!hist.length)return msg('Nothing to undo.');const lab=hist[hist.length-1].lab;undoAll();const t=tk(S.active);if(t)t.noPend=true;$('undoSW').hidden=true;log('edit',{field:'automatic truck switch',from:lab||'auto',to:'undone',truck:t?t.id:null});save();render();msg('Undid the automatic switch'+(t?' — truck '+tname(t)+' stays on the pump until you switch or empty it.':'.'))}
 $('fold').onclick=()=>{$('tray').classList.toggle('min');$('fold').textContent=$('tray').classList.contains('min')?'▴':'▾'};
 
 const armed={};
 function twoTap(k,btnId,label){if(Date.now()-(armed[k]||0)>4000){armed[k]=Date.now();const b=$(btnId);if(b)b.textContent=label||'Tap again to confirm';setTimeout(render,4200);return false}armed[k]=0;return true}
 const A={
- newPile(want){if(!isLatest()){const L=latestPile();A.openPile(L.key);return}undoSnap=JSON.stringify(S);for(const t of S.trucks)if(onsiteUsed(t,S.pile.key))attach(t,S.pile.key);if(fc){clearInterval(fcT);fc=null}let done='';act(()=>{closeSeg();const ok=S.pile.key;done='Pile '+(S.pile.id||'?')+' done: '+(pileTrucks(ok).map(t=>'truck '+tname(t)+' '+(usedOn(t,ok)===null?'?':r1(usedOn(t,ok)))+' yd³').join(', ')||'no trucks')+'. ';const loose=S.trucks.filter(t=>!t.emptied&&!t.pk0&&(t.onsite||!arrOf(t)||arrOf(t)<=Date.now()));const open=S.trucks.filter(t=>!t.emptied&&!t.rejected&&!t.leftWaste&&t.pk0&&!t.pend&&(S.active===t.id||((t.ps||{})[S.pile.key]>0||num(t.used[S.pile.key])>0)&&calc(t).rem>0)).map(t=>{const c=calc(t);return[t,c.rem!==null?c.rem:(c.q>=0&&usedAll(t)===0?c.q:null)]});
+ newPile(want){if(!isLatest()){const L=latestPile();A.openPile(L.key);return}undoSnap=JSON.stringify(S);for(const t of S.trucks)if(onsiteUsed(t,S.pile.key))attach(t,S.pile.key);if(fc){clearInterval(fcT);fc=null}let done='';act(()=>{closeSeg();const ok=S.pile.key;done='Pile '+(S.pile.id||'?')+' done: '+(pileTrucks(ok).map(t=>'truck '+tname(t)+' '+(usedOn(t,ok)===null?'?':r1(usedOn(t,ok)))+' yd³').join(', ')||'no trucks')+'. ';const loose=[];const open=S.trucks.filter(t=>{if(t.emptied||t.rejected||t.leftWaste||t.archived||t.pend)return false;const here=pumpedHere(t,S.pile.key)||num(t.used[S.pile.key])>0.005;const prior=orderKeys().slice(0,orderKeys().indexOf(S.pile.key)).some(k=>pumpedHere(t,k)||num(t.used[k])>0.005);if(!here&&!prior)return false;const rem=calc(t).rem;return rem===null||rem>0.005}).map(t=>{const c=calc(t);return[t,c.rem!==null?c.rem:(c.q>=0&&usedAll(t)===0?c.q:null)]});
   // a truck the strokes say ran out here isn't carried on: it's flagged so you can confirm it empty (at this pile's grout finish)
   {const gf=stages().groutFinish;for(const [t,yd] of open.filter(([t,yd])=>yd!==null&&yd<=0.005&&usedOn(t,S.pile.key)>0)){t.pend={t:gf?gf.t:Date.now(),pk:S.pile.key};log('truck_maybe_empty',{truck:t.id})}}
   for(let i=open.length-1;i>=0;i--)if(open[i][0].pend&&!open[i][0].noPend)open.splice(i,1);
@@ -591,7 +651,7 @@ const A={
  sw(id){const t=tk(id);if(!t)return msg('No truck yet. Add a truck (times optional) or tap Truck arrived.');if(t.rejected)return msg('Truck '+tname(t)+' was sent back. It cannot feed the pump.');if(t.leftWaste)return msg('Truck '+tname(t)+' timed out and left with waste. It cannot feed the pump.');act(()=>{attach(t,S.pile.key);const o=tk(S.active);closeSeg();S.active=id;S.segStart=S.strokes;t.fed=true;log('truck_switch',{truck:id,from:o?o.id:null,depth:nextMark()??null})})},
  next(){const t=S.trucks.find(t=>!t.fed&&!t.emptied);if(!t)return msg('No truck yet. Add a truck (times optional) or tap Truck arrived.');A.sw(t.id)},
  depart(id){const t=tk(id);if(!t)return;act(()=>{t.departed=Date.now();log('truck_departed',{truck:id,estimatedPumpOut:t.pumpOutAt||null});msg('Truck '+tname(t)+' left site at '+ft(t.departed)+'.')})},
- empty(id){let nxMsg='';act(()=>{const t=tk(id),wasA=S.active===id;if(wasA){closeSeg();S.active=null}if(!t.pk0&&t.onsite)attach(t,S.pile.key);t.emptied=Date.now();log('truck_empty',{truck:id});if(wasA){const nf=nextFeeder(t),nx=nf.ok;if(!nx&&nf.late)nxMsg='Truck '+tname(t)+' empty. Truck '+tname(nf.late)+' is past its batch time, so it wasn\'t started: tap Feed pump on it to use it anyway.';if(nx){attach(nx,S.pile.key);S.active=nx.id;S.segStart=S.strokes;nx.fed=true;log('truck_switch',{truck:nx.id,from:id,auto:true,at:S.strokes,depth:nextMark()??null});nxMsg='Truck '+tname(t)+' empty. Now allocating pump strokes to truck '+tname(nx)+'.'}}});if(nxMsg)msg(nxMsg)},
+ empty(id){let nxMsg='';act(()=>{const t=tk(id),wasA=S.active===id;if(wasA){closeSeg();S.active=null}if(!t.pk0&&pumpedHere(t,S.pile.key))attach(t,S.pile.key);t.emptied=Date.now();log('truck_empty',{truck:id});if(wasA){const nx=nextFeeder(t).ok;if(nx){S.active=nx.id;S.segStart=S.strokes;log('truck_switch',{truck:nx.id,from:id,auto:true,at:S.strokes,depth:nextMark()??null});nxMsg='Truck '+tname(t)+' empty. Truck '+tname(nx)+' is next. It joins this pile when it pumps.'}else nxMsg='Truck '+tname(t)+' empty. No arrived truck is waiting.'}});if(nxMsg)msg(nxMsg)},
  // Leftover on truck dumped: becomes waste on this pile and the truck is done
  waste(id){const t=tk(id),c=calc(t);if(c.rem===null)return msg('Enter the load and used yd³ first so the leftover can be worked out.');
   act(()=>{const e=log('truck_waste',{truck:id,yd:c.rem,prevWaste:t.waste,prevPk:t.wastePk||null,prevEmptied:t.emptied,prevActive:S.active===id});
@@ -630,7 +690,7 @@ const A={
  stageReset(k){if(k!=='drillStart')return;const prev=S.pile.st&&S.pile.st[k];if(!prev)return msg('No recorded drill start to reset.');if(!confirm('Clear the accidental Drill start time? You can tap Drill start again when drilling actually begins. The correction stays in the history.'))return;act(()=>{delete S.pile.st[k];S.pile.resetStages=S.pile.resetStages||{};S.pile.resetStages[k]=true;log('edit',{field:k,from:prev,to:'cleared accidental tap'});msg('Drill start cleared. Tap Drill start when work begins.')})},
  stageMiss(k){act(()=>{S.pile.missedStages=S.pile.missedStages||{};S.pile.missedStages[k]=Date.now();log('stage_missing',{name:k,enteredLater:false});msg('Marked '+k+' missed. Keep working; enter its time later if available.')})},
  stageSet(k,v){if(!v){delete S.pile.st[k]}else{const [h,m]=v.split(':').map(Number);const d=new Date(S.pile.st[k]||Date.now());d.setHours(h,m,0,0);S.pile.st[k]=d.getTime();if(S.pile.missedStages)delete S.pile.missedStages[k];if(S.pile.resetStages)delete S.pile.resetStages[k];log('stage',{name:k,edited:true})}save();render()},
- pset(f,v){const o=S.pile[f];pHist(S.pile,f,o,v);S.pile[f]=v;save();render()},
+ pset(f,v){const o=S.pile[f];pHist(S.pile,f,o,v);S.pile[f]=v;if((f==='opCount'||f==='reviewed'||f==='myCount')&&num(v)!==null)balancePileStrokes(S.pile.key);save();render()},
  // D10: fix a counter reading at a depth line (cumulative); the bands either side follow, the first reading is kept
  lineSet(i,v){const P=S.pile,L=lines(P),l=L[i];if(!l)return;const nv=v===''||v==null?null:Number(v);if(nv!==null&&!(nv>=0))return msg('“'+v+'” isn\'t a counter reading.');if(nv===l.c)return;
   act(()=>{if(!('orig' in l))l.orig=l.c;const from=l.c;l.c=nv;l.fixed=Date.now();log('edit',{field:'reading at '+l.d+' ft',from:from??'',to:nv??''});
@@ -652,7 +712,7 @@ const A={
    log('open_pile');msg(isLatest()?'Back on pile '+(S.pile.id||'?')+'.':'Now on pile '+(S.pile.id||'?')+'. Changes save to this pile. Tap Back to '+(latestPile().id||'latest')+' when done.')});scrollTo(0,0)},
  confirmEmpty(id){const t=tk(id);if(!t||!t.pend)return;act(()=>{if(S.active===id){closeSeg();S.active=null}t.emptied=t.pend.t;log('truck_empty',{truck:id,pk:t.pend.pk,confirmed:true});delete t.pend;msg('Truck '+tname(t)+' marked empty at '+ft(t.emptied)+'.')})},
  notEmpty(id){const t=tk(id);if(!t)return;act(()=>{delete t.pend;t.noPend=true;msg('Truck '+tname(t)+' kept open.')})},
- oldSet(k,f,v){const p=S.piles.find(x=>x.key===k);if(p){pHist(p,f,p[f],v);p[f]=v;save();render()}},
+ oldSet(k,f,v){const p=S.piles.find(x=>x.key===k);if(p){pHist(p,f,p[f],v);p[f]=v;if((f==='opCount'||f==='reviewed'||f==='myCount')&&num(v)!==null)balancePileStrokes(k);save();render()}},
  setBand(k,v){const P=S.pile;P.bandIn=P.bandIn||{};const o=P.bandIn[k];if(v===''||v==null)delete P.bandIn[k];else P.bandIn[k]=Number(v);log('edit',{field:'band '+k,from:o??'',value:v});save();render()},
  // Key in a truck after the fact: no times stamped, you type batch / arrival / empty
  sampleRep(id,v){act(()=>{const t=tk(id);t.sampleRep={v,t:Date.now(),pk:S.pile.key};if(v==='taken'){if(!sHere(t))takeSample(t)}else log('sample_not_taken',{truck:id});msg('Sample on truck '+tname(t)+' reported: '+(v==='taken'?'taken':'not taken')+'.')})},
@@ -686,6 +746,89 @@ const fcSec=()=>fc?((Date.now()-fc.start)/1000).toFixed(1):'0.0';
 // Folded sections keep their open/closed state between screen refreshes
 const secOpen={};function secT(el){secOpen[el.dataset.s]=el.open}
 function sec(id,title,html){const op=secOpen[id]??(id==='pile'&&!S.pile.id||id==='plan'&&!PL().length&&!S.piles.length&&!S.trucks.length);return `<details data-s="${id}" ${op?'open':''} ontoggle="secT(this)"><summary class="sum">${title}</summary>${html}</details>`}
+function truckStatus(t){if(!t)return'';if(t.rejected)return'sent back';if(t.leftWaste)return'timed out';if(t.emptied||t.left==='waste')return'empty';if(S.active===t.id)return'feeding';
+ const carry=t.carryIn&&t.carryIn[S.pile.key]&&calc(t).rem>0.005;if(carry)return'carry';if(t.arrived||t.onsite)return'waiting';return'future'}
+function truckIcon(st){return{feeding:'▶',waiting:'○',carry:'↪',empty:'✓','sent back':'↩','timed out':'⏱',future:'○'}[st]||'○'}
+function pilesFed(t){return orderKeys().filter(k=>supplies(t,k)).map(k=>pname(k)||'?').join(', ')}
+function pumpStart(t){const e=S.ev.find(e=>!e.undone&&e.type==='truck_switch'&&e.truck===t.id);return e?e.t:(t.pk0&&pumpedHere(t,t.pk0)?(stages(pileRec(t.pk0)).groutStart||{}).t||null:null)}
+function boardStrokes(key,value){const p=pileLive(key);if(!p)return;const raw=String(value??'').trim();if(raw===''){p.opCount='';save();render();return}const n=parseInt(raw,10);if(!Number.isInteger(n)||n<0)return msg('Pump strokes need a whole number, 0 or more.');p.opCount=String(n);balancePileStrokes(key);save();render()}
+function boardPile(key,field,value){const p=pileLive(key);if(!p)return;if(field==='len'){setLen(p,Number(value)||0);log('edit',{field:'length',pk:key,pile:p.id,to:p.len})}
+ else{const o=p[field];pHist(p,field,o,value);p[field]=typeof value==='string'?value.trim():value;if(field==='id')resortPiles();log('edit',{field:field,pk:key,pile:p.id,from:o??'',to:p[field]})}
+ save();render()}
+function boardPlan(i,field,value){planSet(i,field,value)}
+function boardTruckTime(id,field,value){if(field==='start'){const t=tk(id);if(!t)return;const e=S.ev.find(x=>!x.undone&&x.type==='truck_switch'&&x.truck===id);if(!value){render();return}
+  const mm=String(value).match(/^(\d{1,2}):(\d{2})/);if(!mm)return;const d=new Date((e&&e.t)||t.arrived||Date.now());d.setHours(+mm[1],+mm[2],0,0);
+  if(e){const from=hm(e.t);e.t=d.getTime();log('edit',{truck:id,field:'pump start',from,to:hm(e.t)})}else log('edit',{truck:id,field:'pump start',from:'',to:hm(d.getTime())});
+  save();render();return}A.setTime(id,field,value)}
+function boardSample(id,field,value){const e=S.ev.find(x=>x.id===id);if(!e||e.type!=='sample')return;const t=tk(e.truck);
+ if(field==='yd'){const n=parseFloat(String(value).replace(',','.'));if(!(n>=0))return msg('Sample yd³ needs a number.');const from=e.yd;e.yd=n;log('edit',{truck:e.truck,field:'sample yd³',from,to:n,pk:e.pk})}
+ else if(field==='note'){const from=e.note||'';e.note=String(value||'');log('edit',{truck:e.truck,field:'sample note',from,to:e.note,pk:e.pk})}
+ else if(field==='sampleNo'){const from=(t&&t.sampleNo)||'';if(t)t.sampleNo=String(value||'');e.sampleNo=String(value||'');log('edit',{truck:e.truck,field:'sample #',from,to:e.sampleNo,pk:e.pk})}
+ else if(field==='time'){if(!value)return;const mm=String(value).match(/^(\d{1,2}):(\d{2})/);if(!mm)return;const d=new Date(e.t||Date.now());d.setHours(+mm[1],+mm[2],0,0);const from=hm(e.t);e.t=d.getTime();log('edit',{truck:e.truck,field:'sample time',from,to:hm(e.t),pk:e.pk})}
+ else if(field==='truck'){const n=tk(value);if(!n||!t)return;t.samples=(t.samples||[]).filter(x=>x!==id);n.samples=n.samples||[];if(!n.samples.includes(id))n.samples.push(id);e.truck=n.id;log('edit',{field:'sample truck',from:t.id,to:n.id,pk:e.pk})}
+ else if(field==='pile'){const p=allPiles().find(x=>x.key===value);if(!p)return;const from=e.pk;e.pk=p.key;e.pile=p.id;log('edit',{truck:e.truck,field:'sample pile',from,to:p.key})}
+ save();render()}
+function boardAddSample(){const t=tk(S.active)||S.trucks.find(x=>!x.rejected&&!x.archived&&!x.emptied)||S.trucks.find(x=>!x.rejected&&!x.archived);if(!t)return msg('Add a truck first.');A.sample(t.id)}
+function boardArchivePile(key){const p=pileLive(key);if(!p||p.archived)return;if(!confirm('Archive pile '+(p.id||'?')+'? It leaves today\'s totals. The history keeps the record.'))return;
+ act(()=>{p.archived=true;log('edit',{field:'pile archived',pk:key,pile:p.id,to:'archived'});
+  if(S.pile.key===key){const nxt=allPiles().find(x=>!x.archived&&x.key!==key);if(nxt&&nxt.key!==S.pile.key){/* stay until open */} }
+  msg('Pile '+(p.id||'?')+' archived.')});
+ if(S.pile.archived){const nxt=allPiles().find(x=>!x.archived);if(nxt)A.openPile(nxt.key);else{S.pile=blankPile();S.strokes=0;S.segStart=0;S.active=null;save();render()}}}
+function boardArchiveTruck(id){const t=tk(id);if(!t||t.archived)return;if(!confirm('Archive truck '+tname(t)+'? It leaves the totals. The history keeps the record.'))return;
+ act(()=>{if(S.active===id){closeSeg();S.active=null}t.archived=true;t.pk0=null;log('edit',{truck:id,field:'truck archived',to:'archived'});msg('Truck '+tname(t)+' archived.')})}
+function boardArchiveSample(id){const e=S.ev.find(x=>x.id===id);if(!e)return;const t=tk(e.truck);if(!confirm('Archive this sample'+(t?' from truck '+tname(t):'')+'? Its yards go back on the truck. The history keeps it.'))return;
+ act(()=>{if(t)t.samples=(t.samples||[]).filter(x=>x!==id);e.undone=true;e.archived=true;log('sample_correction',{truck:e.truck,pk:e.pk,removedSample:id,yd:e.yd,action:'archived sample'});msg('Sample archived. Its yards are back on the truck.')})}
+function dayBoard(){const inp=(id,val,attrs,fn)=>`<input id="${id}" value="${esc(val??'')}" ${attrs} onchange="${fn}">`;
+ const pileRows=allPiles().filter(p=>!p.archived).map(p=>{const cur=p.key===S.pile.key,done=!cur&&(p.done||S.piles.some(x=>x.key===p.key));
+  const cls=cur?'row-active':done?'row-done':'row-future',icon=cur?'▶':done?'✓':'○';
+  const set=(f,extra)=>`boardPile('${p.key}','${f}',this.value)`;
+  return `<tr class="${cls}"><td class="idcell">${icon} ${esc(p.id||'?')}</td>
+   <td>${inp('bp-'+p.key+'-id',p.id,'inputmode="numeric" aria-label="Pile"',set('id'))}</td>
+   <td>${inp('bp-'+p.key+'-wall',p.wall,'aria-label="Wall"',set('wall'))}</td>
+   <td>${inp('bp-'+p.key+'-sta',p.station,'aria-label="Station"',set('station'))}</td>
+   <td>${inp('bp-'+p.key+'-elev',p.elev,'aria-label="Elevation"',set('elev'))}</td>
+   <td>${inp('bp-'+p.key+'-len',p.len,'inputmode="decimal" aria-label="Length feet"',set('len'))}</td>
+   <td>${inp('bp-'+p.key+'-dia',p.dia||'','inputmode="decimal" aria-label="Diameter inches"',set('dia'))}</td>
+   <td>${inp('bp-'+p.key+'-st',confStrokes(p.key).n||'','inputmode="numeric" aria-label="Pump strokes"',`boardStrokes('${p.key}',this.value)`)}</td>
+   <td><button class="sec xdel" type="button" aria-label="Archive pile ${esc(p.id||'')}" onclick="boardArchivePile('${p.key}')">✕</button></td></tr>`});
+ const have=new Set(allPiles().filter(p=>!p.archived).map(p=>String(p.id)));
+ PL().forEach((e,i)=>{if(!e.id||have.has(String(e.id)))return;pileRows.push(`<tr class="row-future"><td class="idcell">○ ${esc(e.id)}</td>
+   <td>${esc(e.id)}</td><td>${inp('bf-'+i+'-wall',e.wall||'','aria-label="Wall"',`boardPlan(${i},'wall',this.value)`)}</td>
+   <td>${inp('bf-'+i+'-sta',e.station||'','aria-label="Station"',`boardPlan(${i},'station',this.value)`)}</td>
+   <td>${inp('bf-'+i+'-elev',e.elev||'','aria-label="Elevation"',`boardPlan(${i},'elev',this.value)`)}</td>
+   <td>${inp('bf-'+i+'-len',e.len||'','inputmode="decimal" aria-label="Length"',`boardPlan(${i},'len',this.value)`)}</td>
+   <td>${inp('bf-'+i+'-dia',e.dia||'','inputmode="decimal" aria-label="Diameter"',`boardPlan(${i},'dia',this.value)`)}</td>
+   <td></td><td><button class="sec xdel" type="button" aria-label="Remove planned pile" onclick="planDel(${i})">✕</button></td></tr>`)});
+ const truckRows=S.trucks.filter(t=>!t.archived).slice().sort((a,b)=>(a.arrived||Infinity)-(b.arrived||Infinity)||(a.seq||0)-(b.seq||0)).map(t=>{
+  const st=truckStatus(t),cls=st==='feeding'?'row-active':(st==='empty'||st==='sent back'||st==='timed out')?'row-done':'row-future';
+  const tm=(f,label)=>`<input id="bt-${t.id}-${f}" type="time" aria-label="${label}" value="${esc(hm(f==='start'?pumpStart(t):t[f]))}" onchange="boardTruckTime('${t.id}','${f}',this.value)">`;
+  return `<tr class="${cls}"><td class="idcell">${truckIcon(st)} #${esc(t.seq||'')}</td>
+   <td>${inp('bt-'+t.id+'-num',t.num,'aria-label="Truck number"',`A.setT('${t.id}','num',this.value)`)}</td>
+   <td>${inp('bt-'+t.id+'-qty',t.qty,'inputmode="decimal" aria-label="Ticket yards"',`A.setT('${t.id}','qty',this.value)`)}</td>
+   <td>${tm('arrived','Arrived')}</td><td>${tm('start','Pump start')}</td><td>${tm('emptied','Empty or left')}</td>
+   <td>${esc(st)}</td><td>${esc(pilesFed(t)||'—')}</td>
+   <td>${inp('bt-'+t.id+'-waste',t.waste,'inputmode="decimal" aria-label="Waste yards"',`A.setT('${t.id}','waste',this.value)`)}</td>
+   <td><button class="sec xdel" type="button" aria-label="Archive truck ${esc(tname(t))}" onclick="boardArchiveTruck('${t.id}')">✕</button></td></tr>`});
+ const samples=S.ev.filter(e=>e.type==='sample'&&!e.undone&&!e.archived).slice().sort((a,b)=>(a.t||0)-(b.t||0));
+ const pileOpts=orderKeys().map(k=>`<option value="${k}">${esc(pname(k)||'?')}</option>`).join('');
+ const truckOpts=S.trucks.filter(t=>!t.archived).map(t=>`<option value="${t.id}">${esc(tname(t))}</option>`).join('');
+ const sampleRows=samples.map(e=>{const t=tk(e.truck),cur=e.pk===S.pile.key,done=e.pk&&e.pk!==S.pile.key&&S.piles.some(p=>p.key===e.pk);
+  const cls=cur?'row-active':done?'row-done':'row-future';
+  return `<tr class="${cls}"><td class="idcell">${cur?'▶':done?'✓':'○'} ${esc((e.sampleNo||(t&&t.sampleNo)||''))}</td>
+   <td><input id="bs-${e.id}-no" aria-label="Sample number" value="${esc(e.sampleNo||(t&&t.sampleNo)||'')}" onchange="boardSample('${e.id}','sampleNo',this.value)"></td>
+   <td><select aria-label="Sample truck" onchange="boardSample('${e.id}','truck',this.value)">${S.trucks.filter(x=>!x.archived).map(x=>`<option value="${x.id}"${x.id===e.truck?' selected':''}>${esc(tname(x))}</option>`).join('')}</select></td>
+   <td><select aria-label="Sample pile" onchange="boardSample('${e.id}','pile',this.value)">${orderKeys().map(k=>`<option value="${k}"${k===e.pk?' selected':''}>${esc(pname(k)||'?')}</option>`).join('')}</select></td>
+   <td><input id="bs-${e.id}-tm" type="time" aria-label="Sample time" value="${esc(hm(e.t))}" onchange="boardSample('${e.id}','time',this.value)"></td>
+   <td><input id="bs-${e.id}-yd" inputmode="decimal" aria-label="Sample yards" value="${esc(e.yd??'')}" onchange="boardSample('${e.id}','yd',this.value)"></td>
+   <td><input id="bs-${e.id}-note" aria-label="Sample notes" value="${esc(e.note||'')}" onchange="boardSample('${e.id}','note',this.value)"></td>
+   <td><button class="sec xdel" type="button" aria-label="Archive sample" onclick="boardArchiveSample('${e.id}')">✕</button></td></tr>`});
+ return `<section class="daysec trucks" id="sec-trucks"><h2 class="sechead"><span class="secico" aria-hidden="true">🚛</span> Trucks</h2><p class="secsub">Truck rows only. Number, ticket yards, arrival, pump start, empty or left, status, piles fed, waste.</p><div class="daytools"><button type="button" onclick="A.arrive()">Truck arrived</button><button class="sec" type="button" onclick="taOpen()">Add truck</button></div>
+  <div class="board"><table><thead><tr><th>Truck</th><th>Truck #</th><th>Ticket yd³</th><th>Arrived</th><th>Start</th><th>Empty / left</th><th>Status</th><th>Piles fed</th><th>Waste</th><th></th></tr></thead><tbody>${truckRows.join('')||'<tr class="row-future"><td colspan="10">No trucks yet</td></tr>'}</tbody></table></div></section>
+  <section class="daysec piles" id="sec-piles"><h2 class="sechead"><span class="secico" aria-hidden="true">📍</span> Piles</h2><p class="secsub">Pile rows only. Wall, station, elevation, length, and diameter.</p><div class="daytools"><button class="sec" type="button" onclick="document.getElementById('sec-plan')&&document.getElementById('sec-plan').scrollIntoView({behavior:'smooth'})">Today's list</button><button type="button" onclick="A.newPile()">Next pile</button></div>
+  <div class="board"><table><thead><tr><th>Pile</th><th>Pile</th><th>Wall</th><th>Sta</th><th>Elev</th><th>Len ft</th><th>Dia in</th><th>Strokes</th><th></th></tr></thead><tbody>${pileRows.join('')||'<tr class="row-future"><td colspan="9">No piles yet</td></tr>'}</tbody></table></div></section>
+  <section class="daysec samples" id="sec-samples"><h2 class="sechead"><span class="secico" aria-hidden="true">🧪</span> Samples</h2><p class="secsub">Sample rows only. Sample number, truck, pile, time, yards, and notes.</p><div class="daytools"><button type="button" onclick="boardAddSample()">QC sample</button></div>
+  <div class="board"><table><thead><tr><th>Sample</th><th>Sample #</th><th>Truck</th><th>Pile</th><th>Time</th><th>yd³</th><th>Notes</th><th></th></tr></thead><tbody>${sampleRows.join('')||'<tr class="row-future"><td colspan="8">No samples yet</td></tr>'}</tbody></table></div></section>`;
+}
 function render(){clearTimeout(rT);
  $('tp').textContent=S.pile.id;tray();$('npTray').textContent=isLatest()?'Next pile ▸':'Back to '+(latestPile().id||'latest')+' ▸';
  const ts=S.trucks,sum=f=>ts.reduce((a,t)=>a+f(t),0);
@@ -701,6 +844,7 @@ function render(){clearTimeout(rT);
  const pendT=ts.filter(t=>t.pend&&!t.emptied&&t.pend.pk!==S.pile.key);
  const fresh=!S.piles.length&&!S.trucks.length&&!S.pile.id&&!S.hideIntro;
  const oi=openIss();let h=(oi?`<div class="card" style="background:var(--red);color:#fff"><b style="font-size:20px">Stopped: ${esc(ikName(oi.kind))}</b><div>Since ${ft(oi.start)} · pile ${esc(pname(oi.pk)||'?')}${oi.phase==='grouting'?' · '+oi.strokes+' strokes'+(oi.depth?' · '+esc(oi.depth):''):''}</div><button style="width:100%;margin-top:6px" onclick="issResume()">Back running</button></div>`:'')+`${fresh?`<div class="card" style="border:2px solid var(--acc)"><b>How it works</b><ol style="margin:6px 0 6px 18px;padding:0"><li>List the day's piles under <b>Today's piles</b> (each pile's details fill in as you get to it), or open <b>Pile details</b> and type the pile #, station, elevation and length.</li><li>Trucks are optional and live in the <b>Trucks</b> area under the pile. Tap <b>+ Add truck</b> to key one in (ID, yards and times can be typed now or later, or scan the ticket), or <b>Truck arrived now</b> to stamp the time. Change any truck time on its card.</li><li>Tap the steps as they happen: <b>Drill start</b>, <b>Drill finish</b> (grout and pump start), <b>Grout finish</b>, <b>Reinforce</b>.</li><li>Afterwards, enter strokes (yours or the contractor's) under <b>Strokes, yardage &amp; closeout</b>.</li><li>Tap <b>Next pile ▸</b>. Trucks with grout left carry over.</li></ol><small style="color:var(--mut)">Missed times are filled in automatically and shown in red; type over anything. The round <b>☰</b> button at the top uploads filled-in forms and shows every pile's form, ready to email or text; <b>🎤</b> takes spoken commands like "truck arrived" or "drill start".</small><button class="sec" style="width:100%;margin-top:6px;min-height:40px" onclick="S.hideIntro=true;save();render()">Got it</button></div>`:''}${pendT.map(t=>`<div class="card" style="border:3px solid var(--acc)"><b>Is truck ${esc(tname(t))} empty?</b><div>Strokes passed its load at ${ft(t.pend.t)} on pile ${esc(pname(t.pend.pk))}.</div><div class="row"><button style="flex:1" onclick="A.confirmEmpty('${t.id}')">Yes, empty at ${ft(t.pend.t).replace(/:\d\d /,' ')}</button><button class="sec" style="flex:1" onclick="A.notEmpty('${t.id}')">No, still has grout</button></div></div>`).join('')}${onOld?`<div class="card" style="border:3px solid var(--red)"><b>Editing pile ${esc(S.pile.id||'?')} (earlier pile)</b><div>Everything you change saves to pile ${esc(S.pile.id||'?')}.</div><button style="width:100%;margin-top:6px" onclick="A.openPile('${lat.key}')">Back to pile ${esc(lat.id||'?')}</button></div>`:''}${cins.length?`<div class="card" style="border:2px solid var(--acc)"><b>Carried into pile ${esc(S.pile.id)}</b>${cins.map(t=>{const c=calc(t);return `<div>Truck <b>${esc(tname(t))}</b> · ${cyd(t,S.pile.key)==null?'?':r1(cyd(t,S.pile.key))} yd³ at start · <b>${c.rem===null?'?':r1(c.rem)} yd³ left now${sLeft(c.rem)!==null?' · ~'+sLeft(c.rem)+' strokes':''}</b></div>`}).join('')}</div>`:''}`;
+ h+=dayBoard();
  {const L=PL(),dn=L.filter(e=>planStatus(e)==='done').length;h+=sec('plan',"Today's piles"+(L.length?' · '+dn+' of '+L.length+' done':' · plan the day'),planH())}
  const setupH=`<div class="card"><b>Pile setup</b><div class="row"><input id="f-pile" placeholder="Pile #" value="${esc(S.pile.id)}" onchange="A.cfg('pile',this.value)"><input id="f-wall" placeholder="Wall #" value="${esc(S.pile.wall)}" onchange="A.pset('wall',this.value)"></div><div class="row"><input id="f-sta" placeholder="Station" value="${esc(S.pile.station)}" onchange="A.pset('station',this.value)"><input id="f-elev" placeholder="Elev" value="${esc(S.pile.elev)}" onchange="A.pset('elev',this.value)"></div><div class="row"><input id="f-date" placeholder="Date" value="${esc(S.pile.date)}" onchange="A.pset('date',this.value)"><label style="flex:1;min-width:70px"><small>Dia (in)</small><input id="f-dia" inputmode="decimal" value="${esc(S.pile.dia||'')}" onchange="A.pset('dia',this.value)"></label><label style="flex:1;min-width:90px"><small>Pile length (ft)</small><input id="f-len" inputmode="decimal" value="${esc(S.pile.len)}" onchange="A.pset('len',Number(this.value)||0)"></label></div></div>`;
  const SG=[['drillStart','Drill start'],['drillFinish','Drill finish'],['groutStart','Grout start · pump on'],['groutFinish','Grout finish · pump off'],['reinfStart','Reinforce start'],['reinfFinish','Reinforce finish']];
@@ -939,7 +1083,12 @@ function issH(pk){const L=ISS().filter(x=>x.pk===pk);if(!L.length)return'';
  <div class="row"><input id="in-${x.id}" placeholder="${x.phase==='grouting'?'What was done (e.g. re-drilled 5 ft below)':'What happened'}" value="${esc(x.note)}" onchange="issSet('${x.id}','note',this.value)"></div>
  <button class="sec" id="ix-${x.id}" style="width:100%;min-height:40px;font-size:15px" onclick="issDel('${x.id}')">Delete this stop</button></div>`}).join('')}</div>`}
 // A truck has put grout in a pile when strokes or a typed used amount are on it. Sending that truck back would wipe a real delivery.
-function truckPumped(t){if(!t)return false;if(S.active===t.id&&seg()>0)return true;for(const k of orderKeys()){const u=usedOn(t,k);if(u>0.005)return true;if(((t.ps&&t.ps[k])||0)>0)return true;if(num(t.used[k])>0)return true}return false}
+// Real grout into this pile: counted strokes or a typed used amount. A switch with no strokes is not pumping.
+function pumpedHere(t,pk){if(!t||t.rejected||t.archived||!pk)return false;if(((t.ps&&t.ps[pk])||0)>0)return true;if(S.active===t.id&&pk===S.pile.key&&seg()>0)return true;return num(t.used&&t.used[pk])>0.005}
+function supplies(t,pk){if(!t||t.rejected||t.archived)return false;if(pumpedHere(t,pk))return true;return (usedOn(t,pk)||0)>0.005}
+function truckPumped(t){if(!t)return false;if(S.active===t.id&&seg()>0)return true;for(const k of orderKeys()){if(pumpedHere(t,k))return true;if(num(t.used&&t.used[k])>0.005)return true}return false}
+// Join a pile only once grout from this truck actually goes into it.
+function noteFeed(t,pk){if(!t||t.rejected||t.leftWaste||t.archived||!pk)return;if(!t.pk0)attach(t,pk);t.fed=true}
 function dispBtns(t){if(!t||t.rejected||t.leftWaste)return'';
  return `<div class="row"><button class="sec" style="flex:1;min-height:48px;border-color:var(--red)" onclick="dispOpen('${t.id}','back')">Sent back</button><button class="sec" style="flex:1;min-height:48px;border-color:var(--red)" onclick="dispOpen('${t.id}','timeout')">Timed out, left with waste</button></div>`}
 function dispOpen(id,kind){const t=tk(id);if(!t)return;
@@ -968,13 +1117,15 @@ function truckReject(id,reason,note){const t=tk(id);if(!t||t.rejected)return;
  if(truckPumped(t)||(parseFloat(t.waste)>0)||t.left==='waste')return msg('Truck '+tname(t)+' already pumped grout. Use Timed out, left with waste for what is still on the truck.');
  scanClose();
  withLeave(t,'SENT BACK',()=>act(()=>{if(S.active===id){closeSeg();S.active=null}
-  t.rejected={reason,note,t:Date.now(),pk:S.pile.key,prev:{pk0:t.pk0,onsite:t.onsite,emptied:t.emptied,carryIn:JSON.parse(JSON.stringify(t.carryIn||{})),fed:t.fed}};
-  t.pk0=null;t.carryIn={};t.emptied=t.emptied||Date.now();t.fed=false;delete t.pend;t.left='';
-  S.ev=S.ev.filter(e=>!(e.truck===id&&(e.type==='truck_arrival'||e.type==='truck_carry')));log('truck_reject',{truck:id,name:reason,note});
-  msg('Truck '+tname(t)+' sent back ('+reason+'). Its '+(t.qty||'?')+' yd³ is off the yardage and sample count.')}))}
+  t.rejected={reason,note,t:Date.now(),pk:S.pile.key,prev:{pk0:t.pk0,onsite:t.onsite,emptied:t.emptied,carryIn:JSON.parse(JSON.stringify(t.carryIn||{})),fed:t.fed,ps:JSON.parse(JSON.stringify(t.ps||{})),used:JSON.parse(JSON.stringify(t.used||{})),strokes:t.strokes||0}};
+  t.pk0=null;t.carryIn={};t.ps={};t.used={};t.strokes=0;t.emptied=t.emptied||Date.now();t.fed=false;delete t.pend;t.left='';
+  S.ev.forEach(e=>{if(!e.undone&&e.truck===id&&['truck_arrival','truck_carry','truck_switch','truck_maybe_empty','truck_empty'].includes(e.type))e.undone=true});
+  log('truck_reject',{truck:id,name:reason,note});
+  msg('Truck '+tname(t)+' sent back ('+reason+'). It is off every pile, and its '+(t.qty||'?')+' yd³ is off the totals.')}))}
 function truckUnreject(id){const t=tk(id);if(!t||!t.rejected||!twoTap('ur'+id,'ur-'+id,'Tap again: put it back'))return;
  act(()=>{const p=t.rejected.prev||{},o=orderKeys(),why=t.rejected.reason;delete t.rejected;t.emptied=p.emptied||null;t.onsite=p.onsite;t.fed=!!p.fed;t.carryIn={};
-  if(p.pk0&&o.includes(p.pk0))attach(t,p.pk0);for(const k of Object.keys(p.carryIn||{}))if(o.includes(k)){t.carryIn[k]=p.carryIn[k];log('truck_carry',{truck:id,pk:k})}
+  if(p.ps)t.ps=JSON.parse(JSON.stringify(p.ps));if(p.used)t.used=JSON.parse(JSON.stringify(p.used));if(p.strokes!=null)t.strokes=p.strokes;
+  if(p.pk0&&o.includes(p.pk0)&&(pumpedHere(t,p.pk0)||num(t.used[p.pk0])>0))attach(t,p.pk0);for(const k of Object.keys(p.carryIn||{}))if(o.includes(k)){t.carryIn[k]=p.carryIn[k];log('truck_carry',{truck:id,pk:k})}
   log('truck_unreject',{truck:id,reason:why});msg('Truck '+tname(t)+' is back on.')});if(remOn())remRender()}
 function applyTimeout(id,reason,note,ydRaw,shown){const t=tk(id);if(!t||t.rejected||t.leftWaste)return;
  if(!truckPumped(t))return msg('Truck '+tname(t)+' has not pumped. Send it back instead. That takes the whole load off the piles.');
@@ -1336,8 +1487,8 @@ document.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;
 // Leaving a truck is its own block. Every button names the truck number and what will happen, and asks before it does it.
 const truckLabel=t=>t&&(t.num?String(t.num):('#'+(t.seq||'?')));
 let leaveUndo=null;
-function leaveCapture(t){return {id:t.id,emptied:t.emptied||null,departed:t.departed||null,fed:!!t.fed,left:t.left||'',waste:t.waste||'',wastePk:t.wastePk||null,pk0:t.pk0||null,onsite:!!t.onsite,carryIn:JSON.parse(JSON.stringify(t.carryIn||{})),rejected:t.rejected?JSON.parse(JSON.stringify(t.rejected)):null,leftWaste:t.leftWaste?JSON.parse(JSON.stringify(t.leftWaste)):null,pend:t.pend?JSON.parse(JSON.stringify(t.pend)):null}}
-function leaveApply(s){const t=tk(s.id);if(!t)return;t.emptied=s.emptied;t.departed=s.departed;t.fed=s.fed;t.left=s.left;t.waste=s.waste;t.wastePk=s.wastePk;t.pk0=s.pk0;t.onsite=s.onsite;t.carryIn=s.carryIn;if(s.rejected)t.rejected=s.rejected;else delete t.rejected;if(s.leftWaste)t.leftWaste=s.leftWaste;else delete t.leftWaste;if(s.pend)t.pend=s.pend;else delete t.pend}
+function leaveCapture(t){return {id:t.id,emptied:t.emptied||null,departed:t.departed||null,fed:!!t.fed,left:t.left||'',waste:t.waste||'',wastePk:t.wastePk||null,pk0:t.pk0||null,onsite:!!t.onsite,strokes:t.strokes||0,ps:JSON.parse(JSON.stringify(t.ps||{})),used:JSON.parse(JSON.stringify(t.used||{})),carryIn:JSON.parse(JSON.stringify(t.carryIn||{})),rejected:t.rejected?JSON.parse(JSON.stringify(t.rejected)):null,leftWaste:t.leftWaste?JSON.parse(JSON.stringify(t.leftWaste)):null,pend:t.pend?JSON.parse(JSON.stringify(t.pend)):null}}
+function leaveApply(s){const t=tk(s.id);if(!t)return;t.emptied=s.emptied;t.departed=s.departed;t.fed=s.fed;t.left=s.left;t.waste=s.waste;t.wastePk=s.wastePk;t.pk0=s.pk0;t.onsite=s.onsite;t.strokes=s.strokes||0;if(s.ps)t.ps=s.ps;if(s.used)t.used=s.used;t.carryIn=s.carryIn;if(s.rejected)t.rejected=s.rejected;else delete t.rejected;if(s.leftWaste)t.leftWaste=s.leftWaste;else delete t.leftWaste;if(s.pend)t.pend=s.pend;else delete t.pend}
 function withLeave(t,what,fn){const watch=[t];const nx=nextFeeder(t).ok;if(nx&&nx!==t)watch.push(nx);const before=watch.map(leaveCapture),active=S.active,seg=S.segStart,evBefore=S.ev.slice(),undone0=new Set(S.ev.filter(e=>e.undone).map(e=>e.id));
  fn();const created=S.ev.filter(e=>!evBefore.includes(e)).map(e=>e.id),removed=evBefore.filter(e=>!S.ev.includes(e)),newly=S.ev.filter(e=>e.undone&&!undone0.has(e.id)).map(e=>e.id);
  const rec={what,at:Date.now(),before,active,seg,created,removed,newly};
@@ -1391,8 +1542,8 @@ function taSave(){const g=id=>String(($(id)||{}).value||'').trim(),num=g('ta-num
  if(Number.isNaN(at))return bad('Arrived “'+a+'” isn\'t a time. Not saved.');if(Number.isNaN(et))return bad('Empty “'+e+'” isn\'t a time. Not saved.');
  if(at&&et&&et<at)return bad('Empty '+hm(et)+' is before arrival '+hm(at)+'. Not saved.');
  if(qty&&!(parseFloat(qty)>=0))return bad('Load “'+qty+'” isn\'t a number. Not saved.');
- let t;act(()=>{t={id:uid(),seq:nextSeq(),num,sampleNo:'',qty,batch:'',dispatch:'',arrived:at,emptied:et,strokes:0,samples:[],waste:'',tests:[],pk0:null,onsite:!et,ps:{},used:{},carryIn:{},left:'',manual:true};S.trucks.push(t);if(et||feed)attach(t,S.pile.key);else log('truck_onsite',{truck:t.id,manual:true});if(et)log('truck_empty',{truck:t.id,manual:true})});
- if(feed&&!et)A.sw(t.id);scanClose();msg('Truck '+tname(t)+(t.pk0?' added on pile '+(S.pile.id||'?')+(feed&&!et?', feeding the pump':''):' added, waiting on site (it goes on the pile it feeds)')+'.');if(remOn())remRender();return true}
+ let t;act(()=>{t={id:uid(),seq:nextSeq(),num,sampleNo:'',qty,batch:'',dispatch:'',arrived:at,emptied:et,strokes:0,samples:[],waste:'',tests:[],pk0:null,onsite:!et&&!feed,ps:{},used:{},carryIn:{},left:'',manual:true};S.trucks.push(t);log('truck_onsite',{truck:t.id,manual:true});if(et)log('truck_empty',{truck:t.id,manual:true})});
+ if(feed&&!et)A.sw(t.id);scanClose();msg('Truck '+tname(t)+(feed&&!et?' is feeding the pump. It shows on this pile once it pumps.':' is waiting. It joins a pile only when it pumps.')+'.');if(remOn())remRender();return true}
 function ttSet(id,f,v){const ok=A.setTime(id,f,v),t=tk(id),e=$('tt-'+id+'-err'),i=$('tt-'+id+'-'+f),m=$('tt-msg');if(e)e.textContent=ok?'':(tErr[id]||'');
  if(i&&t)i.value=hm(t[f]);if(m){m.style.color=ok?'':'var(--red)';m.textContent=ok?'✓ Truck '+tname(t)+(f==='arrived'?' arrived ':' empty ')+(t[f]?hm(t[f]):'cleared'):(tErr[id]||'')}if(remOn())remRender()}
 function remEnd(id){remAskEmpty(id)}
@@ -1562,7 +1713,7 @@ function formCellEdit(pk,truckId,label,col){
  else if(label==='SAMPLE #'&&t){from=t.sampleNo||'';t.sampleNo=v;applied=true}
  else if(numberNames[label]&&t){const n=v===''?'':Number(v);if(v!==''&&(!Number.isFinite(n)||n<0))return alert('Enter a nonnegative number');let test=(t.tests||[]).find(x=>x.pk===pk);if(!test){t.tests=t.tests||[];test={id:uid(),t:Date.now(),pk,temp:'',flow:''};t.tests.push(test)}from=test[numberNames[label]]||'';test[numberNames[label]]=v;applied=true}
  else if(label==='GROUT RETURN'&&col===0){const n=Number(v);if(v!==''&&(!Number.isFinite(n)||n<0))return alert('Enter a valid return depth in feet');let e=pev('grout_return',pk)[0];if(!e){e={id:uid(),type:'grout_return',t:Date.now(),entered:Date.now(),pk,pile:P.id,depth:null};S.ev.push(e)}from=e.depth;e.depth=v===''?null:n;applied=true}
- else if(label==='TOTAL STROKES'&&col===0){const n=Number(v);if(v!==''&&(!Number.isInteger(n)||n<0))return alert('Enter a whole stroke count');const field=num(P.reviewed)!==null?'reviewed':num(P.opCount)!==null?'opCount':num(P.myCount)!==null?'myCount':'opCount';from=P[field]||'';P[field]=v;applied=true}
+ else if(label==='TOTAL STROKES'&&col===0){const n=Number(v);if(v!==''&&(!Number.isInteger(n)||n<0))return alert('Enter a whole stroke count');const field=num(P.reviewed)!==null?'reviewed':num(P.opCount)!==null?'opCount':num(P.myCount)!==null?'myCount':'opCount';from=P[field]||'';P[field]=v;if(v!=='')balancePileStrokes(pk);applied=true}
  else if(label.startsWith('DEPTH ')&&col===0){const n=Number(v);if(v!==''&&(!Number.isInteger(n)||n<0))return alert('Enter a whole stroke count');const band=label.slice(6);P.bandIn=P.bandIn||{};from=P.bandIn[band]??null;if(v==='')delete P.bandIn[band];else P.bandIn[band]=n;applied=true}
  // Pump handoff is one event shared by both trucks; never edit just one side.
  else if((label==='GROUT / HOLE START'||label==='GROUT / HOLE FINISH')&&t){const ms=v?timeMs():null;if(v&&ms===null)return alert('Enter a valid time');const feeders=pileTrucks(pk).filter(x=>(usedOn(x,pk)||0)>0);const idx=feeders.findIndex(x=>x.id===t.id);if(idx<0)return alert('Truck is not assigned to this pile');const isStart=label.endsWith('START');if((isStart&&idx===0)||(!isStart&&idx===feeders.length-1)){const k=isStart?'groutStart':'groutFinish';P.st=P.st||{};from=P.st[k]||null;if(v)P.st[k]=ms;else delete P.st[k];applied=true}else{const incoming=isStart?t:feeders[idx+1];if(!incoming)return alert('Cannot identify incoming truck');let e=pev('truck_switch',pk).find(x=>x.truck===incoming.id);from=e?e.t:null;if(!v&&e){S.ev=S.ev.filter(x=>x.id!==e.id)}else if(v){if(e){e.t=ms;e.correctedAt=Date.now()}else S.ev.push({id:uid(),type:'truck_switch',t:ms,entered:Date.now(),pk,pile:P.id,truck:incoming.id,from:feeders[feeders.indexOf(incoming)-1]?.id||null,source:'form_correction'})}applied=true}}
@@ -1578,13 +1729,9 @@ function formHTML(pk,pair){
  const cur=!pk||pk===S.pile.key,P=cur?S.pile:S.piles.find(p=>p.key===pk),PS=cur?S.strokes:(P.strokes||0),iv=intervals(P),gr=pev('grout_return',P.key)[0];
  // Same layout as the paper sheet: always at least two truck columns, blank where nothing is logged yet
  const carriedTo=t=>{if(t.blank||!(usedOn(t,P.key)>0))return '';const k=Object.keys(t.carryIn||{}).find(k=>t.carryIn[k].from===P.key);return k&&leftAfter(t,P.key)>0?'→ pile '+pname(k):''};
- const linked=S.trucks.filter(t=>usedOn(t,P.key)>0);
- // For imported field sheets, truck times are recorded separately from pile events.
- // Match trucks by the actual grout window, retaining explicit pile links first.
+ // A truck column is a truck that pumped grout into this pile. Arriving, waiting, or a zero-stroke switch does not.
  const svForTruck=stages(P),gs=svForTruck.groutStart&&svForTruck.groutStart.t,gf=svForTruck.groutFinish&&svForTruck.groutFinish.t;
- const timed=gs&&gf?S.trucks.filter(t=>{if(t.rejected)return false;const x=truckTimes(t),a=x.arrived.t,e=x.emptied.t;return a&&a<=gf&&(!e||e>=gs)}).sort((a,b)=>(truckTimes(a).arrived.t||0)-(truckTimes(b).arrived.t||0)):[];
- const switched=S.trucks.filter(t=>!t.rejected&&!linked.includes(t)&&pev('truck_switch',P.key).some(e=>e.truck===t.id));
- const used=[...linked,...switched,...timed.filter(t=>!linked.some(x=>x.id===t.id)&&!switched.some(x=>x.id===t.id)&&((num(t.used[P.key])||0)>0||((t.ps||{})[P.key]||0)>0))].sort((a,b)=>(truckTimes(a).arrived.t||0)-(truckTimes(b).arrived.t||0));
+ const used=S.trucks.filter(t=>supplies(t,P.key)).sort((a,b)=>(a.arrived||truckTimes(a).arrived.t||0)-(b.arrived||truckTimes(b).arrived.t||0)||(a.seq||0)-(b.seq||0));
  const emptyHere=t=>!t.blank&&usedOn(t,P.key)>0&&(pev(null,P.key).some(e=>!e.undone&&e.truck===t.id&&(e.type==='truck_empty'||e.type==='truck_waste'))||!!(t.emptied&&gs&&gf&&t.emptied>=gs&&t.emptied<=gf));
  const ts=[...used];while(ts.length<2)ts.push({seq:'',num:'',tests:[],blank:true});
  const CL={y:'#ffe600',g:'#d3d6da',t:'#f2c27a',b:'#a9b9d3',u:'#cfe8d4'};
@@ -1983,7 +2130,7 @@ function endDayOpen(){const sm=daySummary(),open=S.trucks.filter(t=>!t.emptied&&
  <div style="color:var(--mut);font-size:14px;margin-top:4px">The day is saved under Settings &amp; backup → Past days, where you can open it again. Settings stay; the pile number continues.</div>
  <button class="sec" style="width:100%;margin-top:10px" onclick="scanClose()">Not yet</button>`)}
 function endDayTrucks(){let n=0;for(const t of S.trucks.filter(t=>!t.emptied&&(t.pk0||t.onsite))){const el=$('ed-'+t.id),v=el?el.value:'keep';if(v==='keep')continue;
-  if(S.active===t.id){closeSeg();S.active=null}if(!t.pk0)attach(t,S.pile.key);const c=calc(t);
+  if(S.active===t.id){closeSeg();S.active=null}if(!t.pk0&&pumpedHere(t,S.pile.key))attach(t,S.pile.key);const c=calc(t);
   if(v==='waste'&&c.rem!==null&&c.rem>0.005){log('truck_waste',{truck:t.id,yd:c.rem,prevWaste:t.waste,prevPk:t.wastePk||null,prevEmptied:t.emptied,prevActive:false,endOfDay:true});t.waste=String(+((parseFloat(t.waste)||0)+c.rem).toFixed(3));t.wastePk=S.pile.key;t.left='waste'}
   else log('truck_empty',{truck:t.id,endOfDay:true});t.emptied=t.emptied||Date.now();delete t.pend;if(el)el.value='keep';n++}
  if(n){S.pumping=false;save();render()}return n}

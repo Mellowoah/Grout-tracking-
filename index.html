@@ -86,7 +86,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v134';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v135';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -1079,6 +1079,19 @@ const hdN=P=>{const h=headOf(P);return h?' · bottom band less '+h+' head stroke
 // Remote: small line under everything with the truck feeding the pump (truck card figure: load − sample − strokes × pump output)
 function feedLine(){const t=tk(S.active);if(!t)return'';const q=parseFloat(t.qty),c=calc(t),off=S.noCount&&!S.pile.tapped;
  return 'Feeding #'+(t.num||t.seq)+(q>0&&!off&&c.rem!=null?' · ~'+Math.max(0,c.rem).toFixed(1)+' of '+(+q)+' yd³ left':'')}
+// Remote sample shortcut: choose a truck, then record the sample with its original event time.
+function remSample(){
+ const trucks=S.trucks.filter(t=>!t.rejected&&(!t.emptied||usedOn(t,S.pile.key)>0));
+ if(!trucks.length)return remSay('Add a truck before recording a sample');
+ const options=trucks.map((t,i)=>(i+1)+': Truck '+tname(t)).join('\\n');
+ const choice=trucks.length===1?'1':prompt('Attach QC sample to which truck?\\n'+options,'1');
+ if(choice===null)return;
+ const t=trucks[Number(choice)-1];
+ if(!t)return remSay('No sample recorded: choose a listed truck number');
+ act(()=>{const e=takeSample(t);msg('QC sample recorded for truck '+tname(t)+' at '+ft(e.t)+'. Add flow cone, temperature and sample ID in truck details.')});
+ remSay('Sample linked to truck '+tname(t));remRender();
+}
+function remForm(){remoteClose();showForm(S.pile.key,true)}
 function remRender(){const P=S.pile,n=remNext(),d=nextLine(P),key=(k,top,sub,extra='',al)=>`<button class="rkey" ${k===3||k===5?`onpointerdown="remDown(${k},event)" onpointerup="remUp(${k},event)" onpointerleave="clearTimeout(remHold)"`:`onclick="remKey(${k})"`} ${extra} aria-label="${al||top}"><span class="rtop">${top}</span>${sub?`<span class="rsub">${sub}</span>`:''}</button>`;
  $('remv').innerHTML=`<div class="rwrap"><div class="rhead"><b style="font-size:17px">Remote</b><span style="display:flex;gap:6px"><button class="sec" id="rm-help" aria-label="Keypad and clicker keys" style="padding:4px 8px;min-width:40px" onclick="remHelp()">⌨︎</button><button class="sec" id="rm-tt" onclick="ttOpen()">🕑 Truck times</button><button class="sec" onclick="remoteClose()">Close</button></span></div>
  <div id="rm-stat" class="card" style="padding:6px 10px;font-size:15px;margin:0;flex:none">${remStat()}</div>
@@ -1093,7 +1106,8 @@ function remRender(){const P=S.pile,n=remNext(),d=nextLine(P),key=(k,top,sub,ext
    ${S.noCount?'':key(5,`<span class="num" style="font-size:40px;line-height:1">${S.strokes}</span>`,'+1 stroke · hold: −1','','Add one stroke').replace('class="rkey"','class="rkey rstroke"')}
   </div>
  </div>
- <div style="display:flex;gap:8px;flex:none"><button class="sec" style="flex:1;min-height:44px;font-weight:700" onclick="remKey(7)">↩ Grout return · log time + depth</button></div>
+ <div style="display:flex;gap:8px;align-items:center;flex:none"><button class="sec" style="flex:1;min-height:44px;font-weight:700" onclick="remKey(7)">↩ Grout return · time + depth</button><button onclick="remSample()" aria-label="Record QC sample and choose truck" style="border-radius:50%;width:64px;height:64px;min-width:64px;background:#273b58;color:#fff;border:2px solid #ffd100;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0"><span style="font-size:23px;line-height:1">⏻</span><span style="font-size:10px;font-weight:800">SAMPLE</span></button></div>
+ <div style="display:flex;justify-content:space-around;gap:12px;flex:none;font-size:13px"><button class="sec" style="flex:1;min-height:34px;text-decoration:underline" onclick="remForm()">View pile form</button><button class="sec" style="flex:1;min-height:34px;text-decoration:underline" onclick="remForm()">View QC / truck form</button></div>
  ${remTrucksH()}
  <div style="display:flex;justify-content:center;align-items:center;gap:10px;min-height:26px;flex:none"><div id="rm-last" style="font-weight:700;font-size:17px;visibility:${remLast?'visible':'hidden'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:75vw">✓ ${esc(remLast)}</div>${remLast?'<button class="sec" style="min-height:32px;padding:2px 10px;font-size:14px" onclick="undoAll();remLast=\'\';remRender()">Undo</button>':''}</div>
  <div id="rm-feed" style="flex:none;text-align:center;font-size:13px;color:var(--mut);min-height:18px;padding:0 0 env(safe-area-inset-bottom,0px)">${esc(feedLine())}</div></div>`}

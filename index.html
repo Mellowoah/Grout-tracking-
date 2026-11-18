@@ -132,7 +132,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v142';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v143';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -1143,7 +1143,7 @@ function remSample(){
 }
 function remForm(){remoteClose();showForm(S.pile.key,true)}
 function remRender(){const P=S.pile,n=remNext(),d=nextLine(P),key=(k,top,sub,extra='',al)=>`<button class="rkey" ${k===3||k===5?`onpointerdown="remDown(${k},event)" onpointerup="remUp(${k},event)" onpointerleave="clearTimeout(remHold)"`:`onclick="remKey(${k})"`} ${extra} aria-label="${al||top}"><span class="rtop">${top}</span>${sub?`<span class="rsub">${sub}</span>`:''}</button>`;
- $('remv').innerHTML=`<div class="rwrap"><div class="rhead"><b style="font-size:17px">Remote</b><span style="display:flex;gap:6px"><button class="sec" id="rm-help" aria-label="Remote colors and help" title="Choose remote color" style="padding:7px 12px;min-width:96px;min-height:48px;border:2px solid #ffd100;font-weight:700" onclick="remHelp()">🎨 Colors</button><button class="sec" id="rm-tt" onclick="ttOpen()">🕑 Truck times</button><button class="sec" onclick="remoteClose()">Close</button></span></div>
+ $('remv').innerHTML=`<div class="rwrap"><div class="rhead"><b style="font-size:17px">Remote</b><span style="display:flex;gap:6px"><button class="sec" id="rm-help" aria-label="Remote colors and help" title="Choose remote color" style="padding:7px 12px;min-width:96px;min-height:48px;border:2px solid #ffd100;font-weight:700" onclick="remHelp()">🎨 Colors</button><button class="sec" onclick="remoteClose()">Close</button></span></div>
  <div id="rm-stat" class="card" style="padding:6px 10px;font-size:15px;margin:0;flex:none">${remStat()}</div>
  <div class="rdev">
   <div class="rgrille" aria-hidden="true"></div>

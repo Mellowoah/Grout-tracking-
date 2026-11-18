@@ -238,7 +238,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v148';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v149';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -1255,9 +1255,9 @@ function remRender(){const P=S.pile,n=remNext(),d=nextLine(P),key=(k,top,sub,ext
  <div class="rdev">
   <div class="rgrille" aria-hidden="true"></div>
   <div class="rgrid">
+   ${key(3,'Truck arrived','end trucks below')}
    ${key(1,'Passed line',d!=null?d+' ft':'done')}
    ${key(2,n.l,n.k==='next'?'press twice':'tap when it happens')}
-   ${key(3,'Truck arrived','end trucks below')}
    ${key(4,'🎤 Speak','say a command')}
    <button class="rkey rpump" id="rm-pump" data-pumping="${S.pumping?'on':'off'}" onclick="remKey(6)" aria-label="Pump on or off" style="background:${S.pumping?'#d00000':'#4a4f55'}"><span class="rtop" style="font-size:24px">PUMP ${S.pumping?'ON':'OFF'}</span><span class="rsub" style="color:#eee">tap: turn ${S.pumping?'off':'on'} · clicker: B / F5${S.noCount?' or ▶ / Page Down':''} · keypad: 5</span></button>
   </div>

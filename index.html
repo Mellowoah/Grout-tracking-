@@ -269,7 +269,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v155';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v156';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -429,7 +429,7 @@ function usedOn(t,pk){const m=num(t.used[pk]);if(m!==null)return m;const n=confO
 // Shown to 0.001. The extra 0.001 that used to be taken off a carry was removed in v100.
 // An undone empty or waste event no longer counts, so bringing a truck back restores the carry.
 const emptyOn=(t,k)=>pev(null,k).some(e=>!e.undone&&e.truck===t.id&&(e.type==='truck_empty'||e.type==='truck_waste'));
-function leftAfter(t,pk){const order=orderKeys(),idx=order.indexOf(pk),q=parseFloat(t.qty);if(idx<0||!(q>=0))return null;let rem=q-sy(t);
+function leftAfter(t,pk){if(t.rejected)return 0;const order=orderKeys(),idx=order.indexOf(pk),q=parseFloat(t.qty);if(idx<0||!(q>=0))return null;let rem=q-sy(t);
  for(const k of order.slice(0,idx+1)){const x=usedOn(t,k);if(x===null)return null;rem-=x;if(t.wastePk===k)rem-=parseFloat(t.waste)||0;
   }
  return rem}
@@ -476,21 +476,29 @@ function ledger(pk=S.pile.key){const sum=f=>S.trucks.reduce((a,t)=>a+f(t),0),ord
  // An imported sheet may omit explicit carry-in events. Derive the first use
  // of each truck from its calculated allocations, not its arrival alone.
  let arr=0,cin=0,left=0,samp=0,waste=0;
- for(const t of S.trucks){const u=usedOn(t,pk);if(!(u>0))continue;
-  const prior=idx>0?order.slice(0,idx).some(k=>(usedOn(t,k)||0)>0):false;
-  if(!prior){arr+=num(t.qty)||0;samp+=sy(t)}
-  else{const prev=leftAfter(t,order[idx-1]);if(prev===null)pend=true;else cin+=Math.max(0,prev)}
-  const rem=leftAfter(t,pk);if(rem===null)pend=true;else if(rem>0)left+=rem;
+ for(const t of S.trucks){const u=usedOn(t,pk);
   if(t.wastePk===pk)waste+=num(t.waste)||0;
+  if(u>0){const prior=idx>0?order.slice(0,idx).some(k=>(usedOn(t,k)||0)>0):false;
+   if(!prior){arr+=num(t.qty)||0;samp+=sy(t)}
+   else{const prev=leftAfter(t,order[idx-1]);if(prev===null)pend=true;else cin+=Math.max(0,prev)}
+   const rem=leftAfter(t,pk);if(rem===null)pend=true;else if(rem>0)left+=rem;continue}
+  // Grout that rides through on a truck that does not pump here still arrives and still leaves.
+  if(t.rejected||t.leftWaste||idx<=0||emptyOn(t,pk))continue;
+  if(!order.slice(0,idx).some(k=>(usedOn(t,k)||0)>0))continue;
+  if(order.slice(0,idx).some(k=>emptyOn(t,k)))continue;
+  const inn=leftAfter(t,order[idx-1]),rem=leftAfter(t,pk);
+  if(inn===null||rem===null){pend=true;continue}
+  cin+=Math.max(0,inn);if(rem>0)left+=rem;
  }
  return{arr,cin,used:pend?null:(gap?expected:used),samp,waste,left:pend||gap?null:left,allocationGap:gap}}
 // End-of-day read-only truck reconciliation. No historical records are rewritten.
 function dayRebalanceH(){
- const order=orderKeys(),rows=[],warnings=[];let received=0,samples=0,placed=0,wasted=0,remaining=0,unknown=false;
+ const order=orderKeys(),rows=[],warnings=[];let received=0,samples=0,placed=0,wasted=0,remaining=0,sentBack=0,unknown=false;
  for(const t of S.trucks){
   const q=num(t.qty),sample=sy(t),used=usedAll(t),w=num(t.waste)||0;
-  const rem=q!==null&&used!==null?q-sample-used-w:null;
+  const rem=t.rejected?0:(q!==null&&used!==null?q-sample-used-w:null);
   if(q!==null)received+=q;else{unknown=true;warnings.push('Truck '+tname(t)+': missing ticket quantity')}
+  if(t.rejected){sentBack+=q||0;rows.push('<tr><td>'+esc(tname(t))+'</td><td>'+(q===null?'?':r1(q))+'</td><td>0</td><td>0</td><td>sent back</td></tr>');continue}
   samples+=sample;wasted+=w;
   if(used!==null)placed+=used;else unknown=true;
   if(rem!==null)remaining+=rem;else unknown=true;
@@ -501,10 +509,10 @@ function dayRebalanceH(){
  for(const pk of order){const p=pileRec(pk),n=confStrokes(pk),r=recon(pk);if(r&&r._gap)warnings.push('Pile '+(p.id||'?')+': '+Math.round(Math.abs(r._gap))+' strokes need allocation');if(n.src==='my count'&&!p.tapped&&!p.myCount)warnings.push('Pile '+(p.id||'?')+': total is not independently confirmed')}
  if(S.orphan)warnings.push(S.orphan+' strokes held without a truck');
  if(!S.trucks.length)warnings.push('No truck records in this saved day. Rebalance cannot restore records lost during an update.');
- const net=received-samples-placed-wasted;
+ const net=received-samples-placed-wasted-sentBack;
  return '<div class="card" id="day-rebalance"><b>End-of-day truck rebalance (preview)</b><small>Recalculates all saved piles and trucks. No values are changed automatically.</small>'+
  '<div style="overflow-x:auto"><table><tr><th>Truck</th><th>Load</th><th>Sample</th><th>Used</th><th>Left</th></tr>'+rows.join('')+'</table></div>'+
- '<div>Delivered '+r1(received)+' − samples '+r1(samples)+' − pumped '+r1(placed)+' − documented losses '+r1(wasted)+' = <b>'+(unknown?'partial / unknown':r1(net)+' yd³')+'</b></div>'+
+ '<div>Delivered '+r1(received)+' − samples '+r1(samples)+' − pumped '+r1(placed)+' − waste '+r1(wasted)+' − sent back '+r1(sentBack)+' = <b>'+(unknown?'partial / unknown':r1(net)+' yd³')+'</b></div>'+
  (!unknown&&Math.abs(net-remaining)>0.005?'<div class="flag">Ledger mismatch: '+r1(net-remaining)+' yd³</div>':'')+
  (warnings.length?'<div class="flag">'+warnings.map(esc).join('<br>')+'</div>':'<div>All recorded truck quantities reconcile mathematically. Verify actual empty events and switch points.</div>')+
  '<small>Missing trucks cannot be reconstructed from calculations. Use the existing backup/import or restore the original saved data before approving quantities.</small></div>';
@@ -1610,7 +1618,7 @@ function formHTML(pk,pair){
  comb.forEach(r=>extra.push(['Missed mark',r.flag.replace('COMBINED: ','')]));
  {const Q=bandQC(P),pq=pileQC(P);if(Q)Q.filter(q=>q.n!=null).forEach(q=>extra.push(['Grout '+dl(q.b),fx(q.f)+(q.under?' UNDER '+fx(q.need??Q.need):'')+(q.auto?' *':'')]));if(Q)extra.push(['Grout check vs',Q.ref+', flagged under '+needTxt(Q)+(Q.find(q=>q.head)?', bottom band less '+Q.find(q=>q.head).head+' head strokes':'')]);if(pq)extra.push(['Grout pile',fx(pq.f)+' of '+pq.ref])}
  ISS().filter(x=>x.pk===P.key).forEach(x=>extra.push(['Stop / delay',issDesc(x)]));S.trucks.filter(t=>t.rejected&&t.rejected.pk===P.key).forEach(t=>extra.push(['Truck sent back',tname(t)+' · '+(t.qty||'?')+' yd³ · '+t.rejected.reason+' · '+hm(t.rejected.t)+(t.rejected.note?' · '+t.rejected.note:'')]));
- {const show=extra.filter(([l])=>!/^Grout /.test(l)&&l!=='Truck sent back'&&l!=='My count'&&l!=='Contractor strokes'&&l!=='Agreed total'&&l!=='Head strokes');if(show.length)h+=box(show)}
+ {const show=extra.filter(([l])=>!/^Grout /.test(l)&&l!=='Truck sent back'&&l!=='My count'&&l!=='Contractor strokes'&&l!=='Agreed total'&&l!=='Head strokes'&&l!=='Left on trucks');if(show.length)h+=box(show)}
  if(!formMode.qc)h+=dispPrint(P.key);
  return h}
 // Forms laid out like the field sheet: two piles side by side, the yardage box between them (left value = left pile, right value = right pile).
@@ -1626,10 +1634,7 @@ function carryInto(pk){
  const prevFeed=feedOrder(prev);
  ids.sort((a,b)=>{const ia=prevFeed.indexOf(a),ib=prevFeed.indexOf(b);return (ia<0?999:ia)-(ib<0?999:ib)||((tk(a)?.seq||0)-(tk(b)?.seq||0))});
  for(const id of ids){const t=tk(id);if(!t||t.rejected||t.leftWaste)continue;
-  // A truck handed to this pile still has its leftover before the first stroke here.
-  // Requiring strokes on this pile wiped the carry off the form as soon as Next pile was tapped.
-  const usedHere=(usedOn(t,pk)||0)>0,carried=!!(t.carryIn&&t.carryIn[pk]);
-  if(!usedHere&&!carried)continue;
+  // Leftover keeps moving with the truck through later piles, even on a pile it does not pump.
   if(!order.slice(0,idx).some(k=>(usedOn(t,k)||0)>0))continue;
   if(order.slice(0,idx).some(k=>emptyOn(t,k)))continue;
   rows.push({t,yd:leftAfter(t,prev)})}
@@ -1639,7 +1644,10 @@ function carryOut(pk){
  const order=orderKeys(),idx=order.indexOf(pk);
  if(idx>=0&&order[idx+1])return carryInto(order[idx+1]);
  const rows=[];
- for(const t of S.trucks){if(t.rejected||t.leftWaste||!(usedOn(t,pk)>0)||emptyOn(t,pk)||t.wastePk===pk)continue;rows.push({t,yd:leftAfter(t,pk)})}
+ for(const t of S.trucks){if(t.rejected||t.leftWaste||emptyOn(t,pk))continue;
+  if(!((usedOn(t,pk)||0)>0||order.slice(0,idx).some(k=>(usedOn(t,k)||0)>0)))continue;
+  if(order.slice(0,idx).some(k=>emptyOn(t,k)))continue;
+  rows.push({t,yd:leftAfter(t,pk)})}
  return rows}
 function carryCell(rows,prep){
  if(rows.some(r=>r.yd==null))return '?';

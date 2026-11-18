@@ -106,7 +106,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v136';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v137';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -1208,6 +1208,18 @@ function truckPumpWindows(P,used){
  }
  return out;
 }
+// Paper-form corrections are stored separately from the original field events.
+function formCellEdit(pk,truckId,label,col){
+ const key=[pk,truckId||'pile',label,col].join('|'),old=(S.formCorrections||{})[key];
+ const current=old?old.value:'';
+ const value=prompt('Edit '+label+' · '+(truckId?'truck '+(tname(tk(truckId))||'?'):'pile '+pname(pk))+'\\nEnter the corrected value (blank clears correction):',current);
+ if(value===null)return;
+ S.formCorrections=S.formCorrections||{};
+ if(value.trim()==='')delete S.formCorrections[key];
+ else S.formCorrections[key]={value:value.trim(),previous:old?old.value:null,edited:Date.now()};
+ S.ev.push({id:uid(),type:'form_correction',t:Date.now(),entered:Date.now(),pk,pile:pname(pk),truck:truckId||null,field:label,from:old?old.value:null,value:value.trim(),source:'paper_form'});
+ save();showForm(pk,formMode.only);
+}
 function formHTML(pk,pair){
  const fh=ms=>{if(!ms)return'';const d=new Date(ms);return (d.getHours()%12||12)+':'+String(d.getMinutes()).padStart(2,'0')};
  const fs=s=>{if(!s)return'';const [h,m]=s.split(':').map(Number);return (h%12||12)+':'+String(m).padStart(2,'0')};
@@ -1237,7 +1249,7 @@ function formHTML(pk,pair){
  const cell='border:1px solid #6b7c99;height:34px;padding:2px 6px;font-size:18px';
  const lab=c=>`${cell};background:${CL[c]||'#fff'};font:700 13px Barlow,system-ui,sans-serif;white-space:nowrap`;
  let h=`<h2 id="fp-${P.key}" style="margin-top:20px">Pile ${esc(P.id||'?')}${cur?' (current)':''}</h2><div class="wrap"><table style="background:#fff;color:#0d1b2a;min-width:320px">`;
- for(const [l,f,c] of rows)h+=`<tr><td style="${lab(c)}">${esc(l)}</td>`+ts.map((t,i)=>{const raw=String(f(t,i)??''),estimated=raw.endsWith('*'),v=estimated?raw.slice(0,-1):raw;return `<td style="${cell};min-width:84px;color:#0d1b2a;${estimated?'font-style:italic;border:2px dashed #b45309;':''}">${esc(v)}${estimated?'<small title="Estimated time"> est.</small>':''}</td>`}).join('')+'</tr>';
+ for(const [l,f,c] of rows)h+=`<tr><td style="${lab(c)}">${esc(l)}</td>`+ts.map((t,i)=>{const raw=String(f(t,i)??''),estimated=raw.endsWith('*'),v=estimated?raw.slice(0,-1):raw;const id=t.blank?'':t.id,ek=[P.key,id||'pile',l,i].join('|'),cor=(S.formCorrections||{})[ek],shown=cor?cor.value:v;return `<td onclick="formCellEdit('${P.key}','${id}','${l}',${i})" title="Tap to edit" style="${cell};min-width:84px;color:#0d1b2a;cursor:pointer;position:relative;${estimated&&!cor?'font-style:italic;border:2px dashed #b45309;':''}${cor?'background:#fff5d5;':''}">${esc(shown)}${estimated&&!cor?'<small title="Estimated time"> est.</small>':''}<span style="float:right;font-size:10px;color:#64748b">✎</span></td>`}).join('')+'</tr>';
  const L=ledger(P.key),f2=v=>v===null?'?':r1(v);
  const box=(r)=>`<table style="background:#fff;color:#0d1b2a;margin-top:12px">`+r.map(([l,v])=>`<tr><td style="${lab('g')};text-align:center;min-width:90px;font-weight:600">${esc(l)}</td><td style="${cell};min-width:100px">${cellV(v)}</td></tr>`).join('')+`</table>`;
  h+=`</table></div>`+(pair?'':box([['ARRIVED',arrCell(L)],['USED',L.used!==null?f2(L.used):'?'],['CARRY OVER',L.left!==null?f2(L.left):'?'],['ELEV',P.elev],['STATION',P.station]]));

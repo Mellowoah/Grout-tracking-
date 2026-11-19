@@ -294,7 +294,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v165';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v166';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -349,11 +349,21 @@ function save(){
  let j;try{j=JSON.stringify(S)}catch(e){logErr(e,'serialize');$('save').textContent='NOT SAVED — export or recover data';return false}
  histNote(j);
  let ok=false;try{localStorage.setItem(KEY,j);ok=localStorage.getItem(KEY)===j}catch(e){logErr(e,'local storage')}
- if(ok)mirror(j);
+ if(ok){lastSavedSnapshot=j;mirror(j)}
  $('save').textContent=(PROF?'['+PROF+' profile] ':'')+(ok?'Saved on this phone '+ft(Date.now())+' · '+(S.piles.length+1)+' piles · v'+APPV.replace(/\D/g,''):'NOT SAVED — export data now');
  if(!ok)msg('Storage write failed. Your changes may be lost if you close this page. Export a backup now.');
  return ok
 }
+// Autosave any state changes not already saved by an action handler.
+// The comparison avoids unnecessary writes while preserving edits from all controls.
+let lastSavedSnapshot=null;
+function autoSaveIfChanged(){
+ try{const current=JSON.stringify(S);if(current!==lastSavedSnapshot)save()}
+ catch(e){logErr(e,'autosave')}
+}
+setInterval(autoSaveIfChanged,5000);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')autoSaveIfChanged()});
+window.addEventListener('pagehide',autoSaveIfChanged);
 let mirT;function mirror(j){
  clearTimeout(mirT);mirT=setTimeout(()=>{
   try{pdb().then(db=>new Promise((resolve,reject)=>{

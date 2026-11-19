@@ -294,7 +294,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v160';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v161';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -538,9 +538,9 @@ function ledger(pk=S.pile.key){const sum=f=>S.trucks.reduce((a,t)=>a+f(t),0),ord
    else{const prev=leftAfter(t,order[idx-1]);if(prev===null)pend=true;else cin+=Math.max(0,prev)}
    const rem=leftAfter(t,pk);if(rem===null)pend=true;else if(rem>0)left+=rem;continue}
   // Grout that rides through on a truck that does not pump here still arrives and still leaves.
-  if(t.rejected||t.leftWaste||idx<=0||emptyOn(t,pk))continue;
+  if(t.rejected||idx<=0||emptyOn(t,pk)||t.wastePk===pk)continue;
   if(!order.slice(0,idx).some(k=>(usedOn(t,k)||0)>0))continue;
-  if(order.slice(0,idx).some(k=>emptyOn(t,k)))continue;
+  if(order.slice(0,idx).some(k=>emptyOn(t,k)||t.wastePk===k))continue;
   const inn=leftAfter(t,order[idx-1]),rem=leftAfter(t,pk);
   if(inn===null||rem===null){pend=true;continue}
   cin+=Math.max(0,inn);if(rem>0)left+=rem;
@@ -607,7 +607,11 @@ function stroke(d){if(d<0&&S.strokes===0)return;S.strokes+=d;S.ctrAt=Date.now();
 // arriving later. One past its batch-time limit is never picked by itself.
 // Next truck is the next one that has actually arrived, in arrival order.
 // Sent back, timed out, emptied and archived trucks are skipped. A truck that is only waiting is eligible once it has arrived.
-function nextFeeder(t){const now=Date.now();const c=S.trucks.filter(x=>x!==t&&!x.emptied&&!x.rejected&&!x.leftWaste&&!x.archived&&!x.pend&&(x.onsite||x.arrived)&&!(x.arrived&&x.arrived>now+60000)).sort((a,b)=>(a.arrived||Infinity)-(b.arrived||Infinity)||(a.seq||0)-(b.seq||0));
+function nextFeeder(t){
+ const now=Date.now();
+ const rank=x=>[x.arrived||Infinity,x.seq||0];
+ const after=(a,b)=>{const x=rank(a),y=rank(b);return x[0]>y[0]||(x[0]===y[0]&&x[1]>y[1])};
+ const c=S.trucks.filter(x=>x!==t&&!x.emptied&&!x.rejected&&!x.leftWaste&&!x.archived&&!x.pend&&(x.onsite||x.arrived)&&x.arrived&&x.arrived<=now+60000&&(!t||after(x,t))).sort((a,b)=>(a.arrived||Infinity)-(b.arrived||Infinity)||(a.seq||0)-(b.seq||0));
  return{ok:c[0]||null,late:null}}
 function autoHandoff(){const t=tk(S.active);if(!t||t.pend||t.noPend||!(calYd()>0)||!(parseFloat(t.qty)>0)||num(t.used[S.pile.key])!==null)return;const c=calc(t);if(c.rem===null||c.rem>0)return;
  const pk=S.pile.key,cy=calYd(),n=strokesOn(t,pk),bnd=Math.max(0,Math.floor((c.rem+n*cy)/cy+1e-9)),over=Math.max(0,Math.round(n-bnd));
@@ -1781,10 +1785,10 @@ function carryInto(pk){
  S.trucks.forEach(t=>{if(!seen.has(t.id)){seen.add(t.id);ids.push(t.id)}});
  const prevFeed=feedOrder(prev);
  ids.sort((a,b)=>{const ia=prevFeed.indexOf(a),ib=prevFeed.indexOf(b);return (ia<0?999:ia)-(ib<0?999:ib)||((tk(a)?.seq||0)-(tk(b)?.seq||0))});
- for(const id of ids){const t=tk(id);if(!t||t.rejected||t.leftWaste)continue;
+ for(const id of ids){const t=tk(id);if(!t||t.rejected)continue;
   // Leftover keeps moving with the truck through later piles, even on a pile it does not pump.
   if(!order.slice(0,idx).some(k=>(usedOn(t,k)||0)>0))continue;
-  if(order.slice(0,idx).some(k=>emptyOn(t,k)))continue;
+  if(order.slice(0,idx).some(k=>emptyOn(t,k)||t.wastePk===k))continue;
   rows.push({t,yd:leftAfter(t,prev)})}
  return rows}
 // What this pile hands to the next one. Same trucks and amounts as that pile's carry-in, so the two sides match.
@@ -1792,9 +1796,9 @@ function carryOut(pk){
  const order=orderKeys(),idx=order.indexOf(pk);
  if(idx>=0&&order[idx+1])return carryInto(order[idx+1]);
  const rows=[];
- for(const t of S.trucks){if(t.rejected||t.leftWaste||emptyOn(t,pk))continue;
+ for(const t of S.trucks){if(t.rejected||emptyOn(t,pk)||t.wastePk===pk)continue;
   if(!((usedOn(t,pk)||0)>0||order.slice(0,idx).some(k=>(usedOn(t,k)||0)>0)))continue;
-  if(order.slice(0,idx).some(k=>emptyOn(t,k)))continue;
+  if(order.slice(0,idx).some(k=>emptyOn(t,k)||t.wastePk===k))continue;
   rows.push({t,yd:leftAfter(t,pk)})}
  return rows}
 function carryCell(rows,prep){

@@ -294,7 +294,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v163';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v164';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -1807,7 +1807,7 @@ function carryInto(pk){
   // Leftover keeps moving with the truck through later piles, even on a pile it does not pump.
   if(!order.slice(0,idx).some(k=>(usedOn(t,k)||0)>0))continue;
   if(order.slice(0,idx).some(k=>emptyOn(t,k)||t.wastePk===k))continue;
-  rows.push({t,yd:leftAfter(t,prev)})}
+  rows.push({t,yd:leftAfter(t,prev),fromPk:prev})}
  return rows}
 // What this pile hands to the next one. Same trucks and amounts as that pile's carry-in, so the two sides match.
 function carryOut(pk){
@@ -1817,14 +1817,15 @@ function carryOut(pk){
  for(const t of S.trucks){if(t.rejected||emptyOn(t,pk)||t.wastePk===pk)continue;
   if(!((usedOn(t,pk)||0)>0||order.slice(0,idx).some(k=>(usedOn(t,k)||0)>0)))continue;
   if(order.slice(0,idx).some(k=>emptyOn(t,k)||t.wastePk===k))continue;
-  rows.push({t,yd:leftAfter(t,pk)})}
+  rows.push({t,yd:leftAfter(t,pk),fromPk:pk})}
  return rows}
 function carryCell(rows,prep){
  const known=rows.filter(r=>r.yd!=null&&ydShows(r.yd)),unknown=rows.some(r=>r.yd==null);
  if(!known.length)return unknown?'?':'';
  // One truck: the big number is that truck's yards ("5.000 on 202").
  // More than one: name every truck with its own yards, or the middle truck reads as "on 7.000".
- const note=known.length===1&&!unknown?esc(prep)+' '+esc(tname(known[0].t)):known.map(r=>esc(r1(r.yd))+' '+esc(prep)+' '+esc(tname(r.t))).join(' + ')+(unknown?' + ?':'');
+ const describe=r=>{const truck='Truck '+esc(String(r.t.seq||'?'))+(r.t.num?' (ID '+esc(String(r.t.num))+')':'');const from=r.fromPk?' from Pile '+esc(pname(r.fromPk)):'';return truck+from};
+ const note=known.length===1&&!unknown?esc(prep)+' '+describe(known[0]):known.map(r=>esc(r1(r.yd))+' '+esc(prep)+' '+describe(r)).join(' + ')+(unknown?' + ?':'');
  const sum=known.reduce((a,r)=>a+r.yd,0);
  return {html:(unknown?'? (known '+esc(r1(sum))+')':esc(r1(sum)))+` <small style="font-size:12px;color:#555">${note}</small>`}}
 function carryNum(rows){if(rows.some(r=>r.yd==null))return '?';const sum=rows.reduce((a,r)=>a+(r.yd!=null&&ydShows(r.yd)?r.yd:0),0);return ydShows(sum)?+r1(sum):0}

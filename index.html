@@ -294,7 +294,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v162';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v163';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -344,9 +344,26 @@ function undoAll(){const h=hist.pop();if(!h)return msg('Nothing left to undo.');
 function redoAll(){const h=fut.pop();if(!h)return msg('Nothing to redo.');hist.push({j:lastJ,lab:h.lab,t:Date.now()});histRestore(h.j);msg('Redid '+h.lab+'.')}
 function histRestore(j){if(typeof fc!=='undefined'&&fc){clearInterval(fcT);fc=null}S=JSON.parse(j);lastJ=j;histAt=0;undoSnap=null;$('undoNP').hidden=true;try{localStorage.setItem(KEY,j)}catch(e){}save();histSave();render();if($('depv').style.display!=='none')depthRender()}
 function undoRow(){return `<div class="row"><button id="undoLast" class="sec" style="flex:2;min-height:48px" onclick="undoAll()"${hist.length?'':' disabled'}>↶ Undo${hist.length?' '+esc(hist[hist.length-1].lab)+' ('+hist.length+')':''}</button><button class="sec" style="flex:1;min-height:48px" onclick="redoAll()"${fut.length?'':' disabled'}>Redo ↷</button></div>`}
-function save(){if(S.noCount&&S.pile)S.pile.noCount=true;const j=JSON.stringify(S);histNote(j);let ok=false;try{localStorage.setItem(KEY,j);ok=true}catch(e){}
- mirror(j);$('save').textContent=(PROF?'['+PROF+' profile] ':'')+(ok?'Saved on this phone '+ft(Date.now())+' · '+(S.piles.length+1)+' piles · v'+APPV.replace(/\D/g,''):'Not saved to main storage. Backup copy only: export now')}
-let mirT;function mirror(j){clearTimeout(mirT);mirT=setTimeout(()=>{try{pdb().then(db=>{const tx=db.transaction('s','readwrite');tx.objectStore('s').put({t:Date.now(),j},'state'+(PROF?':'+PROF:''))})}catch(e){}},300)}
+function save(){
+ if(S.noCount&&S.pile)S.pile.noCount=true;
+ let j;try{j=JSON.stringify(S)}catch(e){logErr(e,'serialize');$('save').textContent='NOT SAVED — export or recover data';return false}
+ histNote(j);
+ let ok=false;try{localStorage.setItem(KEY,j);ok=localStorage.getItem(KEY)===j}catch(e){logErr(e,'local storage')}
+ if(ok)mirror(j);
+ $('save').textContent=(PROF?'['+PROF+' profile] ':'')+(ok?'Saved on this phone '+ft(Date.now())+' · '+(S.piles.length+1)+' piles · v'+APPV.replace(/\D/g,''):'NOT SAVED — export data now');
+ if(!ok)msg('Storage write failed. Your changes may be lost if you close this page. Export a backup now.');
+ return ok
+}
+let mirT;function mirror(j){
+ clearTimeout(mirT);mirT=setTimeout(()=>{
+  try{pdb().then(db=>new Promise((resolve,reject)=>{
+   const tx=db.transaction('s','readwrite');
+   tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error||new Error('IndexedDB write failed'));tx.onabort=()=>reject(tx.error||new Error('IndexedDB write aborted'));
+   tx.objectStore('s').put({t:Date.now(),j},'state'+(PROF?':'+PROF:''));
+  })).catch(e=>{logErr(e,'backup mirror');const el=$('save');if(el)el.textContent+=' · Backup mirror failed — export recommended'})}
+  catch(e){logErr(e,'backup mirror')}
+ },300)
+}
 let undoSnap=null,undoT;function showUndoPile(){const u=$('undoNP');u.hidden=false;clearTimeout(undoT);undoT=setTimeout(()=>{u.hidden=true;undoSnap=null},20000)}
 let msgT;function msg(t){const m=$('msg');m.textContent=t;m.hidden=false;clearTimeout(msgT);msgT=setTimeout(()=>m.hidden=true,6000)}
 // change history for pile counts/notes (old → new); the first agreed total also saves the split as it stood
@@ -1765,7 +1782,7 @@ function formHTML(pk,pair){
  if(num(P.myCount)!==null)extra.push(['My count',String(num(P.myCount))]);
  if(P.opCount!==''&&P.opCount!=null)extra.push(['Contractor strokes',String(P.opCount)]);
  if(num(P.reviewed)!==null)extra.push(['Agreed total',String(num(P.reviewed))]);
- {const bs=bandSum(P),total=confStrokes(P.key).n;if(bs!=null){extra.push(['Depth strokes',String(bs)]);if(total&&bs!==total)extra.push(['Depth discrepancy',String(bs)+' depth strokes vs '+String(total)+' pile strokes — review bottom depth entries'])}}
+ {const bs=bandSum(P),total=confStrokes(P.key).n,complete=bands(P).every(b=>(P.bandIn||{})[dl2(b)]!=null);if(bs!=null){extra.push(['Depth strokes',String(bs)+(complete?'':' (partial)')]);if(complete&&total&&bs!==total)extra.push(['Depth discrepancy',String(bs)+' depth strokes vs '+String(total)+' pile strokes — review bottom depth entries']);else if(!complete)extra.push(['Depth status','Incomplete depth entries — total not yet reconciled'])}}
  extra.push(['Head strokes',String(headOf(P))]);
  extra.push(['Fed by',used.filter(t=>!t.blank).map(t=>tname(t)).filter(Boolean).join(', ')||'—']);
  comb.forEach(r=>extra.push(['Missed mark',r.flag.replace('COMBINED: ','')]));
@@ -1809,9 +1826,9 @@ function carryCell(rows,prep){
  // More than one: name every truck with its own yards, or the middle truck reads as "on 7.000".
  const note=known.length===1&&!unknown?esc(prep)+' '+esc(tname(known[0].t)):known.map(r=>esc(r1(r.yd))+' '+esc(prep)+' '+esc(tname(r.t))).join(' + ')+(unknown?' + ?':'');
  const sum=known.reduce((a,r)=>a+r.yd,0);
- return {html:esc(r1(sum))+` <small style="font-size:12px;color:#555">${note}</small>`}}
-function carryNum(rows){if(rows.some(r=>r.yd==null)&&!rows.some(r=>ydShows(r.yd)))return '?';const sum=rows.reduce((a,r)=>a+(r.yd!=null&&ydShows(r.yd)?r.yd:0),0);return ydShows(sum)?+r1(sum):0}
-function carryWho(rows,prep){if(rows.some(r=>r.yd==null)&&!rows.some(r=>ydShows(r.yd)))return '?';return rows.filter(r=>r.yd!=null&&ydShows(r.yd)).map(r=>r1(r.yd)+' '+prep+' '+tname(r.t)).join(' + ')}
+ return {html:(unknown?'? (known '+esc(r1(sum))+')':esc(r1(sum)))+` <small style="font-size:12px;color:#555">${note}</small>`}}
+function carryNum(rows){if(rows.some(r=>r.yd==null))return '?';const sum=rows.reduce((a,r)=>a+(r.yd!=null&&ydShows(r.yd)?r.yd:0),0);return ydShows(sum)?+r1(sum):0}
+function carryWho(rows,prep){const known=rows.filter(r=>r.yd!=null&&ydShows(r.yd)).map(r=>r1(r.yd)+' '+prep+' '+tname(r.t)).join(' + ');return known+(rows.some(r=>r.yd==null)?(known?' + ?':'?'):'')}
 function midVals(pk){const P=pileRec(pk),L=ledger(pk),f=v=>v===null?'?':r1(v),order=orderKeys(),idx=order.indexOf(pk);
  // November 17 verified field reconciliation: only the paper form's center
  // yardage box. Preserve the inspector's original count and all raw records.

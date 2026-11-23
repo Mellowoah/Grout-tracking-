@@ -294,7 +294,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v175';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v176';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -754,10 +754,39 @@ const A={
  fcStart(id,i){fc={id,i,start:Date.now()};vib();clearInterval(fcT);fcT=setInterval(()=>{const b=$('fc-'+fc.id+'-'+fc.i);if(b)b.innerHTML='Stop · <span class="num">'+fcSec()+'</span> s'},100);render()},
  fcStop(){if(!fc)return;const t=tk(fc.id),sec=fcSec();clearInterval(fcT);if(t&&t.tests[fc.i]){t.tests[fc.i].flow=sec;t.tests[fc.i].timed=true;log('flow_cone',{truck:t.id,value:sec})}fc=null;vib();save();render();msg('Flow cone '+sec+' s saved')},
  // Reopen any pile to view or fix it; strokes, feeding truck and marks are kept per pile
- openPile(k){if(k===S.pile.key)return;const tgt=S.piles.find(p=>p.key===k);if(!tgt)return;undoSnap=null;$('undoNP').hidden=true;if(fc){clearInterval(fcT);fc=null}
-  act(()=>{closeSeg();S.piles.push({...S.pile,strokes:S.strokes,active:S.active,pumping:S.pumping,done:S.pile.done||Date.now()});S.piles=S.piles.filter(p=>p!==tgt);
-   S.pile=tgt;S.strokes=tgt.strokes||0;S.segStart=S.strokes;const at=tk(tgt.active);S.active=at&&!at.emptied?at.id:null;S.pumping=!!tgt.pumping&&!!S.active;delete tgt.active;delete tgt.pumping;
-   log('open_pile');msg(isLatest()?'Back on pile '+(S.pile.id||'?')+'.':'Now on pile '+(S.pile.id||'?')+'. Changes save to this pile. Tap Back to '+(latestPile().id||'latest')+' when done.')});scrollTo(0,0)},
+ openPile(k){
+  if(k===S.pile.key)return;
+  const tgt=S.piles.find(p=>p.key===k);if(!tgt)return;
+  // Commit a currently focused input BEFORE changing piles, so onchange edits
+  // cannot be lost when render() replaces its DOM node.
+  const focused=document.activeElement;
+  if(focused&&/^(INPUT|TEXTAREA|SELECT)$/.test(focused.tagName)&&typeof focused.blur==='function')focused.blur();
+  if(!save())return msg('Pile not changed: unable to save this pile. Export a backup before continuing.');
+  const before=JSON.stringify(S),oldKey=S.pile.key;
+  undoSnap=null;$('undoNP').hidden=true;if(fc){clearInterval(fcT);fc=null}
+  try{
+   closeSeg();
+   // Save the outgoing live pile as a separate record. Never retain the same
+   // object in both S.pile and S.piles.
+   const outgoing={...S.pile,strokes:S.strokes,active:S.active,pumping:S.pumping};
+   if(!outgoing.done&&outgoing.n<maxN())outgoing.done=Date.now();
+   S.piles=S.piles.filter(p=>p.key!==k&&p.key!==oldKey);
+   S.piles.push(outgoing);
+   S.pile={...tgt};
+   S.strokes=Number(tgt.strokes)||0;S.segStart=S.strokes;
+   const at=tk(tgt.active);S.active=at&&!at.emptied?at.id:null;
+   S.pumping=!!tgt.pumping&&!!S.active;
+   delete S.pile.active;delete S.pile.pumping;
+   log('open_pile');
+   if(!save())throw Error('storage verification failed');
+   render();
+   msg(isLatest()?'Back on pile '+(S.pile.id||'?')+'.':'Now on pile '+(S.pile.id||'?')+'. Changes save to this pile.');
+   scrollTo(0,0);
+  }catch(e){
+   S=JSON.parse(before);save();render();
+   logErr(e,'pile navigation');msg('Pile change cancelled. Previous pile restored; check storage.');
+  }
+ },
  confirmEmpty(id){const t=tk(id);if(!t||!t.pend)return;act(()=>{if(S.active===id){closeSeg();S.active=null}t.emptied=t.pend.t;log('truck_empty',{truck:id,pk:t.pend.pk,confirmed:true});delete t.pend;msg('Truck '+tname(t)+' marked empty at '+ft(t.emptied)+'.')})},
  notEmpty(id){const t=tk(id);if(!t)return;act(()=>{delete t.pend;t.noPend=true;msg('Truck '+tname(t)+' kept open.')})},
  oldSet(k,f,v){const p=S.piles.find(x=>x.key===k);if(p){pHist(p,f,p[f],v);p[f]=v;if((f==='opCount'||f==='reviewed'||f==='myCount')&&num(v)!==null)balancePileStrokes(k);save();render()}},

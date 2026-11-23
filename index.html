@@ -294,7 +294,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v166';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v167';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -644,12 +644,12 @@ function autoHandoff(){const t=tk(S.active);if(!t||t.pend||t.noPend||!(calYd()>0
  const pk=S.pile.key,cy=calYd(),n=strokesOn(t,pk),bnd=Math.max(0,Math.floor((c.rem+n*cy)/cy+1e-9)),over=Math.max(0,Math.round(n-bnd));
  closeSeg();if(over){t.ps[pk]=(t.ps[pk]||0)-over;t.strokes-=over}
  S.segStart=S.strokes-over;const now=Date.now(),nx=nextFeeder(t).ok;
- t.pend={t:now,pk,strokes:S.strokes-over,est:true};t.pumpOutAt=now;t.pumpOutPk=pk;
+ t.pend={t:now,pk,strokes:S.strokes-over,est:true};t.emptied=now;t.emptyEstimated=true;t.pumpOutAt=now;t.pumpOutPk=pk;
  log('truck_maybe_empty',{truck:t.id,boundary:bnd,estimatedPumpOut:now});
  S.active=null;
- if(nx){S.active=nx.id;if(over>0)noteFeed(nx,pk);log('truck_switch',{truck:nx.id,from:t.id,auto:true,est:true,at:S.strokes-over,depth:nextMark()??null,pumpOutAt:now,over});
+ if(nx){S.active=nx.id;S.waitingForTruck=false;if(over>0)noteFeed(nx,pk);log('truck_switch',{truck:nx.id,from:t.id,auto:true,est:true,at:S.strokes-over,depth:nextMark()??null,pumpOutAt:now,over});
   msg('Truck '+tname(t)+' is empty at stroke '+bnd+'. Now feeding truck '+tname(nx)+(over>0?' ('+over+' strokes on this pile)':'')+'. Undo if that switch is wrong.')}
- else{S.orphan=(S.orphan||0)+over;msg('Truck '+tname(t)+' is empty at stroke '+bnd+'. No truck has arrived to take over. '+over+' strokes are not on a truck yet.')}
+ else{S.waitingForTruck=true;S.orphan=(S.orphan||0)+over;msg('Truck '+tname(t)+' estimated empty at stroke '+bnd+'. Waiting for next arrived truck. '+over+' strokes require reconciliation.')}
  histLabel='auto truck switch';save();render();showUndoSwitch();vib()}
 let undoSwT;
 function showUndoSwitch(){const u=$('undoSW');if(!u)return;u.hidden=false;clearTimeout(undoSwT);undoSwT=setTimeout(()=>{u.hidden=true},20000)}
@@ -668,8 +668,8 @@ const A={
   /* Waiting trucks remain unassigned across pile changes until they feed the pump. */
   msg(done+'Pile '+(S.pile.id||'')+' started.'+(open.length?' '+open.map(([t,yd])=>'Truck '+tname(t)+': '+(yd==null?'?':r1(yd))+' yd³ left').join(', '):''))});showUndoPile()},
  undoPile(){if(!undoSnap)return;S=JSON.parse(undoSnap);undoSnap=null;$('undoNP').hidden=true;save();render();msg('Back on pile '+S.pile.id+'. Nothing was lost.')},
- pump(){act(()=>{S.pumping=!S.pumping;log(S.pumping?'pump_start':'pump_pause')})},
- arrive(){act(()=>{const t={id:uid(),seq:S.trucks.length?Math.max(...S.trucks.map(x=>x.seq||0))+1:1,num:'',sampleNo:'',qty:S.defLoad?String(S.defLoad):'',batch:'',dispatch:'',arrived:Date.now(),emptied:null,strokes:0,samples:[],waste:'',tests:[],pk0:null,onsite:true,ps:{},used:{},carryIn:{},left:''};S.trucks.push(t);log('truck_onsite',{truck:t.id});vib();if(sDue(t)>0)msg('Truck '+t.seq+' arrived. Sample due on this truck: report it Taken or Not taken on its card.')})},
+ pump(){act(()=>{if(!S.pumping&&!tk(S.active)){const nx=nextFeeder(null).ok;if(nx){S.active=nx.id;S.segStart=S.strokes;S.waitingForTruck=false;log('truck_switch',{truck:nx.id,auto:true,at:S.strokes})}else{S.waitingForTruck=true;return msg('No arrived truck available. Enter or mark the next truck arrived before pumping.')}}S.pumping=!S.pumping;log(S.pumping?'pump_start':'pump_pause',{truck:S.active})})},
+ arrive(){act(()=>{const t={id:uid(),seq:S.trucks.length?Math.max(...S.trucks.map(x=>x.seq||0))+1:1,num:'',sampleNo:'',qty:S.defLoad?String(S.defLoad):'',batch:'',dispatch:'',arrived:Date.now(),emptied:null,strokes:0,samples:[],waste:'',tests:[],pk0:null,onsite:true,ps:{},used:{},carryIn:{},left:''};S.trucks.push(t);log('truck_onsite',{truck:t.id});if(S.waitingForTruck&&!S.active){S.active=t.id;S.segStart=S.strokes;S.waitingForTruck=false;log('truck_switch',{truck:t.id,auto:true,at:S.strokes});msg('Truck '+t.seq+' is now the active feeder.')}vib();if(sDue(t)>0)msg('Truck '+t.seq+' arrived. Sample due on this truck: report it Taken or Not taken on its card.')})},
  // Strokes come from the physical counter: type the reading; the difference goes to the feeding truck,
  // split at the point a truck's load runs out so the next truck gets the rest
  setCounter(v){const n=parseInt(v,10);if(isNaN(n)||n<0)return;S.ctrAt=Date.now();let d=n-S.strokes;if(!d)return;if(d<0){stroke(d);return}
@@ -682,7 +682,7 @@ const A={
  sw(id){const t=tk(id);if(!t)return msg('No truck yet. Add a truck (times optional) or tap Truck arrived.');if(t.rejected)return msg('Truck '+tname(t)+' was sent back. It cannot feed the pump.');if(t.leftWaste)return msg('Truck '+tname(t)+' timed out and left with waste. It cannot feed the pump.');act(()=>{attach(t,S.pile.key);const o=tk(S.active);closeSeg();S.active=id;S.segStart=S.strokes;t.fed=true;log('truck_switch',{truck:id,from:o?o.id:null,depth:nextMark()??null})})},
  next(){const t=S.trucks.find(t=>!t.fed&&!t.emptied);if(!t)return msg('No truck yet. Add a truck (times optional) or tap Truck arrived.');A.sw(t.id)},
  depart(id){const t=tk(id);if(!t)return;act(()=>{t.departed=Date.now();log('truck_departed',{truck:id,estimatedPumpOut:t.pumpOutAt||null});msg('Truck '+tname(t)+' left site at '+ft(t.departed)+'.')})},
- empty(id){let nxMsg='';act(()=>{const t=tk(id),wasA=S.active===id;if(wasA){closeSeg();S.active=null}if(!t.pk0&&pumpedHere(t,S.pile.key))attach(t,S.pile.key);t.emptied=Date.now();log('truck_empty',{truck:id});if(wasA){const nx=nextFeeder(t).ok;if(nx){S.active=nx.id;S.segStart=S.strokes;log('truck_switch',{truck:nx.id,from:id,auto:true,at:S.strokes,depth:nextMark()??null});nxMsg='Truck '+tname(t)+' empty. Truck '+tname(nx)+' is next. It joins this pile when it pumps.'}else nxMsg='Truck '+tname(t)+' empty. No arrived truck is waiting.'}});if(nxMsg)msg(nxMsg)},
+ empty(id){let nxMsg='';act(()=>{const t=tk(id),wasA=S.active===id;if(wasA){closeSeg();S.active=null}if(!t.pk0&&pumpedHere(t,S.pile.key))attach(t,S.pile.key);t.emptied=Date.now();t.emptyEstimated=false;t.pend=null;log('truck_empty',{truck:id});if(wasA){const nx=nextFeeder(t).ok;if(nx){S.active=nx.id;S.waitingForTruck=false;S.segStart=S.strokes;log('truck_switch',{truck:nx.id,from:id,auto:true,at:S.strokes,depth:nextMark()??null});nxMsg='Truck '+tname(t)+' empty. Truck '+tname(nx)+' is next. It joins this pile when it pumps.'}else nxMsg='Truck '+tname(t)+' empty. No arrived truck is waiting.'}});if(nxMsg)msg(nxMsg)},
  // Leftover on truck dumped: becomes waste on this pile and the truck is done
  waste(id){const t=tk(id),c=calc(t);if(c.rem===null)return msg('Enter the load and used yd³ first so the leftover can be worked out.');
   act(()=>{const e=log('truck_waste',{truck:id,yd:c.rem,prevWaste:t.waste,prevPk:t.wastePk||null,prevEmptied:t.emptied,prevActive:S.active===id});

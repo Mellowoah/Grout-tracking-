@@ -294,7 +294,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v169';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v170';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -791,6 +791,35 @@ function boardPile(key,field,value){const p=pileLive(key);if(!p)return;if(field=
  else{const o=p[field];pHist(p,field,o,value);p[field]=typeof value==='string'?value.trim():value;if(field==='id')resortPiles();log('edit',{field:field,pk:key,pile:p.id,from:o??'',to:p[field]});if(['opCount','reviewed','myCount'].includes(field)&&num(p[field])!==null)balancePileStrokes(key)}
  save();render()}
 function boardPlan(i,field,value){planSet(i,field,value)}
+// Planned pile assignments are separate from verified grout deliveries.
+function truckPlanKeys(t){return (t.planPiles||[]).filter(k=>orderKeys().includes(k))}
+function truckStrokeForecast(t){
+ const cy=calYd(),q=num(t.qty),spent=usedAll(t),sample=sy(t),w=num(t.waste)||0;
+ if(!(cy>0)||q===null||spent===null)return null;
+ const remaining=Math.max(0,q-sample-w-spent),strokes=Math.max(0,Math.floor(remaining/cy+1e-7));
+ return {remaining,strokes,used:spent,capacity:Math.max(0,q-sample-w)};
+}
+function truckPlanOpen(id){
+ const t=tk(id);if(!t)return;
+ const chosen=new Set(truckPlanKeys(t));
+ // Previously supplied piles remain visible even if they were not planned.
+ const rows=orderKeys().map(k=>{const actual=(usedOn(t,k)||0)>0.005,checked=chosen.has(k);
+  return '<label style="display:flex;align-items:center;gap:12px;padding:10px;border-bottom:1px solid var(--line)"><input type="checkbox" data-plan-pile="'+esc(k)+'" '+(checked?'checked':'')+' style="width:24px;height:24px">Pile '+esc(pname(k))+(actual?' · already supplied':'')+'</label>'}).join('');
+ const f=truckStrokeForecast(t);
+ scanShow('<h2>Truck '+esc(tname(t))+' · select piles</h2><p>Select every pile this truck may supply. This is a plan, not a record of pumping.</p><div class="card" style="max-height:45vh;overflow:auto">'+(rows||'Add piles to Today’s piles first.')+'</div><div class="card">'+(f?'Remaining: '+r1(f.remaining)+' yd³ · approximately '+f.strokes+' strokes until empty':'Enter ticket yardage and stroke factor for a forecast')+'</div><button style="width:100%;min-height:52px" onclick="truckPlanSave(\''+id+'\')">Save selected piles</button><button class="sec" style="width:100%;margin-top:8px" onclick="scanClose()">Cancel</button>');
+}
+function truckPlanSave(id){
+ const t=tk(id);if(!t)return;
+ const from=truckPlanKeys(t),to=[...document.querySelectorAll('[data-plan-pile]:checked')].map(e=>e.getAttribute('data-plan-pile'));
+ t.planPiles=to;log('edit',{truck:id,field:'planned piles',from:from.map(pname).join(', '),to:to.map(pname).join(', ')});
+ save();scanClose();render();
+}
+function truckPlanSummary(t){
+ const keys=truckPlanKeys(t),f=truckStrokeForecast(t);
+ const label=keys.length?'Planned: '+keys.map(pname).join(', '):'Select piles';
+ const forecast=f?' · '+f.strokes+' strokes left ('+r1(f.remaining)+' yd³)':' · forecast unavailable';
+ return '<button class="sec" style="min-height:40px;width:100%;text-align:left" onclick="truckPlanOpen(\''+t.id+'\')">'+esc(label+forecast)+'</button>';
+}
 function boardTruckTime(id,field,value){if(field==='start'){const t=tk(id);if(!t)return;const e=S.ev.find(x=>!x.undone&&x.type==='truck_switch'&&x.truck===id);if(!value){render();return}
   const mm=String(value).match(/^(\d{1,2}):(\d{2})/);if(!mm)return;const d=new Date((e&&e.t)||t.arrived||Date.now());d.setHours(+mm[1],+mm[2],0,0);
   if(e){const from=hm(e.t);e.t=d.getTime();log('edit',{truck:id,field:'pump start',from,to:hm(e.t)})}else log('edit',{truck:id,field:'pump start',from:'',to:hm(d.getTime())});
@@ -841,7 +870,7 @@ function dayBoard(){const inp=(id,val,attrs,fn)=>`<input id="${id}" value="${esc
    <td>${inp('bt-'+t.id+'-num',t.num,'aria-label="Truck number"',`A.setT('${t.id}','num',this.value)`)}</td>
    <td>${inp('bt-'+t.id+'-qty',t.qty,'inputmode="decimal" aria-label="Ticket yards"',`A.setT('${t.id}','qty',this.value)`)}</td>
    <td>${tm('arrived','Arrived')}</td><td>${tm('start','Pump start')}</td><td>${tm('emptied','Empty or left')}</td>
-   <td>${esc(st)}</td><td>${esc(pilesFed(t)||'—')}</td>
+   <td>${esc(st)}</td><td>${truckPlanSummary(t)}<small>Actual: ${esc(pilesFed(t)||'—')}</small></td>
    <td>${inp('bt-'+t.id+'-waste',t.waste,'inputmode="decimal" aria-label="Waste yards"',`A.setT('${t.id}','waste',this.value)`)}</td>
    <td><button class="sec xdel" type="button" aria-label="Archive truck ${esc(tname(t))}" onclick="boardArchiveTruck('${t.id}')">✕</button></td></tr>`});
  const samples=S.ev.filter(e=>e.type==='sample'&&!e.undone&&!e.archived).slice().sort((a,b)=>(a.t||0)-(b.t||0));

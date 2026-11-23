@@ -294,7 +294,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v170';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v171';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -820,6 +820,30 @@ function truckPlanSummary(t){
  const forecast=f?' · '+f.strokes+' strokes left ('+r1(f.remaining)+' yd³)':' · forecast unavailable';
  return '<button class="sec" style="min-height:40px;width:100%;text-align:left" onclick="truckPlanOpen(\''+t.id+'\')">'+esc(label+forecast)+'</button>';
 }
+// Assign trucks from a pile; this is a selection, not fabricated pumping.
+function pileTruckOpen(pk){
+ const p=pileRec(pk);if(!p)return;
+ const assigned=S.trucks.filter(t=>truckPlanKeys(t).includes(pk));
+ const previous=carryInto(pk).filter(r=>r.yd!==null&&r.yd>0.005&&!r.t.emptied&&!r.t.leftWaste&&!r.t.rejected&&!r.t.archived);
+ const defaults=new Set([...assigned.map(t=>t.id),...previous.map(r=>r.t.id)]);
+ const rows=S.trucks.filter(t=>!t.archived&&!t.rejected).map(t=>{
+  const f=truckStrokeForecast(t),carry=previous.some(r=>r.t.id===t.id);
+  return '<label style="display:flex;gap:10px;align-items:center;padding:10px;border-bottom:1px solid var(--line)"><input type="checkbox" data-pile-truck="'+esc(t.id)+'" '+(defaults.has(t.id)?'checked':'')+' style="width:24px;height:24px"><span>Truck '+esc(tname(t))+(carry?' · carryover':'')+(f?' · ~'+f.strokes+' strokes left':'')+'</span></label>'}).join('');
+ scanShow('<h2>Pile '+esc(pname(pk))+' · trucks</h2><p>Carryover is preselected unless the truck is empty, wasted or unavailable. Actual usage is recorded by pump strokes.</p><div class="card" style="max-height:55vh;overflow:auto">'+(rows||'Add a truck first.')+'</div><button style="width:100%;min-height:52px" onclick="pileTruckSave(\''+pk+'\')">Save trucks for pile</button><button class="sec" style="width:100%;margin-top:8px" onclick="scanClose()">Cancel</button>');
+}
+function pileTruckSave(pk){
+ const chosen=new Set([...document.querySelectorAll('[data-pile-truck]:checked')].map(e=>e.getAttribute('data-pile-truck')));
+ for(const t of S.trucks){const before=truckPlanKeys(t),after=before.filter(k=>k!==pk);if(chosen.has(t.id))after.push(pk);
+  if(before.join('|')!==after.join('|')){t.planPiles=after;log('edit',{truck:t.id,pk,field:'pile truck selection',from:before.includes(pk)?'selected':'',to:chosen.has(t.id)?'selected':''})}}
+ save();scanClose();render();
+}
+function pileTruckSummary(pk){
+ const actual=S.trucks.filter(t=>supplies(t,pk)).map(t=>tname(t));
+ const selected=S.trucks.filter(t=>truckPlanKeys(t).includes(pk)).map(t=>tname(t));
+ const carry=carryInto(pk).filter(r=>r.yd!==null&&r.yd>0.005&&!r.t.emptied&&!r.t.leftWaste&&!r.t.rejected&&!r.t.archived).map(r=>tname(r.t));
+ const labels=[...new Set([...actual,...selected,...carry])];
+ return '<button class="sec" style="min-height:40px;width:100%" onclick="pileTruckOpen(\''+pk+'\')">'+esc(labels.length?'Trucks: '+labels.join(', '):'+ Add trucks')+'</button>';
+}
 function boardTruckTime(id,field,value){if(field==='start'){const t=tk(id);if(!t)return;const e=S.ev.find(x=>!x.undone&&x.type==='truck_switch'&&x.truck===id);if(!value){render();return}
   const mm=String(value).match(/^(\d{1,2}):(\d{2})/);if(!mm)return;const d=new Date((e&&e.t)||t.arrived||Date.now());d.setHours(+mm[1],+mm[2],0,0);
   if(e){const from=hm(e.t);e.t=d.getTime();log('edit',{truck:id,field:'pump start',from,to:hm(e.t)})}else log('edit',{truck:id,field:'pump start',from:'',to:hm(d.getTime())});
@@ -853,7 +877,7 @@ function dayBoard(){const inp=(id,val,attrs,fn)=>`<input id="${id}" value="${esc
    <td>${inp('bp-'+p.key+'-elev',p.elev,'aria-label="Elevation"',set('elev'))}</td>
    <td>${inp('bp-'+p.key+'-len',p.len,'inputmode="decimal" aria-label="Length feet"',set('len'))}</td>
    <td>${inp('bp-'+p.key+'-dia',p.dia||'','inputmode="decimal" aria-label="Diameter inches"',set('dia'))}</td>
-   <td>${inp('bp-'+p.key+'-st',confStrokes(p.key).n||'','inputmode="numeric" aria-label="Pump strokes"',`boardStrokes('${p.key}',this.value)`)}</td>
+   <td>${inp('bp-'+p.key+'-st',confStrokes(p.key).n||'','inputmode="numeric" aria-label="Pump strokes"',`boardStrokes('${p.key}',this.value)`)}</td><td>${pileTruckSummary(p.key)}</td>
    <td><button class="sec xdel" type="button" aria-label="Archive pile ${esc(p.id||'')}" onclick="boardArchivePile('${p.key}')">✕</button></td></tr>`});
  const have=new Set(allPiles().filter(p=>!p.archived).map(p=>String(p.id)));
  PL().forEach((e,i)=>{if(!e.id||have.has(String(e.id)))return;pileRows.push(`<tr class="row-future"><td class="idcell">○ ${esc(e.id)}</td>
@@ -870,7 +894,7 @@ function dayBoard(){const inp=(id,val,attrs,fn)=>`<input id="${id}" value="${esc
    <td>${inp('bt-'+t.id+'-num',t.num,'aria-label="Truck number"',`A.setT('${t.id}','num',this.value)`)}</td>
    <td>${inp('bt-'+t.id+'-qty',t.qty,'inputmode="decimal" aria-label="Ticket yards"',`A.setT('${t.id}','qty',this.value)`)}</td>
    <td>${tm('arrived','Arrived')}</td><td>${tm('start','Pump start')}</td><td>${tm('emptied','Empty or left')}</td>
-   <td>${esc(st)}</td><td>${truckPlanSummary(t)}<small>Actual: ${esc(pilesFed(t)||'—')}</small></td>
+   <td>${esc(st)}</td><td>${esc(pilesFed(t)||'—')}</td>
    <td>${inp('bt-'+t.id+'-waste',t.waste,'inputmode="decimal" aria-label="Waste yards"',`A.setT('${t.id}','waste',this.value)`)}</td>
    <td><button class="sec xdel" type="button" aria-label="Archive truck ${esc(tname(t))}" onclick="boardArchiveTruck('${t.id}')">✕</button></td></tr>`});
  const samples=S.ev.filter(e=>e.type==='sample'&&!e.undone&&!e.archived).slice().sort((a,b)=>(a.t||0)-(b.t||0));

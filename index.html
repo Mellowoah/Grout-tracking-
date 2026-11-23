@@ -294,7 +294,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v174';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v175';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -466,8 +466,10 @@ function feedOrder(pk){
  const candidates=S.trucks.filter(t=>{
   if(t.rejected||t.archived||t.leftWaste||num(t.qty)===null)return false;
   const arrived=arrOf(t)||t.arrived||null;
-  if(start&&arrived&&arrived>finish&&finish)return false;
-  if(start&&arrived&&arrived>start&&!finish&&!pumpedHere(t,pk))return false;
+  // A replacement truck may arrive DURING a pile, not only before grout start.
+  // Do not allocate from a truck that has not arrived yet.
+  if(!arrived&&!pumpedHere(t,pk)&&!prior.some(k=>pumpedHere(t,k)))return false;
+  if(arrived&&arrived>(finish||Date.now()+60000)&&!pumpedHere(t,pk))return false;
   if(prior.some(k=>emptyOn(t,k)||t.wastePk===k))return false;
   return yardsBefore(t,pk)>0||pumpedHere(t,pk)||num(t.used[pk])>0.005;
  }).sort((a,b)=>(arrOf(a)||a.arrived||Infinity)-(arrOf(b)||b.arrived||Infinity)||(a.seq||0)-(b.seq||0));

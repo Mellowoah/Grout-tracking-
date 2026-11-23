@@ -294,7 +294,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v176';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v177';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -967,12 +967,31 @@ function render(){clearTimeout(rT);
  const atR=at?calc(at).rem:null;const onSite=ts.filter(t=>!t.emptied&&t!==at);const next=at?nextFeeder(at).ok:null;const sourceNote=at?'Current source: truck '+tname(at)+(sLeft(atR)!==null?' · estimated '+sLeft(atR)+' more strokes on this truck':' · remaining strokes unknown')+(next?' · next: truck '+tname(next):' · no eligible next truck'):'No feeding truck selected; waiting trucks are not in use';$('stat').innerHTML=`<div><small>Feeding pump</small><b class="num">${at?'Truck '+esc(at.num||at.seq):'none'}</b>${at?`<small style="color:var(--ink)"><b class="num" style="font-size:18px">${atR===null?'?':r1(atR)}</b> yd³ left${sLeft(atR)!==null?' · ~'+sLeft(atR)+' strokes until switch':''}</small>`:''}</div><div><small>Strokes</small><b class="num">${confStrokes(S.pile.key).n||'—'}</b><small style="color:var(--ink)">${esc(confStrokes(S.pile.key).src)}</small></div><div><small>Pump</small><b class="num">${S.pumping?'On':'Off'}</b><small style="color:var(--ink)">${onSite.length?'On site: '+onSite.map(t=>'#'+esc(t.seq||'?')).join(', '):'No other trucks'}</small></div>`;
  $('stat').title=sourceNote;
  const ae=document.activeElement;if(ae&&ae.tagName==='INPUT'){pend=true;return}pend=false;
+ // Paper-form-first field mode. Keep the full engine and all saved data intact.
+ // Advanced tools remain available on demand, rather than duplicated on screen.
+ if(!S.fullTools){
+  const keys=allPiles().filter(p=>!p.archived);
+  const opts=keys.map(p=>'<option value="'+esc(p.key)+'" '+(p.key===S.pile.key?'selected':'')+'>Pile '+esc(p.id||'?')+'</option>').join('');
+  const active=tk(S.active),current=active?'Truck '+esc(tname(active)):'Waiting for arrived truck';
+  $('app').innerHTML=
+   '<div class="card" style="border:2px solid var(--acc)"><b style="font-size:21px">Field sheet · Pile '+esc(S.pile.id||'?')+'</b>'+
+   '<p style="margin:6px 0">Use the same fields as your paper form. Save each pile before moving on.</p>'+
+   '<label><small>Open pile</small><select style="width:100%;min-height:48px" onchange="if(this.value!==S.pile.key)A.openPile(this.value)">'+opts+'</select></label>'+
+   '<button style="width:100%;min-height:66px;margin-top:10px;font-size:20px" onclick="formGrid({},\'\',\'\')">Fill / edit paper form</button>'+
+   '<div style="margin-top:12px"><b>Automatic truck feed</b><div>'+current+'</div></div>'+
+   '<div class="row" style="margin-top:10px"><button class="sec" style="flex:1" onclick="A.arrive()">Truck arrived now</button><button class="sec" style="flex:1" onclick="remoteOpen()">Open clicker</button></div>'+
+   '<button style="width:100%;min-height:56px;margin-top:10px" onclick="A.newPile()">Save &amp; next pile</button>'+
+   '<button class="sec" style="width:100%;margin-top:10px" onclick="if(save()){S.fullTools=true;save();render()}">More tools / corrections</button>'+
+   '</div>';
+  return;
+ }
  const sh=v=>v===null?'pending':r1(v);
  const cinRows=carryInto(S.pile.key).filter(r=>ydShows(r.yd)),lat=latestPile();
  const onOld=!isLatest();
  const pendT=ts.filter(t=>t.pend&&!t.emptied&&t.pend.pk!==S.pile.key);
  const fresh=!S.piles.length&&!S.trucks.length&&!S.pile.id&&!S.hideIntro;
  const oi=openIss();let h=(oi?`<div class="card" style="background:var(--red);color:#fff"><b style="font-size:20px">Stopped: ${esc(ikName(oi.kind))}</b><div>Since ${ft(oi.start)} · pile ${esc(pname(oi.pk)||'?')}${oi.phase==='grouting'?' · '+oi.strokes+' strokes'+(oi.depth?' · '+esc(oi.depth):''):''}</div><button style="width:100%;margin-top:6px" onclick="issResume()">Back running</button></div>`:'')+`${fresh?`<div class="card" style="border:2px solid var(--acc)"><b>How it works</b><ol style="margin:6px 0 6px 18px;padding:0"><li>List the day's piles under <b>Today's piles</b> (each pile's details fill in as you get to it), or open <b>Pile details</b> and type the pile #, station, elevation and length.</li><li>Trucks are optional and live in the <b>Trucks</b> area under the pile. Tap <b>+ Add truck</b> to key one in (ID, yards and times can be typed now or later, or scan the ticket), or <b>Truck arrived now</b> to stamp the time. Change any truck time on its card.</li><li>Tap the steps as they happen: <b>Drill start</b>, <b>Drill finish</b> (grout and pump start), <b>Grout finish</b>, <b>Reinforce</b>.</li><li>Afterwards, enter strokes (yours or the contractor's) under <b>Strokes, yardage &amp; closeout</b>.</li><li>Tap <b>Next pile ▸</b>. Trucks with grout left carry over.</li></ol><small style="color:var(--mut)">Missed times are filled in automatically and shown in red; type over anything. The round <b>☰</b> button at the top uploads filled-in forms and shows every pile's form, ready to email or text; <b>🎤</b> takes spoken commands like "truck arrived" or "drill start".</small><button class="sec" style="width:100%;margin-top:6px;min-height:40px" onclick="S.hideIntro=true;save();render()">Got it</button></div>`:''}${pendT.map(t=>`<div class="card" style="border:3px solid var(--acc)"><b>Is truck ${esc(tname(t))} empty?</b><div>Strokes passed its load at ${ft(t.pend.t)} on pile ${esc(pname(t.pend.pk))}.</div><div class="row"><button style="flex:1" onclick="A.confirmEmpty('${t.id}')">Yes, empty at ${ft(t.pend.t).replace(/:\d\d /,' ')}</button><button class="sec" style="flex:1" onclick="A.notEmpty('${t.id}')">No, still has grout</button></div></div>`).join('')}${onOld?`<div class="card" style="border:3px solid var(--red)"><b>Editing pile ${esc(S.pile.id||'?')} (earlier pile)</b><div>Everything you change saves to pile ${esc(S.pile.id||'?')}.</div><button style="width:100%;margin-top:6px" onclick="A.openPile('${lat.key}')">Back to pile ${esc(lat.id||'?')}</button></div>`:''}${cinRows.length?`<div class="card" id="carry-line" style="border:2px solid var(--acc)"><b>Carried into pile ${esc(S.pile.id)}</b>${cinRows.map(r=>{const c=calc(r.t);return `<div>Truck <b>${esc(tname(r.t))}</b> · ${r1(r.yd)} yd³ at start · <b>${c.rem===null?'?':r1(c.rem)} yd³ left now${sLeft(c.rem)!==null?' · ~'+sLeft(c.rem)+' strokes':''}</b></div>`}).join('')}</div>`:''}`;
+ h+='<button class="sec" style="width:100%;min-height:48px;margin-bottom:8px" onclick="S.fullTools=false;save();render()">← Simple field form</button>';
  h+=dayBoard();
  {const L=PL(),dn=L.filter(e=>planStatus(e)==='done').length;h+=sec('plan',"Today's piles"+(L.length?' · '+dn+' of '+L.length+' done':' · plan the day'),planH())}
  const setupH=`<div class="card"><b>Pile setup</b><div class="row"><input id="f-pile" placeholder="Pile #" value="${esc(S.pile.id)}" onchange="A.cfg('pile',this.value)"><input id="f-wall" placeholder="Wall #" value="${esc(S.pile.wall)}" onchange="A.pset('wall',this.value)"></div><div class="row"><input id="f-sta" placeholder="Station" value="${esc(S.pile.station)}" onchange="A.pset('station',this.value)"><input id="f-elev" placeholder="Elev" value="${esc(S.pile.elev)}" onchange="A.pset('elev',this.value)"></div><div class="row"><input id="f-date" placeholder="Date" value="${esc(S.pile.date)}" onchange="A.pset('date',this.value)"><label style="flex:1;min-width:70px"><small>Dia (in)</small><input id="f-dia" inputmode="decimal" value="${esc(S.pile.dia||'')}" onchange="A.pset('dia',this.value)"></label><label style="flex:1;min-width:90px"><small>Pile length (ft)</small><input id="f-len" inputmode="decimal" value="${esc(S.pile.len)}" onchange="A.pset('len',Number(this.value)||0)"></label></div></div>`;

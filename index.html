@@ -294,7 +294,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v167';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v168';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -784,7 +784,7 @@ function pilesFed(t){return orderKeys().filter(k=>supplies(t,k)).map(k=>pname(k)
 function pumpStart(t){const e=S.ev.find(e=>!e.undone&&e.type==='truck_switch'&&e.truck===t.id);return e?e.t:(t.pk0&&pumpedHere(t,t.pk0)?(stages(pileRec(t.pk0)).groutStart||{}).t||null:null)}
 function boardStrokes(key,value){const p=pileLive(key);if(!p)return;const raw=String(value??'').trim();if(raw===''){p.opCount='';save();render();return}const n=parseInt(raw,10);if(!Number.isInteger(n)||n<0)return msg('Pump strokes need a whole number, 0 or more.');p.opCount=String(n);balancePileStrokes(key);save();render()}
 function boardPile(key,field,value){const p=pileLive(key);if(!p)return;if(field==='len'){setLen(p,Number(value)||0);log('edit',{field:'length',pk:key,pile:p.id,to:p.len})}
- else{const o=p[field];pHist(p,field,o,value);p[field]=typeof value==='string'?value.trim():value;if(field==='id')resortPiles();log('edit',{field:field,pk:key,pile:p.id,from:o??'',to:p[field]})}
+ else{const o=p[field];pHist(p,field,o,value);p[field]=typeof value==='string'?value.trim():value;if(field==='id')resortPiles();log('edit',{field:field,pk:key,pile:p.id,from:o??'',to:p[field]});if(['opCount','reviewed','myCount'].includes(field)&&num(p[field])!==null)balancePileStrokes(key)}
  save();render()}
 function boardPlan(i,field,value){planSet(i,field,value)}
 function boardTruckTime(id,field,value){if(field==='start'){const t=tk(id);if(!t)return;const e=S.ev.find(x=>!x.undone&&x.type==='truck_switch'&&x.truck===id);if(!value){render();return}

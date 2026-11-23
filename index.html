@@ -294,7 +294,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v171';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v172';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -1426,6 +1426,33 @@ function pourQCH(P){const Q=bandQC(P),pq=pileQC(P);
  return `<div class="card"><b>Grout check</b> <small style="color:var(--mut)">vs ${esc(Q.ref)} · flagged under ${needTxt(Q)}${hdN(P)}</small>${done.length?`<table>${done.slice().reverse().map(q=>`<tr${q.under?' style="background:rgba(208,0,0,.12)"':''}><td>${esc(q.b)}</td><td${q.auto?' style="color:var(--red);font-style:italic"':''}>${q.n} str${q.auto?' auto':''}${q.head?' <small>(−'+q.head+' head)</small>':''}</td><td>${q.yd!=null&&q.th!=null?r1(q.yd)+' / '+r1(q.th)+' yd³':''}</td><td>${qcCell(q)}</td></tr>`).join('')}</table>`:'<div style="color:var(--mut)">Shows as lines are passed.</div>'}
  ${pq?`<div style="margin-top:4px">Pile so far: <b style="${pq.f<pq.need?'color:var(--red)':''}">${fx(pq.f)}</b> of ${esc(pq.ref)}${pq.yd!=null?' ('+r1(pq.yd)+' yd³)':''}</div>`:''}${Q.mode==='rel'?`<div class="row"><label style="flex:1"><small>Pile diameter (in) for the real check against the hole</small><input id="pv-dia2" inputmode="decimal" onchange="A.pset('dia',this.value);depthRender()"></label></div>`:''}<small style="color:var(--mut)">Red auto values are estimates and aren't flagged; type a counter reading at the line to check that band.</small></div>`}
 // ---- Top menu (round button): upload filled-in forms, type a form, view forms, voice
+// Verified 2026-11-23 field-sheet reconciliation. Read-only: never overwrites phone records.
+// The split assumes FIFO pumping, three 9 yd³ loads, one 1.1 yd³ sample
+// on Truck 1, and the user's confirmed empty/switch times on Pile 70.
+function nov23Reconciliation(){
+ const piles=[{id:'68',st:180},{id:'69',st:182},{id:'70',st:184},{id:'71',st:142}];
+ const c=calYd(),valid=Number.isFinite(c)&&c>0;
+ const fmt=x=>Number(x).toFixed(3);
+ let loads=[7.9,9,9],used=[0,0,0],rows=[],total=0,unfilled=0;
+ for(const p of piles){
+  const yd=valid?p.st*c:null;let remaining=yd,parts=[];
+  if(valid){for(let i=0;i<3&&remaining>1e-9;i++){const take=Math.min(Math.max(0,loads[i]),remaining);if(take>1e-9){loads[i]-=take;used[i]+=take;remaining-=take;parts.push('Truck '+(i+1)+': '+fmt(take))}}total+=yd;unfilled+=Math.max(0,remaining)}
+  rows.push('<tr><td>'+p.id+'</td><td>'+p.st+'</td><td>'+(valid?fmt(yd):'?')+'</td><td>'+(valid?parts.join(' + '):'Calibration missing')+'</td></tr>');
+ }
+ const waste=valid?loads[2]:null;
+ scanShow('<h2>Nov 23 · verified field reconciliation</h2>'+
+ '<p>Source: confirmed handwritten Piles 68–71. This is a <b>read-only calculation</b>, not a replacement for the saved phone records.</p>'+
+ '<div class="card"><b>Truck deliveries</b><p>Truck 1: 9.000 yd³, sample 1.100 yd³. Truck 2 (651): 9.000 yd³, no sample. Truck 3 (2129): 9.000 yd³, no sample.</p>'+
+ '<p>Truck 2 empty 12:02 PM on Pile 70; Truck 3 pumping 12:03 PM. Truck 3 remainder after Pile 71 is waste.</p></div>'+
+ '<div class="card"><b>Calculated from current stroke calibration: '+(valid?fmt(c)+' yd³/stroke':'not set')+'</b>'+
+ '<div style="overflow-x:auto"><table style="width:100%"><thead><tr><th>Pile</th><th>Strokes</th><th>Used yd³</th><th>Truck allocation yd³</th></tr></thead><tbody>'+rows.join('')+'</tbody></table></div>'+
+ (valid?'<p>Total pumped: <b>'+fmt(total)+' yd³</b> · Sample: 1.100 yd³ · Truck 3 waste: <b>'+fmt(waste)+' yd³</b></p>':'')+
+ (valid&&unfilled>0.0005?'<p style="color:var(--red)">WARNING: '+fmt(unfilled)+' yd³ exceeds available loads. Check calibration or field records.</p>':'')+
+ (valid&&loads[0]>0.001?'<p style="color:var(--red)">WARNING: Truck 1 has '+fmt(loads[0])+' yd³ unallocated; confirm whether it was emptied or wasted.</p>':'')+
+ (valid&&loads[1]>0.001?'<p style="color:var(--red)">WARNING: Truck 2 has '+fmt(loads[1])+' yd³ unallocated, conflicting with the confirmed empty time.</p>':'')+
+ '</div><p><small>FIFO split is a calculated allocation, not a measured stroke count at the handoff. Confirm ticket quantities and calibration before treating this as final. Truck 3 waste is calculated, not a measured return quantity.</small></p>'+
+ '<button class="sec" style="width:100%" onclick="scanClose()">Close</button>');
+}
 function topMenu(){scanShow(`<h2>Forms &amp; voice</h2>
  <button style="width:100%;min-height:64px;font-size:20px" onclick="scanClose();formScan()">Upload today's filled-in forms</button>
  <small style="color:var(--mut);display:block;margin:4px 0 10px">Pick one or more photos. What can be read fills in; anything missing is filled in by the app and shown in red.${aiKey()?'':' Handwriting reads best with the Claude key in Settings.'}</small>

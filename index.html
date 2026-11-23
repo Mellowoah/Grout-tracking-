@@ -294,7 +294,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v172';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v173';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -1456,6 +1456,7 @@ function nov23Reconciliation(){
 function topMenu(){scanShow(`<h2>Forms &amp; voice</h2>
  <button style="width:100%;min-height:64px;font-size:20px" onclick="scanClose();formScan()">Upload today's filled-in forms</button>
  <small style="color:var(--mut);display:block;margin:4px 0 10px">Pick one or more photos. What can be read fills in; anything missing is filled in by the app and shown in red.${aiKey()?'':' Handwriting reads best with the Claude key in Settings.'}</small>
+ <button class="sec" style="width:100%;margin-top:8px" onclick="nov23Reconciliation()">Nov 23 · verified grout reconciliation</button>
  <button class="sec" style="width:100%" onclick="scanClose();formGrid({},'')">Type in a form</button>
  <button class="sec" style="width:100%;margin-top:8px" onclick="scanClose();showForm(allPiles()[0].key)">View all pile forms</button>
  <button class="sec" style="width:100%;margin-top:8px" onclick="scanClose();showForm(allPiles()[0].key,false,true)">View QC / truck form</button>

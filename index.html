@@ -294,7 +294,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v173';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v174';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -455,17 +455,28 @@ function recon(pk){const my=pileRec(pk).strokes||0,cs=confStrokes(pk),cy=calYd()
  if(d>0){for(let i=li;i<ord.length&&d>1e-6;i++){const t=tk(ord[i]);if(t.rejected||num(t.used[pk])!==null)continue;const ob=cy>0?onBoard(t,pk):Infinity,cap=ob===Infinity?Infinity:Math.max(0,ob/cy-out[ord[i]]),take=Math.min(d,cap);out[ord[i]]+=take;d-=take}}
  else if(d<0){for(let i=ord.length-1;i>=0&&d<-1e-6;i--){const take=Math.min(-d,out[ord[i]]);out[ord[i]]-=take;d+=take}}
  Object.defineProperty(out,'_gap',{value:ord.length&&Math.abs(d)>1e-6?d:0});Object.defineProperty(out,'_ord',{value:ord});return out}
-function feedOrder(pk){const seen=[],add=id=>{const t=id&&tk(id);if(!t||t.rejected||t.archived||seen.includes(t.id))return;seen.push(t.id)};
- // Preserve the actual pump-switch chronology, including manual corrections.
- for(const e of pev(null,pk).filter(e=>e.type==='truck_switch'&&!e.undone).sort((a,b)=>(a.t||0)-(b.t||0)))add(e.truck);
- if(pk===S.pile.key)add(S.active);
- // Imported field sheets have pile totals and truck arrival times, but often no
- // pump-switch events. Only loads that actually supplied this pile are eligible.
- const p=pileRec(pk),g=stages(p).groutStart,at=g&&g.t||null;
- S.trucks.filter(t=>!t.rejected&&!t.archived&&num(t.qty)!==null&&(pumpedHere(t,pk)||num(t.used[pk])>0.005)&&(!at||!arrOf(t)||arrOf(t)<=at))
-  .sort((x,y)=>(x.arrived||arrOf(x)||Infinity)-(y.arrived||arrOf(y)||Infinity)||(x.seq||0)-(y.seq||0))
-  .forEach(t=>add(t.id));
- return seen}
+function feedOrder(pk){
+ const seen=[],add=id=>{const t=id&&tk(id);if(!t||t.rejected||t.archived||seen.includes(t.id))return;seen.push(t.id)};
+ const p=pileRec(pk),st=stages(p),start=st.groutStart&&st.groutStart.t||null,finish=st.groutFinish&&st.groutFinish.t||null;
+ // Explicit manual switch events are evidence; do not discard corrected field history.
+ const manual=pev('truck_switch',pk).filter(e=>!e.undone&&!e.auto).sort((a,b)=>(a.t||0)-(b.t||0));
+ // For ordinary pumping, the earliest arrived eligible truck feeds first.
+ // Previously used trucks retain their remaining balance and do not require pile assignment.
+ const idx=orderKeys().indexOf(pk),prior=orderKeys().slice(0,Math.max(0,idx));
+ const candidates=S.trucks.filter(t=>{
+  if(t.rejected||t.archived||t.leftWaste||num(t.qty)===null)return false;
+  const arrived=arrOf(t)||t.arrived||null;
+  if(start&&arrived&&arrived>finish&&finish)return false;
+  if(start&&arrived&&arrived>start&&!finish&&!pumpedHere(t,pk))return false;
+  if(prior.some(k=>emptyOn(t,k)||t.wastePk===k))return false;
+  return yardsBefore(t,pk)>0||pumpedHere(t,pk)||num(t.used[pk])>0.005;
+ }).sort((a,b)=>(arrOf(a)||a.arrived||Infinity)-(arrOf(b)||b.arrived||Infinity)||(a.seq||0)-(b.seq||0));
+ candidates.forEach(t=>add(t.id));
+ manual.forEach(e=>add(e.truck));
+ // Preserve explicitly recorded feed where the arrival time is missing or edited.
+ S.trucks.filter(t=>pumpedHere(t,pk)||num(t.used[pk])>0.005).forEach(t=>add(t.id));
+ return seen;
+}
 function onBoard(t,pk){if(!t||t.rejected||t.archived)return 0;const order=orderKeys(),i=order.indexOf(pk),q=parseFloat(t.qty);if(!(q>=0))return 0;
  if(t.leftWaste&&t.wastePk&&order.indexOf(t.wastePk)>=0&&order.indexOf(t.wastePk)<i)return 0;
  if(i>0&&order.slice(0,i).some(k=>emptyOn(t,k)))return 0;
@@ -839,10 +850,9 @@ function pileTruckSave(pk){
 }
 function pileTruckSummary(pk){
  const actual=S.trucks.filter(t=>supplies(t,pk)).map(t=>tname(t));
- const selected=S.trucks.filter(t=>truckPlanKeys(t).includes(pk)).map(t=>tname(t));
- const carry=carryInto(pk).filter(r=>r.yd!==null&&r.yd>0.005&&!r.t.emptied&&!r.t.leftWaste&&!r.t.rejected&&!r.t.archived).map(r=>tname(r.t));
- const labels=[...new Set([...actual,...selected,...carry])];
- return '<button class="sec" style="min-height:40px;width:100%" onclick="pileTruckOpen(\''+pk+'\')">'+esc(labels.length?'Trucks: '+labels.join(', '):'+ Add trucks')+'</button>';
+ const available=feedOrder(pk).filter(id=>yardsBefore(tk(id),pk)>0).map(id=>tname(tk(id)));
+ const labels=[...new Set([...actual,...available])];
+ return '<span style="display:block;min-width:145px;font-size:13px">Auto feed: '+esc(labels.length?labels.join(' → '):'waiting for arrived truck')+'</span>';
 }
 function boardTruckTime(id,field,value){if(field==='start'){const t=tk(id);if(!t)return;const e=S.ev.find(x=>!x.undone&&x.type==='truck_switch'&&x.truck===id);if(!value){render();return}
   const mm=String(value).match(/^(\d{1,2}):(\d{2})/);if(!mm)return;const d=new Date((e&&e.t)||t.arrived||Date.now());d.setHours(+mm[1],+mm[2],0,0);

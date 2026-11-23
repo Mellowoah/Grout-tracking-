@@ -456,7 +456,8 @@ function recon(pk){const my=pileRec(pk).strokes||0,cs=confStrokes(pk),cy=calYd()
  else if(d<0){for(let i=ord.length-1;i>=0&&d<-1e-6;i--){const take=Math.min(-d,out[ord[i]]);out[ord[i]]-=take;d+=take}}
  Object.defineProperty(out,'_gap',{value:ord.length&&Math.abs(d)>1e-6?d:0});Object.defineProperty(out,'_ord',{value:ord});return out}
 function feedOrder(pk){const seen=[],add=id=>{const t=id&&tk(id);if(!t||t.rejected||t.archived||seen.includes(t.id))return;seen.push(t.id)};
- for(const e of pev(null,pk))if(e.type==='truck_switch'&&!e.undone)add(e.truck);
+ // Preserve the actual pump-switch chronology, including manual corrections.
+ for(const e of pev(null,pk).filter(e=>e.type==='truck_switch'&&!e.undone).sort((a,b)=>(a.t||0)-(b.t||0)))add(e.truck);
  if(pk===S.pile.key)add(S.active);
  // Imported field sheets have pile totals and truck arrival times, but often no
  // pump-switch events. Only loads that actually supplied this pile are eligible.
@@ -499,7 +500,10 @@ function balancePileStrokes(pk){const n=Math.round(confStrokes(pk).n||0);if(!(n>
   t.strokes=orderKeys().reduce((a,k)=>a+((t.ps&&t.ps[k])||0),0);
   if(!got)pev('truck_switch',pk).forEach(e=>{if(e.truck===t.id&&e.auto&&e.source==='stroke count')e.undone=true})}
  const used=ids.filter(id=>(take[id]||0)>0);
- for(let i=1;i<used.length;i++){if(!pev('truck_switch',pk).some(e=>!e.undone&&e.truck===used[i]))log('truck_switch',{truck:used[i],from:used[i-1],auto:true,source:'stroke count',pk,pile:pname(pk),at:used.slice(0,i).reduce((a,id)=>a+(take[id]||0),0)})}
+ // Rebuild only derived switch markers after a count correction. Old automatic
+ // markers must not become authoritative history or point to a removed feeder.
+ pev('truck_switch',pk).forEach(e=>{if(e.auto&&e.source==='stroke count')e.undone=true});
+ for(let i=1;i<used.length;i++){if(!pev('truck_switch',pk).some(e=>!e.undone&&!e.auto&&e.truck===used[i]))log('truck_switch',{truck:used[i],from:used[i-1],auto:true,source:'stroke count',pk,pile:pname(pk),at:used.slice(0,i).reduce((a,id)=>a+(take[id]||0),0)})}
  const live=pk===S.pile.key,p=live?S.pile:S.piles.find(x=>x.key===pk);
  if(live){S.strokes=n;S.segStart=n;if(p)p.tapped=true;const last=used.length?tk(used[used.length-1]):null;S.active=last?last.id:S.active}
  else if(p)p.strokes=n;

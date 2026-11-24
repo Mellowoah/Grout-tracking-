@@ -296,7 +296,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="ledger.js"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v183';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v184';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -393,6 +393,11 @@ function pHist(p,f,o,v){if(!HISTF[f]||String(o??'')===String(v??''))return;
  log('edit',{field:HISTF[f],from:o??'',to:v??'',pk:p.key,pile:p.id})}
 // a sample taken on this pile from truck t: deducts its yd³ (once), and holds this pile's temp / flow cone for the form
 const sHere=t=>(t.samples||[]).some(id=>{const e=S.ev.find(x=>x.id===id);return e&&e.pk===S.pile.key});
+// A sample # on a truck means a sample was taken from it, unless that same sample # is already recorded on another truck today
+// (sheets often repeat the sample set's number on every truck). Returns true when a sample was recorded.
+function sampleFromNumber(t){if(!t||t.rejected||!String(t.sampleNo||'').trim()||(t.samples||[]).length||num(t.sampleYd)!==null)return false;
+ const sn=String(t.sampleNo).trim();if(S.trucks.some(x=>x!==t&&!x.rejected&&String(x.sampleNo||'').trim()===sn&&(x.samples||[]).length))return false;
+ const e=takeSample(t);e.source='sample # '+sn;return true}
 function takeSample(t){const e=log('sample',{truck:t.id,yd:Number(S.sampleYd)||0});t.samples.push(e.id);if(!t.tests.some(x=>x.pk===S.pile.key))t.tests.push({id:uid(),t:e.t,temp:'',flow:'',pk:S.pile.key,sample:e.id});return e}
 function log(type,data){const e={id:uid(),type,t:Date.now(),entered:Date.now(),pile:S.pile.id,pk:S.pile.key,strokes:S.strokes,...(S.noCount?{countOff:true}:{}),...data};S.ev.push(e);return e}
 function pev(type,key=S.pile.key){return S.ev.filter(e=>e.pk===key&&(!type||e.type===type))}
@@ -707,7 +712,7 @@ const A={
  remove(id){const t=tk(id);if(!t||t.fed||t.samples.length||t.tests.length)return;if(!twoTap('rm'+id,'rm'+id))return;act(()=>{S.trucks=S.trucks.filter(x=>x!==t);S.ev=S.ev.filter(e=>!(e.type==='truck_arrival'&&e.truck===id));msg('Truck removed')})},
  sample(id){const t=tk(id);if(!t)return;if(sHere(t)&&!twoTap('smp'+id,'ts-'+id,'Tap again: 2nd sample'))return;act(()=>{const e=takeSample(t);msg('Sample taken from truck '+tname(t)+' ('+r1(e.yd)+' yd³) at '+ft(e.t)+'. Temp and flow cone go on its card.')})},
  test(id){act(()=>{const t=tk(id);log('qc_test',{truck:id});t.tests.push({id:uid(),t:Date.now(),temp:'',flow:'',pk:S.pile.key})});setTimeout(()=>{const t=tk(id),e=t&&$('t-'+id+'-tt'+(t.tests.length-1));if(e)e.scrollIntoView({block:'center',behavior:'smooth'})},50)},
- setT(id,f,v){const t=tk(id);t[f]=v;if(f==='waste'&&v&&!t.wastePk)t.wastePk=S.pile.key;if(f==='waste'&&t.leftWaste){const base=parseFloat(t.leftWaste.base)||0,n=parseFloat(v)||0;t.leftWaste.yd=String(+Math.max(0,n-base).toFixed(3))}log('edit',{truck:id,field:f,value:v});save();render()},
+ setT(id,f,v){const t=tk(id);t[f]=v;if(f==='sampleNo')sampleFromNumber(t);if(f==='waste'&&v&&!t.wastePk)t.wastePk=S.pile.key;if(f==='waste'&&t.leftWaste){const base=parseFloat(t.leftWaste.base)||0,n=parseFloat(v)||0;t.leftWaste.yd=String(+Math.max(0,n-base).toFixed(3))}log('edit',{truck:id,field:f,value:v});save();render()},
  setTest(id,i,f,v){tk(id).tests[i][f]=v;save()},
  setDepth(id,v){const e=S.ev.find(x=>x.id===id);e.depth=v===''?null:Number(v);e.source='entered later';e.entered=Date.now();save();render()},
  stage(k){const ORD=['drillStart','drillFinish','groutStart','groutFinish','reinfStart','reinfFinish'],st0=S.pile.st||{},later=ORD.slice(ORD.indexOf(k)+1).find(x=>st0[x]&&!(k==='drillFinish'&&x==='groutStart'&&st0.groutStart===st0.drillFinish));
@@ -2197,13 +2202,15 @@ function formApply(chain){const g=id=>{const e=$(id);return e?e.value.trim():''}
   const tno=v('tno');let t=null;const sameDay=x=>pt.includes(x)||!!(x.arrived&&new Date(x.arrived).toDateString()===new Date(P.date+' 00:00:00').toDateString());
   if(tno)t=S.trucks.filter(x=>sameDay(x)&&String(x.seq)===tno).sort((a,b)=>(pev(null,pk).some(e=>e.truck===b.id)?1:0)-(pev(null,pk).some(e=>e.truck===a.id)?1:0)||(a.emptied?1:0)-(b.emptied?1:0)).find(Boolean)||null;
   if(!t&&v('num'))t=S.trucks.find(x=>sameDay(x)&&x.num===v('num')&&!x.emptied)||pt.find(x=>x.num===v('num'))||null;
-  if(!t&&!tno){const anyNo=[0,1].some(j=>g('fg-tno-'+j));if(anyNo)continue;t=pt[i]||null}
+  if(!t&&!tno){const anyNo=[0,1].some(j=>g('fg-tno-'+j));if(anyNo)continue;t=pt[i]||null;
+   // a different truck I.D. in this column is a different truck: never rename the truck that carried over
+   if(t&&v('num')&&t.num&&t.num!==v('num'))t=null}
   if(!t){A.arrive();t=S.trucks[S.trucks.length-1];if(tno)t.seq=+tno||tno;t.arrived=null}
   if(!t.pk0)attach(t,pk);
   // truck that came over from the previous pile: record what it brought
   if(t.pk0!==pk&&!t.carryIn[pk]&&prevK&&t.pk0!==undefined&&order.indexOf(t.pk0)<order.indexOf(pk)){t.carryIn[pk]={from:prevK,yd:leftAfter(t,prevK)}}
   if(!pev(null,pk).some(e=>e.truck===t.id))log('form_import',{truck:t.id});
-  set(t,'num',v('num'));set(t,'batch',v('batch'));set(t,'sampleNo',v('sampleNo'));
+  set(t,'num',v('num'));set(t,'batch',v('batch'));set(t,'sampleNo',v('sampleNo'));if(sampleFromNumber(t))changed++;
   if(v('arrived')){t.arrived=at(v('arrived'),t.arrived);changed++}
   if(v('emptied')){if(S.active===t.id){closeSeg();S.active=null}t.emptied=at(v('emptied'),t.arrived);if(!pev('truck_empty',pk).some(e=>e.truck===t.id))log('truck_empty',{truck:t.id,source:'form'});delete t.pend;changed++}
   {const ch=k=>{const e=$('fg-'+k+'-'+i);return e&&e.value.trim()!==(e.dataset.o||'')};const u0=usedOn(t,pk),la0=leftAfter(t,pk),uv=ch('used')?v('used'):'',lv=ch('left')?v('left'):'';

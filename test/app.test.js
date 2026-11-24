@@ -174,3 +174,17 @@ test('Field sheet: forms feed the trucks list; waste yes/no and truck edits re-r
  near(r.waste,9-2.5304,'651 waste');assert.equal(r.wastePile,'69');assert.match(r.text2,/Leftover wasted: 6\.470/);
  near(r.after,9-2.5304,'no waste: leftover back on the truck');near(r.left8,8-2.5304,'load edited');near(r.bal,0);assert.equal(r.screen,false);
  assert.deepEqual(page.errs,[]);assert.deepEqual(await page.appErrors(),[]);await page.context().close()});
+
+test('Forms: a truck carries forward (624 leftover 2.167 from pile 72 is used on pile 73), sample # counts once',async()=>{
+ for(const p73 of [{'num-0':'624','num-1':'651','arrived-1':'08:35'},{'num-0':'651','arrived-0':'08:35'}]){
+  const page=await open('sim-carry-'+p73['num-0']);
+  const r=await page.evaluate(p73=>{const fill=v=>{formGrid({},'');for(const k in v)$('fg-'+k).value=v[k];formApply(false);scanClose()};
+   A.cfg('pile','72');fill({pdate:'2026-11-24',drillStart:'08:15',drillFinish:'08:18',groutFinish:'08:25',reinfStart:'08:25',total:'180','num-0':'624','arrived-0':'08:10','sampleNo-0':'CA6B'});
+   A.newPile();A.cfg('pile','73');fill({pdate:'2026-11-24',drillStart:'09:15',drillFinish:'09:18',groutFinish:'09:25',reinfStart:'09:25',total:'182',['sampleNo-'+(p73['num-0']==='624'?1:0)]:'CA6B',...p73});
+   const L=LG(),k73=orderKeys()[1],by=n=>S.trucks.find(t=>t.num===n);S.fullTools=false;render();
+   const m=midVals(k73),txt=v=>v&&v.html!=null?v.html.replace(/<[^>]+>/g,''):String(v??'');
+   return{n:S.trucks.map(t=>t.num).join(','),u624:L.trucks[by('624').id].used[k73],s624:sy(by('624')),u651:L.trucks[by('651').id].used[k73],s651:sy(by('651')),cin:txt(m['CARRY OVER INTO']),screen:$('simple-trucks').innerText}},p73);
+  assert.equal(r.n,'624,651','624 not renamed, no duplicate');near(r.s624,1.1,'sample from sample #');assert.equal(r.s651,0,'same sample # on the next truck is not a 2nd sample');
+  near(r.u624,2.1667,'624 leftover used on 73');near(r.u651,182*CAL-2.1667,'651 makes up the rest');assert.match(r.cin,/^2\.16/);
+  assert.match(r.screen,/Truck 624[\s\S]*Fed: Pile 72 5\.733 · Pile 73 2\.167/);
+  assert.deepEqual(page.errs,[]);assert.deepEqual(await page.appErrors(),[]);await page.context().close()}});

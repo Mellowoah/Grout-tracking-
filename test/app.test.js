@@ -156,3 +156,19 @@ test('Some clicker taps, then the hand-counter total typed in: the typed total w
  const r=await day(page,()=>{A.cfg('pile','68');const t=arrive('688');A.stage('drillStart');adv(3);A.stage('drillFinish');for(let i=0;i<40;i++)stroke(1);adv(7);A.stage('groutFinish');A.stage('reinfStart');A.pset('myCount','180');
   return{n:confStrokes(S.pile.key).n,used:LG().trucks[t.id].used[S.pile.key]}});
  assert.equal(r.n,180);near(r.used,180*CAL);assert.deepEqual(page.errs,[]);await page.context().close()});
+
+test('Field sheet: forms feed the trucks list; waste yes/no and truck edits re-run the automatic numbers',async()=>{
+ const page=await open('sim-field-sheet');
+ const r=await page.evaluate(()=>{const fill=v=>{formGrid({},'');for(const k in v)$('fg-'+k).value=v[k];formApply(false);scanClose()};const o={};
+  A.cfg('pile','68');fill({pdate:'2026-11-24',drillStart:'08:15',drillFinish:'08:18',groutFinish:'08:25',reinfStart:'08:25',total:'180','num-0':'688','arrived-0':'08:10','batch-0':'07:40'});
+  A.newPile();A.cfg('pile','69');fill({pdate:'2026-11-24',drillStart:'08:40',drillFinish:'08:43',groutFinish:'08:50',reinfStart:'08:50',total:'182','num-0':'688','num-1':'651','arrived-1':'08:35','emptied-0':'08:45'});
+  S.fullTools=false;render();o.text=$('simple-trucks').innerText;
+  const t651=S.trucks.find(t=>t.num==='651');[...document.querySelectorAll('#simple-trucks button')].find(b=>b.textContent==='Wasted'&&b.getAttribute('onclick').includes(t651.id)).click();
+  const L=LG();o.waste=L.trucks[t651.id].waste;o.wastePile=pname(L.trucks[t651.id].closedPk);o.text2=$('simple-trucks').innerText;
+  [...document.querySelectorAll('#simple-trucks button')].find(b=>b.textContent==='No waste').click();o.after=LG().trucks[t651.id].remaining;
+  // edit the load: the automatic numbers follow
+  A.setT(t651.id,'qty','8');o.left8=LG().trucks[t651.id].remaining;o.bal=LG().totals.balance;o.screen=S.fullTools;return o});
+ assert.match(r.text,/Truck 688[\s\S]*arrived 08:10[\s\S]*Pile 68 5\.733 · Pile 69 3\.267/);assert.match(r.text,/Truck 651[\s\S]*arrived 08:35[\s\S]*Pile 69 2\.530/);
+ near(r.waste,9-2.5304,'651 waste');assert.equal(r.wastePile,'69');assert.match(r.text2,/Leftover wasted: 6\.470/);
+ near(r.after,9-2.5304,'no waste: leftover back on the truck');near(r.left8,8-2.5304,'load edited');near(r.bal,0);assert.equal(r.screen,false);
+ assert.deepEqual(page.errs,[]);assert.deepEqual(await page.appErrors(),[]);await page.context().close()});

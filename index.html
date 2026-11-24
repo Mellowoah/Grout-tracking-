@@ -296,7 +296,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="ledger.js"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v181';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v182';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -469,6 +469,30 @@ function LG(){const ev=S.ev||[];let und=0;for(const e of ev)if(e.undone)und++;
  const key=JSON.stringify([S.trucks,S.piles,S.pile,S.strokes,S.cal,S.calUnit,S.sampleYd,S.sampleEvery,S.schema,ev.length,und,ev.length?ev[ev.length-1].id:0]);
  if(key===_lgKey&&_lgVal)return _lgVal;_lgVal=GroutLedger.computeLedger(daySnap());_lgKey=key;return _lgVal}
 // v179: every yardage number below comes from the one ledger (ledger.js). These are thin readers over it.
+// Field-sheet screen: today's trucks with what the ledger worked out (read only) and the parts you can change:
+// truck details and whether its leftover was wasted. Everything typed or read from a form shows up here.
+function simpleTrucksH(){const L=LG(),ids=L.order.filter(id=>{const t=tk(id);return t&&!t.archived});
+ if(!ids.length)return '<div class="card"><b>Trucks</b><div><small>No trucks yet. Tap Truck arrived now, or fill a form and its trucks appear here.</small></div></div>';
+ const f3=v=>v==null?'':r1(v),iv=(id,f,val,ph,mode)=>'<input value="'+esc(val??'')+'" placeholder="'+ph+'" '+(mode==='time'?'type="time"':'inputmode="'+mode+'"')+' style="width:100%;box-sizing:border-box;min-height:40px" onchange="'+(mode==='time'?"A.setTime('"+id+"','"+f+"',this.value)":"A.setT('"+id+"','"+f+"',this.value.trim())")+'">';
+ return '<div class="card" id="simple-trucks"><b style="font-size:19px">Trucks</b><div><small>Yardage, carry over and leftover are worked out from the pile stroke counts. Change a truck\'s details or its waste here.</small></div>'+ids.map(id=>{const t=tk(id),x=L.trucks[id],fed=L.pileOrder.filter(k=>(x.used[k]||0)>1e-6);
+  const head='<div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline"><b style="font-size:18px">Truck '+esc(tname(t))+'</b><small>'+(x.qty==null?'load ?':r1(x.qty)+' yd³')+(t.arrived?' · arrived '+hm(t.arrived):' · arrival time?')+(t.batch?' · batch '+esc(t.batch):'')+'</small></div>';
+  if(x.rejected)return '<div class="truck" style="margin-top:8px;padding:8px;border-top:1px solid #ccc">'+head+'<div>Sent back. Feeds nothing.</div></div>';
+  const feed=fed.length?fed.map(k=>'Pile '+esc(pname(k))+' <b>'+f3(x.used[k])+'</b>').join(' · '):'Not used on a pile yet';
+  let auto=[];if(x.sample>0)auto.push('sample '+f3(x.sample));
+  if(x.closeType==='waste')auto.push('<b>wasted '+f3(x.waste)+'</b> on pile '+esc(pname(x.closedPk)));
+  else if(x.unaccounted>0.002)auto.push('<span class="flag" style="display:inline;padding:0 4px">marked empty with '+f3(x.unaccounted)+' still on it</span>');
+  else if(x.remaining>0.0005)auto.push(x.started?f3(x.remaining)+' left'+(S.pile.key!==x.lastPk?' (carries to the next pile)':''):'full load waiting');
+  else if(x.started)auto.push('empty');
+  const lastPk=x.closedPk||x.lastPk;
+  const waste=!x.started?'':x.closeType==='waste'?'<div class="row" style="margin-top:6px;align-items:center"><span style="flex:2">Leftover wasted: <b>'+f3(x.waste)+' yd³</b></span><button class="sec" style="flex:1" onclick="A.wasteSet(\''+id+'\',false)">No waste</button></div>'
+   :(x.remaining>0.0005?'<div class="row" style="margin-top:6px;align-items:center"><span style="flex:2">Leftover '+f3(x.remaining)+' yd³ after pile '+esc(pname(lastPk))+'</span><button class="sec" style="flex:1" onclick="A.wasteSet(\''+id+'\',true)">Wasted</button></div>':'');
+  return '<div class="truck" style="margin-top:8px;padding:8px 0;border-top:1px solid #ccc">'+head+'<div>Fed: '+feed+'</div>'+(auto.length?'<div><small>Auto: </small>'+auto.join(' · ')+'</div>':'')+waste+
+   '<details style="margin-top:6px"><summary>Edit truck</summary><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px">'+
+   '<label><small>Truck I.D. #</small>'+iv(id,'num',t.num,'e.g. 688','text')+'</label><label><small>Load yd³</small>'+iv(id,'qty',t.qty,'9','decimal')+'</label>'+
+   '<label><small>Batch time</small>'+iv(id,'batch',t.batch,'09:15','text')+'</label><label><small>Ticket #</small>'+iv(id,'ticketNo',t.ticketNo,'','text')+'</label>'+
+   '<label><small>Arrival time</small>'+iv(id,'arrived',t.arrived?hm(t.arrived):'','','time')+'</label><label><small>Empty time</small>'+iv(id,'emptied',t.emptied?hm(t.emptied):'','','time')+'</label>'+
+   '<label><small>Sample #</small>'+iv(id,'sampleNo',t.sampleNo,'','text')+'</label><div style="display:flex;align-items:end"><button class="sec" style="width:100%" onclick="A.sample(\''+id+'\')">'+(x.sample>0?'Sample taken ('+f3(x.sample)+')':'Sample taken')+'</button></div>'+
+   '</div></details></div>'}).join('')+'</div>'}
 function confOn(t,pk){const cy=calYd(),u=LG().trucks[t.id]?.used[pk]||0;return cy>0?u/cy:strokesOn(t,pk)}
 // Confirmed count ≠ my count: trucks keep what they were counted up to their switch; the difference goes to the truck that
 // was feeding at the end, then to the next trucks in feeding order, each only up to what it had on board. Too few strokes come
@@ -651,6 +675,10 @@ const A={
  waste(id){const t=tk(id),c=calc(t);if(c.rem===null)return msg('Enter the load and used yd³ first so the leftover can be worked out.');
   act(()=>{const e=log('truck_waste',{truck:id,yd:c.rem,prevWaste:t.waste,prevPk:t.wastePk||null,prevEmptied:t.emptied,prevActive:S.active===id});
    if(S.active===id){closeSeg();S.active=null}t.waste=String(+((parseFloat(t.waste)||0)+c.rem).toFixed(2));t.wastePk=S.pile.key;t.left='waste';if(!t.emptied)t.emptied=Date.now();msg(r1(c.rem)+' yd³ logged as waste on truck '+(tname(t)))})},
+ // Field sheet: leftover on a truck wasted (yes) or not (no). Goes on the last pile it fed; the amount is the ledger's leftover.
+ wasteSet(id,yes){const t=tk(id);if(!t)return;const x=LG().trucks[id];if(!x)return;
+  act(()=>{if(yes){const pk=x.lastPk||S.pile.key,yd=x.remaining;if(S.active===id){closeSeg();S.active=null}log('truck_waste',{truck:id,pk,pile:pname(pk),yd,prevWaste:t.waste,prevPk:t.wastePk||null,prevEmptied:t.emptied,prevActive:false,source:'field sheet'});t.waste=String(+yd.toFixed(3));t.wastePk=pk;t.left='waste';msg('Truck '+tname(t)+': '+r1(yd)+' yd³ wasted after pile '+pname(pk)+'.')}
+   else{S.ev.forEach(e=>{if(e.type==='truck_waste'&&e.truck===id&&!e.undone)e.undone=true});log('edit',{truck:id,field:'waste',from:t.waste||'',value:'none',source:'field sheet'});t.waste='';t.wastePk=null;if(t.left==='waste')t.left='';if(t.leftWaste)delete t.leftWaste;msg('Truck '+tname(t)+': no waste. Its leftover carries to the next pile.')}})},
  carry(id){act(()=>{const t=tk(id);t.left=t.left==='carry'?'':'carry';if(t.left==='carry')msg('Truck '+tname(t)+' stays open. Its leftover moves to the next pile when you tap Start new pile.')})},
  setUsed(id,v){const t=tk(id),o=t.used[S.pile.key];if(v==='')delete t.used[S.pile.key];else t.used[S.pile.key]=v;log('edit',{truck:id,field:'used',from:o??'',value:v});save();render()},
  // Arrived / Empty typed by hand on the truck card. Blank clears it; a bad time or empty before arrival is refused (red, not saved). Returns true when saved.
@@ -935,7 +963,7 @@ function render(){try{undoDot()}catch(e){}clearTimeout(rT);
    '<div class="row" style="margin-top:10px"><button class="sec" style="flex:1" onclick="A.arrive()">Truck arrived now</button><button class="sec" style="flex:1" onclick="remoteOpen()">Open clicker</button></div>'+
    '<button style="width:100%;min-height:56px;margin-top:10px" onclick="A.newPile()">Save &amp; next pile</button>'+
    '<button class="sec" style="width:100%;margin-top:10px" onclick="if(save()){S.fullTools=true;save();render()}">More tools / corrections</button>'+
-   '</div>';
+   '</div>'+simpleTrucksH();
   return;
  }
  const sh=v=>v===null?'pending':r1(v);

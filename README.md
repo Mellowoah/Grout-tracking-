@@ -63,6 +63,9 @@ Open it once with signal; after that it works with no connection. After an updat
 - Stops list on the pile (edit kind, cause, times, what was done), on the form, in the Excel export (**Problems_delays**) and at End day with total down minutes by cause.
 - **Send a truck back** (wrong mix, past the cutoff, failed QC, not needed): for a truck that hasn't pumped. The load comes off every pile's yardage and the sample count but stays on the day's record (**Sent back today**, Undo). The red cutoff bar is tappable to send that truck back. A truck that already pumped uses **Leftover is waste**.
 
+## Trucks on the field-sheet screen
+Below the field sheet, every truck from today shows its arrival time, which piles it fed and how much (from the ledger), what's left, and buttons for **Wasted / No waste** on its leftover. **Edit truck** changes I.D., load, batch, ticket, arrival, empty and sample. Trucks filled in from a typed, read or uploaded form show up here the same way. The numbers are always worked out, never typed.
+
 ## Forgotten or late steps
 - Starting the pump with no Grout start recorded stamps Grout start at that moment; drill start / finish are then filled in (est) before it.
 - Reinforce start (or finish) stops the pump if Grout finish was never tapped; Grout finish is set to Reinforce start (est). Next pile also stops the pump.

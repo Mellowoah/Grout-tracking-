@@ -100,3 +100,18 @@ test('Saved data from earlier versions still opens: Nov 12 day',async()=>{
  assert.equal(after.piles.length,seed.piles.length);
  await page.evaluate(()=>{for(const k of orderKeys())showForm(k,false,false)});
  assert.deepEqual(page.errs,[]);assert.deepEqual(await page.appErrors(),[]);await page.context().close()});
+
+test('Small round Undo button undoes the last thing done',async()=>{
+ const page=await open('sim-undo');
+ await page.evaluate(()=>{A.cfg('pile','68');A.arrive();const t=S.trucks[0];A.setT(t.id,'num','688');histAt=0});
+ assert.equal(await page.isVisible('#undoDot'),true);
+ // a small circle in the bottom bar that does not cover the pile number or any button
+ const box=await page.evaluate(()=>{const b=$('undoDot').getBoundingClientRect(),t=$('tray').getBoundingClientRect(),hit=[...document.querySelectorAll('#tray button,#tp')].some(x=>{const r=x.getBoundingClientRect();return r.width&&!(r.right<=b.left||r.left>=b.right||r.bottom<=b.top||r.top>=b.bottom)});
+  return{w:b.width,h:b.height,clear:b.top>=t.top&&b.bottom<=t.bottom&&!hit,r:getComputedStyle($('undoDot')).borderRadius}});
+ assert.ok(box.w<=44&&box.h<=44&&box.clear&&box.r==='50%',JSON.stringify(box));
+ await page.evaluate(()=>{histAt=0;A.arrive();histAt=0});
+ assert.equal(await page.evaluate(()=>S.trucks.length),2);
+ await page.click('#undoDot');
+ assert.equal(await page.evaluate(()=>S.trucks.length),1,'second truck arrival undone');
+ assert.equal(await page.evaluate(()=>S.trucks[0].num),'688','earlier work kept');
+ assert.deepEqual(page.errs,[]);await page.context().close()});

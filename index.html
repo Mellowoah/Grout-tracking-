@@ -1880,7 +1880,7 @@ function formCellEdit(pk,truckId,label,col){
  const value=prompt('Correct '+label+' · '+(t?'truck '+tname(t):'pile '+pname(pk))+'\nBlank clears a previous form-only correction. Time: 10:16 or 10:16 AM.',current);
  if(value===null)return;
  const v=value.trim(),prior=old?old.value:null;
- const timeMs=()=>{const m=v.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);if(!m||Number(m[2])>59||Number(m[1])>(m[3]?12:23)||(Number(m[1])<1&&!!m[3]))return null;let h=Number(m[1]);if(m[3])h=h%12+(m[3].toUpperCase()==='PM'?12:0);const d=new Date((P.date||today())+'T00:00:00');if(Number.isNaN(d.getTime()))return null;d.setHours(h,Number(m[2]),0,0);return d.getTime()};
+ const timeMs=()=>{const m=v.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);if(!m||Number(m[2])>59||Number(m[1])>(m[3]?12:23)||(Number(m[1])<1&&!!m[3]))return null;let h=Number(m[1]);if(m[3])h=h%12+(m[3].toUpperCase()==='PM'?12:0);const d=new Date((P.date||today())+' 00:00:00');if(Number.isNaN(d.getTime()))return null;d.setHours(h,Number(m[2]),0,0);return d.getTime()};
  const audit=(from,to,source)=>S.ev.push({id:uid(),type:'form_correction',t:Date.now(),entered:Date.now(),pk,pile:pname(pk),truck:truckId||null,field:label,from,value:to,source});
  let applied=false,from=null;
  if(stageNames[label]&&col===0){const k=stageNames[label],ms=v?timeMs():null;if(v&&ms===null)return alert('Enter a valid time, for example 10:16 AM');P.st=P.st||{};from=P.st[k]||null;if(v)P.st[k]=ms;else delete P.st[k];applied=true}
@@ -2204,20 +2204,20 @@ async function formRead(side){const src=formPrep.ocr;let c=src;if(side!=='whole'
  try{const w=await ocrWorker(p=>{const s=$('scanst');if(s)s.textContent='Reading form… '+p+'%'});await w.setParameters({tessedit_pageseg_mode:'4'});const r=await w.recognize(c);text=r.data.text||'';await w.setParameters({tessedit_pageseg_mode:'3'})}
  catch(x){err=navigator.onLine?'Couldn\'t read the form.':'Reading needs signal the first time, to load the reader onto this phone.'}
  formGrid(text?parseForm(text):{},text,err)}
-function formGrid(v,text,err,step){const pt=pileTrucks(S.pile.key).slice(0,2);
+function formGrid(v,text,err,step){const pt=S.pile.id?pileTrucks(S.pile.key).slice(0,2):[];
  // the truck a column is about: by its circled number when the sheet gives one; a column the sheet left empty stays empty
- const colT=i=>{if(v.tno&&v.tno.some(Boolean)){const n=v.tno[i];if(!n)return null;const c=S.trucks.filter(x=>String(x.seq)===String(n));return c.find(x=>pev(null,S.pile.key).some(e=>e.truck===x.id))||c.find(x=>!x.emptied)||c[0]||null}return pt[i]};
+ const colT=i=>{if(v.tno&&v.tno.some(Boolean)){const n=v.tno[i];if(!n)return null;const c=pt.filter(x=>String(x.seq)===String(n));return c.find(x=>pev(null,S.pile.key).some(e=>e.truck===x.id))||c.find(x=>!x.emptied)||c[0]||null}return pt[i]};
  const cur=(k,i)=>{const t=colT(i);if(!t)return'';if(k==='tno')return t.seq||'';if(k==='num')return t.num||'';if(k==='batch')return t.batch||'';if(k==='arrived')return hm(t.arrived);if(k==='emptied')return hm(t.emptied);if(k==='sampleNo')return t.sampleNo||'';if(k==='temp'||k==='flow')return testFor(t,S.pile.key)[k]||'';if(k==='used'){const u=usedOn(t,S.pile.key);return u===null?'':r1(u)}if(k==='left'){const la=leftAfter(t,S.pile.key);return la===null?'':r1(la)}return''};
  const pcur=k=>{const P=S.pile,SV=stages(P);if(k==='pid')return P.id;if(k==='pdate')return P.date;if(k==='len')return P.len;if(k==='elev'||k==='station')return P[k]||'';if(k==='total')return P.opCount||'';if(k==='ret'){const g=pev('grout_return')[0];return g&&g.depth!=null?g.depth:''}if(k[0]==='d'&&k.includes('-'))return (P.bandIn||{})[k.slice(1)]??'';return SV[k]&&!SV[k].est?hm(SV[k].t):''};
- const rows=FRrows(),n=rows.reduce((a,[k])=>a+((v[k]||[]).filter(x=>x!==''&&x!=null).length),0),inp=(id,ty,val,hit)=>`<input id="${id}" ${ty==='time'?'type="time"':ty?'inputmode="'+ty+'"':''} value="${esc(val)}" data-o="${hit?'':esc(val)}" style="padding:6px;${hit?'border:2px solid var(--acc)':''}">`;
+ const rows=FRrows(),n=rows.reduce((a,[k])=>a+((v[k]||[]).filter(x=>x!==''&&x!=null).length),0),inp=(id,ty,val,hit)=>`<input id="${id}" ${ty==='time'?'type="time"':ty?'inputmode="'+ty+'"':''} value="${esc(val)}" data-o="${hit?'':esc(val)}" style="box-sizing:border-box;width:100%;min-width:0;padding:4px;font-size:14px;${hit?'border:2px solid var(--acc)':''}">`;
  const ai=text==='(read by Claude)';
  scanShow(`<h2>${step?`Sheet pile ${step.i} of ${step.n}: `:''}Fill pile ${esc(S.pile.id||'')}${ai?'':' from form'}</h2>${err?`<div class="card flag">${err} Type the values below.</div>`:text?`<div class="card">${ai?'Claude read':'Read'} ${n} value${n===1?'':'s'} (yellow boxes). Check each one${ai?'':' (handwriting is hard to read)'} and fill the rest, then tap Fill pile.${v._note?`<br><small>Note on sheet: ${esc(v._note)}</small>`:''}</div>`:`<div class="card">Type the values from your sheet, then tap Fill pile. Blank boxes are skipped.</div>`}
- <div class="wrap"><table style="min-width:330px"><tr><th></th><th>Truck 1</th><th>Truck 2</th></tr>${rows.map(([k,l,kind,ty])=>{const a=v[k]||[];if(kind==='t')return `<tr><td><small>${l}</small></td><td>${inp('fg-'+k+'-0',ty,a[0]||cur(k,0),!!a[0])}</td><td>${inp('fg-'+k+'-1',ty,a[1]||cur(k,1),!!a[1])}</td></tr>`;
+ <div class="wrap"><table style="width:100%;table-layout:fixed;min-width:0"><tr><th style="width:30%"></th><th>Truck 1</th><th>Truck 2</th></tr>${rows.map(([k,l,kind,ty])=>{const a=v[k]||[];if(kind==='t')return `<tr><td><small>${l}</small></td><td>${inp('fg-'+k+'-0',ty,a[0]||cur(k,0),!!a[0])}</td><td>${inp('fg-'+k+'-1',ty,a[1]||cur(k,1),!!a[1])}</td></tr>`;
   return `<tr><td><small>${l}</small></td><td colspan="2">${inp('fg-'+k,ty,a[0]??pcur(k),a[0]!=null)}</td></tr>`}).join('')}</table></div>
  <div class="row" style="margin-top:8px"><button style="flex:2" onclick="formApply(${step?'true':'false'})">Fill pile ${esc(S.pile.id||'')}${step&&step.i<step.n?' & next':''}</button><button class="sec" style="flex:1" onclick="sheetQ=[];scanClose()">Cancel</button></div>
  ${formPrep&&text!==''?'<img id="scimg" style="width:100%;margin-top:10px;border-radius:8px" alt="Form photo">':''}${text&&!ai?`<details style="margin-top:8px"><summary>Text read from the form</summary><pre style="white-space:pre-wrap;font-size:13px">${esc(text)}</pre></details>`:''}`);
  if($('scimg')&&formPrep)$('scimg').src=URL.createObjectURL(formPrep.photo)}
-function formApply(chain){const g=id=>{const e=$(id);return e?e.value.trim():''},at=(hmv,base)=>{if(!hmv)return null;const [h,m]=hmv.split(':').map(Number);const d=new Date(base||Date.now());d.setHours(h,m,0,0);return d.getTime()};
+function formApply(chain){const g=id=>{const e=$(id);return e?e.value.trim():''},at=(hmv,base)=>{if(!hmv)return null;const [h,m]=hmv.split(':').map(Number);const d=new Date((g('fg-pdate')||S.pile.date||today())+' 00:00:00');d.setHours(h,m,0,0);return d.getTime()};
  const P=S.pile,pk=P.key;let changed=0;const set=(o,f,val)=>{if(val!==''&&o[f]!==val){o[f]=val;changed++}};
  const pid=g('fg-pid');if(pid&&pid!==P.id){P.id=pid;changed++}set(P,'date',g('fg-pdate'));set(P,'elev',g('fg-elev'));set(P,'station',g('fg-station'));set(P,'opCount',g('fg-total'));
  const len=parseFloat(g('fg-len'));if(len>0&&len!==Number(P.len)){setLen(P,len);changed++}
@@ -2226,9 +2226,9 @@ function formApply(chain){const g=id=>{const e=$(id);return e?e.value.trim():''}
  const ret=g('fg-ret');if(ret!==''){const e=pev('grout_return')[0];if(e)e.depth=Number(ret);else log('grout_return',{depth:Number(ret),source:'form'});changed++}
  const pt=pileTrucks(pk),order=orderKeys(),prevK=order[order.indexOf(pk)-1];
  for(const i of [0,1]){const v=k=>g('fg-'+k+'-'+i);const any=['tno','num','batch','arrived','emptied','temp','flow','sampleNo'].some(k=>v(k))||(pt[i]&&['used','left'].some(k=>v(k)));if(!any)continue;
-  const tno=v('tno');let t=null;
-  if(tno)t=S.trucks.filter(x=>String(x.seq)===tno).sort((a,b)=>(pev(null,pk).some(e=>e.truck===b.id)?1:0)-(pev(null,pk).some(e=>e.truck===a.id)?1:0)||(a.emptied?1:0)-(b.emptied?1:0)).find(Boolean)||null;
-  if(!t&&v('num'))t=S.trucks.find(x=>x.num===v('num')&&!x.emptied)||pt.find(x=>x.num===v('num'))||null;
+  const tno=v('tno');let t=null;const sameDay=x=>pt.includes(x)||!!(x.arrived&&new Date(x.arrived).toDateString()===new Date(P.date+' 00:00:00').toDateString());
+  if(tno)t=S.trucks.filter(x=>sameDay(x)&&String(x.seq)===tno).sort((a,b)=>(pev(null,pk).some(e=>e.truck===b.id)?1:0)-(pev(null,pk).some(e=>e.truck===a.id)?1:0)||(a.emptied?1:0)-(b.emptied?1:0)).find(Boolean)||null;
+  if(!t&&v('num'))t=S.trucks.find(x=>sameDay(x)&&x.num===v('num')&&!x.emptied)||pt.find(x=>x.num===v('num'))||null;
   if(!t&&!tno){const anyNo=[0,1].some(j=>g('fg-tno-'+j));if(anyNo)continue;t=pt[i]||null}
   if(!t){A.arrive();t=S.trucks[S.trucks.length-1];if(tno)t.seq=+tno||tno;t.arrived=null}
   if(!t.pk0)attach(t,pk);
@@ -2256,9 +2256,9 @@ $('impIn').onchange=async e=>{const f=e.target.files&&e.target.files[0];if(!f)re
 function impApply(all){const D=impD;if(!D)return;
  if(all){try{localStorage.setItem(KEY,JSON.stringify(D))}catch(e){}mirror(JSON.stringify(D));setTimeout(()=>location.reload(),400);return}
  const ids=impMerge(D);scanClose();msg('Imported pile'+(ids.length>1?'s ':' ')+ids.join(', ')+'. Now on pile '+(S.pile.id||'?')+'.')}
-function impMerge(D){closeSeg();const inP=[...(D.piles||[]),{...D.pile,strokes:D.strokes,active:D.active}],ids=new Set(inP.map(p=>p.id));
+function impMerge(D){closeSeg();const inP=[...(D.piles||[]),{...D.pile,strokes:D.strokes,active:D.active}],identity=p=>String(p.date||'')+'|'+String(p.id||''),ids=new Set(inP.map(identity));
  const cur={...S.pile,strokes:S.strokes,active:S.active,pumping:S.pumping};const curEmpty=!S.strokes&&!pev(null,S.pile.key).some(e=>!['new_pile','open_pile','truck_carry'].includes(e.type));
- let mine=[...S.piles,cur];const gone=new Set(mine.filter(p=>ids.has(p.id)).map(p=>p.key));let keepCur=!gone.has(cur.key)&&!curEmpty;if(!keepCur&&curEmpty)gone.add(cur.key);
+ let mine=[...S.piles,cur];const gone=new Set(mine.filter(p=>ids.has(identity(p))).map(p=>p.key));let keepCur=!gone.has(cur.key)&&!curEmpty;if(!keepCur&&curEmpty)gone.add(cur.key);
  mine=mine.filter(p=>!gone.has(p.key));S.ev=S.ev.filter(e=>!gone.has(e.pk)).concat(D.ev);
  S.trucks=S.trucks.filter(t=>S.ev.some(e=>e.truck===t.id)).concat(D.trucks.filter(t=>!S.trucks.some(x=>x.id===t.id)));
  const nm=v=>{const x=parseFloat(v);return isNaN(x)?Infinity:x};let all2=[...mine,...inP].map((p,i)=>({p,i})).sort((a,b)=>nm(a.p.id)-nm(b.p.id)||a.i-b.i).map(x=>x.p);all2.forEach((p,i)=>p.n=i);

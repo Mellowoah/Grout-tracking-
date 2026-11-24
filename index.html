@@ -1864,6 +1864,7 @@ function truckPumpWindows(P,used){
   out[t.id]={start:previous,finish,startEst:i===0?!!sv.groutStart.est:!events.some(e=>e.truck===t.id),finishEst:i===feeders.length-1?!!sv.groutFinish.est:!event};
   previous=finish;
  }
+ for(const t of feeders){const w=P.feedTimes?.[t.id],x=out[t.id];if(!x)continue;if(t.emptied>=x.start&&t.emptied<=b){x.finish=t.emptied;x.finishEst=false}if(w)for(const k of ['start','finish'])if(w[k]!=null){x[k]=w[k];x[k+'Est']=false}}
  return out;
 }
 // Paper-form corrections are stored separately from the original field events.
@@ -1879,7 +1880,7 @@ function formCellEdit(pk,truckId,label,col){
  const value=prompt('Correct '+label+' · '+(t?'truck '+tname(t):'pile '+pname(pk))+'\nBlank clears a previous form-only correction. Time: 10:16 or 10:16 AM.',current);
  if(value===null)return;
  const v=value.trim(),prior=old?old.value:null;
- const timeMs=()=>{const m=v.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);if(!m||Number(m[2])>59||Number(m[1])>(m[3]?12:23)||(Number(m[1])<1&&!!m[3]))return null;let h=Number(m[1]);if(m[3])h=h%12+(m[3].toUpperCase()==='PM'?12:0);const d=new Date(P.date||today());if(Number.isNaN(d.getTime()))return null;d.setHours(h,Number(m[2]),0,0);return d.getTime()};
+ const timeMs=()=>{const m=v.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);if(!m||Number(m[2])>59||Number(m[1])>(m[3]?12:23)||(Number(m[1])<1&&!!m[3]))return null;let h=Number(m[1]);if(m[3])h=h%12+(m[3].toUpperCase()==='PM'?12:0);const d=new Date((P.date||today())+'T00:00:00');if(Number.isNaN(d.getTime()))return null;d.setHours(h,Number(m[2]),0,0);return d.getTime()};
  const audit=(from,to,source)=>S.ev.push({id:uid(),type:'form_correction',t:Date.now(),entered:Date.now(),pk,pile:pname(pk),truck:truckId||null,field:label,from,value:to,source});
  let applied=false,from=null;
  if(stageNames[label]&&col===0){const k=stageNames[label],ms=v?timeMs():null;if(v&&ms===null)return alert('Enter a valid time, for example 10:16 AM');P.st=P.st||{};from=P.st[k]||null;if(v)P.st[k]=ms;else delete P.st[k];applied=true}
@@ -1892,8 +1893,9 @@ function formCellEdit(pk,truckId,label,col){
  else if(label==='GROUT RETURN'&&col===0){const n=Number(v);if(v!==''&&(!Number.isFinite(n)||n<0))return alert('Enter a valid return depth in feet');let e=pev('grout_return',pk)[0];if(!e){e={id:uid(),type:'grout_return',t:Date.now(),entered:Date.now(),pk,pile:P.id,depth:null};S.ev.push(e)}from=e.depth;e.depth=v===''?null:n;applied=true}
  else if(label==='TOTAL STROKES'&&col===0){const n=Number(v);if(v!==''&&(!Number.isInteger(n)||n<0))return alert('Enter a whole stroke count');const field=num(P.reviewed)!==null?'reviewed':num(P.opCount)!==null?'opCount':num(P.myCount)!==null?'myCount':'opCount';from=P[field]||'';P[field]=v;if(v!=='')balancePileStrokes(pk);applied=true}
  else if(label.startsWith('DEPTH ')&&col===0){const n=Number(v);if(v!==''&&(!Number.isInteger(n)||n<0))return alert('Enter a whole stroke count');const band=label.slice(6);P.bandIn=P.bandIn||{};from=P.bandIn[band]??null;if(v==='')delete P.bandIn[band];else P.bandIn[band]=n;applied=true}
- // Pump handoff is one event shared by both trucks; never edit just one side.
- else if((label==='GROUT / HOLE START'||label==='GROUT / HOLE FINISH')&&t){const ms=v?timeMs():null;if(v&&ms===null)return alert('Enter a valid time');const feeders=pileTrucks(pk).filter(x=>(usedOn(x,pk)||0)>0);const idx=feeders.findIndex(x=>x.id===t.id);if(idx<0)return alert('Truck is not assigned to this pile');const isStart=label.endsWith('START');if((isStart&&idx===0)||(!isStart&&idx===feeders.length-1)){const k=isStart?'groutStart':'groutFinish';P.st=P.st||{};from=P.st[k]||null;if(v)P.st[k]=ms;else delete P.st[k];applied=true}else{const incoming=isStart?t:feeders[idx+1];if(!incoming)return alert('Cannot identify incoming truck');let e=pev('truck_switch',pk).find(x=>x.truck===incoming.id);from=e?e.t:null;if(!v&&e){S.ev=S.ev.filter(x=>x.id!==e.id)}else if(v){if(e){e.t=ms;e.correctedAt=Date.now()}else S.ev.push({id:uid(),type:'truck_switch',t:ms,entered:Date.now(),pk,pile:P.id,truck:incoming.id,from:feeders[feeders.indexOf(incoming)-1]?.id||null,source:'form_correction'})}applied=true}}
+ // Independent truck feed corrections preserve interruptions.
+ else if((label==='GROUT / HOLE START'||label==='GROUT / HOLE FINISH')&&t){const ms=v?timeMs():null;if(v&&ms===null)return alert('Enter a valid time');const k=label.endsWith('START')?'start':'finish';P.feedTimes=P.feedTimes||{};const w=P.feedTimes[t.id]||(P.feedTimes[t.id]={});from=w[k]??null;if(v)w[k]=ms;else delete w[k];applied=true}
+
  if(applied){audit(from,v,'source_record');if(S.formCorrections)delete S.formCorrections[correctionKey];save();render();showForm(pk,formMode.only,formMode.qc);return}
  // Unmapped display fields are retained as explicit paper annotations, not calculations.
  S.formCorrections=S.formCorrections||{};

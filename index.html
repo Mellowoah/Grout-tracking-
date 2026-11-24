@@ -294,7 +294,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v177';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v178';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -502,7 +502,8 @@ function yardsBefore(t,pk){if(!t||t.rejected||t.archived||t.leftWaste)return 0;c
 // already feeding that pile, then from the next arrived truck. The split is saved on the trucks.
 function balancePileStrokes(pk){const n=Math.round(confStrokes(pk).n||0);if(!(n>=0))return;const cy=calYd(),ids=[],add=id=>{const t=tk(id);if(!t||t.rejected||t.archived||t.leftWaste||ids.includes(id))return;ids.push(id)};
  feedOrder(pk).forEach(add);
- const waiting=()=>S.trucks.filter(t=>!t.rejected&&!t.archived&&!t.leftWaste&&!t.emptied&&!ids.includes(t.id)&&(t.onsite||t.arrived)&&!(t.arrived&&t.arrived>Date.now()+60000));
+ const p0=pileRec(pk),st0=stages(p0),cut=pk===S.pile.key&&!p0.done?Math.min(Date.now(),st0.groutFinish?.t||Date.now()):(st0.groutFinish?.t||p0.done||0);
+ const waiting=()=>S.trucks.filter(t=>!t.rejected&&!t.archived&&!t.leftWaste&&(!t.emptied||t.emptied>=cut)&&!ids.includes(t.id)&&t.arrived&&t.arrived<=cut);
  const after=t=>t?(t.arrived||0)*1000+(t.seq||0):-1;
  let guard=0;while(guard++<50){const cursor=ids.length?tk(ids[ids.length-1]):null,line=after(cursor);
   const nx=waiting().filter(t=>after(t)>line).sort((a,b)=>after(a)-after(b))[0];if(!nx)break;ids.push(nx.id)}
@@ -520,6 +521,7 @@ function balancePileStrokes(pk){const n=Math.round(confStrokes(pk).n||0);if(!(n>
  const live=pk===S.pile.key,p=live?S.pile:S.piles.find(x=>x.key===pk);
  if(live){S.strokes=n;S.segStart=n;if(p)p.tapped=true;const last=used.length?tk(used[used.length-1]):null;S.active=last?last.id:S.active}
  else if(p)p.strokes=n;
+ for(const t of S.trucks){if(t.emptyEstimated&&t.pumpOutPk===pk){const rem=leftAfter(t,pk);if(rem!==null&&rem>=cy-1e-9){log('edit',{field:'estimated empty invalidated',truck:t.id,pk,from:t.emptied,to:null});t.emptied=null;t.emptyEstimated=false;t.pend=null;t.pumpOutAt=null;t.pumpOutPk=null;}}}
  const parts=used.map(id=>tname(tk(id))+' '+((take[id]||0))+' str');
  log('edit',{field:'pump strokes',pk,pile:pname(pk),to:n,note:parts.join(', ')||'none'});
  if(rest>0)msg(n+' strokes: '+parts.join(', ')+'. '+(rest)+' strokes do not fit on the trucks that are here.')
@@ -666,7 +668,7 @@ function autoHandoff(){const t=tk(S.active);if(!t||t.pend||t.noPend||!(calYd()>0
  S.active=null;
  if(nx){S.active=nx.id;S.waitingForTruck=false;if(over>0)noteFeed(nx,pk);log('truck_switch',{truck:nx.id,from:t.id,auto:true,est:true,at:S.strokes-over,depth:nextMark()??null,pumpOutAt:now,over});
   msg('Truck '+tname(t)+' is empty at stroke '+bnd+'. Now feeding truck '+tname(nx)+(over>0?' ('+over+' strokes on this pile)':'')+'. Undo if that switch is wrong.')}
- else{S.waitingForTruck=true;S.orphan=(S.orphan||0)+over;msg('Truck '+tname(t)+' estimated empty at stroke '+bnd+'. Waiting for next arrived truck. '+over+' strokes require reconciliation.')}
+ else{S.waitingForTruck=true;S.pumping=false;S.segStart=S.strokes;S.orphan=(S.orphan||0)+over;msg('Truck '+tname(t)+' estimated empty at stroke '+bnd+'. Waiting for next arrived truck. '+over+' strokes require reconciliation.')}
  histLabel='auto truck switch';save();render();showUndoSwitch();vib()}
 let undoSwT;
 function showUndoSwitch(){const u=$('undoSW');if(!u)return;u.hidden=false;clearTimeout(undoSwT);undoSwT=setTimeout(()=>{u.hidden=true},20000)}

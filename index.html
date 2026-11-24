@@ -296,7 +296,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="ledger.js"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v182';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v183';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -471,6 +471,12 @@ function LG(){const ev=S.ev||[];let und=0;for(const e of ev)if(e.undone)und++;
 // v179: every yardage number below comes from the one ledger (ledger.js). These are thin readers over it.
 // Field-sheet screen: today's trucks with what the ledger worked out (read only) and the parts you can change:
 // truck details and whether its leftover was wasted. Everything typed or read from a form shows up here.
+// After a form is filled: every truck the ledger says fed this pile counts as fed, and on the latest pile the truck
+// still holding grout becomes the one on the pump (so the screen never says "none" for a pile trucks fed).
+function syncFormFeed(pk){const L=LG(),P=L.piles[pk];if(!P)return;for(const id of P.feed)if((P.alloc[id]||0)>1e-6)noteFeed(tk(id),pk);
+ if(pk===S.pile.key&&!S.pumping&&!tk(S.active)){const f=L.feeder&&tk(L.feeder);if(f&&!f.rejected){S.active=f.id;S.segStart=S.strokes;S.waitingForTruck=false}}}
+// Trucks that fed a pile, from the ledger: "688 3.267 · 651 2.530"
+function fedByH(pk=S.pile.key){const L=LG(),P=L.piles[pk];if(!P)return'';return P.feed.filter(id=>(P.alloc[id]||0)>1e-6&&tk(id)).map(id=>esc(tname(tk(id)))+' '+r1(P.alloc[id])).join(' · ')}
 function simpleTrucksH(){const L=LG(),ids=L.order.filter(id=>{const t=tk(id);return t&&!t.archived});
  if(!ids.length)return '<div class="card"><b>Trucks</b><div><small>No trucks yet. Tap Truck arrived now, or fill a form and its trucks appear here.</small></div></div>';
  const f3=v=>v==null?'':r1(v),iv=(id,f,val,ph,mode)=>'<input value="'+esc(val??'')+'" placeholder="'+ph+'" '+(mode==='time'?'type="time"':'inputmode="'+mode+'"')+' style="width:100%;box-sizing:border-box;min-height:40px" onchange="'+(mode==='time'?"A.setTime('"+id+"','"+f+"',this.value)":"A.setT('"+id+"','"+f+"',this.value.trim())")+'">';
@@ -945,7 +951,7 @@ function render(){try{undoDot()}catch(e){}clearTimeout(rT);
  const recv=sum(t=>parseFloat(t.qty)||0),samp=sum(t=>t.samples.length*S.sampleYd),waste=sum(t=>parseFloat(t.waste)||0);
  const pl=calYd()>0?sum(t=>tStrokes(t)*calYd()):null;
  const at=tk(S.active),nm=nextMark();
- const atR=at?calc(at).rem:null;const onSite=ts.filter(t=>!t.emptied&&t!==at);const next=at?nextFeeder(at).ok:null;const sourceNote=at?'Current source: truck '+tname(at)+(sLeft(atR)!==null?' · estimated '+sLeft(atR)+' more strokes on this truck':' · remaining strokes unknown')+(next?' · next: truck '+tname(next):' · no eligible next truck'):'No feeding truck selected; waiting trucks are not in use';$('stat').innerHTML=`<div><small>Feeding pump</small><b class="num">${at?'Truck '+esc(at.num||at.seq):'none'}</b>${at?`<small style="color:var(--ink)"><b class="num" style="font-size:18px">${atR===null?'?':r1(atR)}</b> yd³ left${sLeft(atR)!==null?' · ~'+sLeft(atR)+' strokes until switch':''}</small>`:''}</div><div><small>Strokes</small><b class="num">${confStrokes(S.pile.key).n||'—'}</b><small style="color:var(--ink)">${esc(confStrokes(S.pile.key).src)}</small></div><div><small>Pump</small><b class="num">${S.pumping?'On':'Off'}</b><small style="color:var(--ink)">${onSite.length?'On site: '+onSite.map(t=>'#'+esc(t.seq||'?')).join(', '):'No other trucks'}</small></div>`;
+ const atR=at?calc(at).rem:null;const onSite=ts.filter(t=>!t.emptied&&t!==at);const next=at?nextFeeder(at).ok:null;const sourceNote=at?'Current source: truck '+tname(at)+(sLeft(atR)!==null?' · estimated '+sLeft(atR)+' more strokes on this truck':' · remaining strokes unknown')+(next?' · next: truck '+tname(next):' · no eligible next truck'):'No feeding truck selected; waiting trucks are not in use';$('stat').innerHTML=`<div><small>Feeding pump</small><b class="num">${at?'Truck '+esc(at.num||at.seq):(fedByH()?'<span style="font-size:16px">fed by '+fedByH()+'</span>':'none')}</b>${at?`<small style="color:var(--ink)"><b class="num" style="font-size:18px">${atR===null?'?':r1(atR)}</b> yd³ left${sLeft(atR)!==null?' · ~'+sLeft(atR)+' strokes until switch':''}</small>`:''}</div><div><small>Strokes</small><b class="num">${confStrokes(S.pile.key).n||'—'}</b><small style="color:var(--ink)">${esc(confStrokes(S.pile.key).src)}</small></div><div><small>Pump</small><b class="num">${S.pumping?'On':'Off'}</b><small style="color:var(--ink)">${onSite.length?'On site: '+onSite.map(t=>'#'+esc(t.seq||'?')).join(', '):'No other trucks'}</small></div>`;
  $('stat').title=sourceNote;
  const ae=document.activeElement;if(ae&&ae.tagName==='INPUT'){pend=true;return}pend=false;
  // Paper-form-first field mode. Keep the full engine and all saved data intact.
@@ -953,7 +959,7 @@ function render(){try{undoDot()}catch(e){}clearTimeout(rT);
  if(!S.fullTools){
   const keys=allPiles().filter(p=>!p.archived);
   const opts=keys.map(p=>'<option value="'+esc(p.key)+'" '+(p.key===S.pile.key?'selected':'')+'>Pile '+esc(p.id||'?')+'</option>').join('');
-  const active=tk(S.active),current=active?'Truck '+esc(tname(active)):'Waiting for arrived truck';
+  const active=tk(S.active),fb=fedByH(),current=(fb?'Pile '+esc(S.pile.id||'?')+' fed by: '+fb+'<br>':'')+(active?'On the pump: truck '+esc(tname(active)):fb?'No truck on the pump now':'Waiting for arrived truck');
   $('app').innerHTML=
    '<div class="card" style="border:2px solid var(--acc)"><b style="font-size:21px">Field sheet · Pile '+esc(S.pile.id||'?')+'</b>'+
    '<p style="margin:6px 0">Use the same fields as your paper form. Save each pile before moving on.</p>'+
@@ -2204,7 +2210,7 @@ function formApply(chain){const g=id=>{const e=$(id);return e?e.value.trim():''}
    if(uv!==''&&(u0===null||uv!==r1(u0))){t.used[pk]=uv;changed++}
    else if(lv!==''&&(la0===null||lv!==r1(la0))){const ob=onBoard(t,pk);if(isFinite(ob)){t.used[pk]=String(+Math.max(0,ob-Number(lv)).toFixed(2));changed++}}}
   if(v('temp')||v('flow')){let x=t.tests.find(q=>q.pk===pk);if(!x){x={id:uid(),t:Date.now(),temp:'',flow:'',pk};t.tests.push(x)}if(v('temp'))x.temp=v('temp');if(v('flow'))x.flow=v('flow');changed++}}
- log('form_fill',{changed});save();msg(changed?'Pile '+(P.id||'')+' filled ('+changed+' items).':'Nothing to fill.');
+ syncFormFeed(pk);log('form_fill',{changed});save();msg(changed?'Pile '+(P.id||'')+' filled ('+changed+' items).':'Nothing to fill.');
  if(chain&&sheetQ.length)return sheetNext();if(chain)return sheetNext();scanClose()}
 // ---- Import a backup / prepared file. Add mode: same pile # is replaced, everything else kept. Replace mode: phone data becomes the file.
 let impD=null;

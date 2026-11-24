@@ -62,6 +62,10 @@ Open it once with signal; after that it works with no connection. After an updat
 - **Send a truck back** (wrong mix, past the cutoff, failed QC, not needed): for a truck that hasn't pumped. The load comes off every pile's yardage and the sample count but stays on the day's record (**Sent back today**, Undo). The red cutoff bar is tappable to send that truck back. A truck that already pumped uses **Leftover is waste**.
 
 ## Yardage rules
+- **One ledger works out every yardage number** (`ledger.js`): truck cards, the paper form's middle box, carry over, waste, End day and Excel all read the same calculation, so they can't disagree. It is rebuilt from the saved records every time something changes, so a stroke count typed or corrected later re-flows every later pile and truck.
+- Trucks feed in the order they arrived (then truck #). The truck on the pump at the end of a pile keeps feeding the next pile first. A truck that arrived after a pile's grout finish doesn't feed that pile.
+- A truck switch tapped during the pour (or a truck marked Empty while pumping) records the stroke count, and the split follows it. Switches the app guessed don't move yardage.
+- Leftover on a truck marked Empty is shown as **unaccounted** at End day so it can be checked; leftover on a wasted truck is the waste.
 - Pump output 0.86 ft³ per stroke (Settings, ft³/yd³ switch).
 - Used per truck per pile = confirmed strokes × pump output (or typed). Confirmed strokes are the agreed total, then the contractor count, then My count. Left for next = load − sample − used − waste, shown to 0.001. A carry into the next pile is that leftover.
 - One 1.1 yd³ sample for every 50 yd³ delivered that day: the first truck, then each truck whose load crosses the next 50 (Settings; per-truck override on the truck card).
@@ -77,4 +81,7 @@ Open it once with signal; after that it works with no connection. After an updat
 - Everything saves on every tap, with a backup copy on the phone. Use **Export Excel** / **Backup JSON** at the end of each shift; **Import file** loads a backup.
 
 ## Updating
-After changing `index.html`, bump `VERSION` in `sw.js` so installed phones pick up the change. The ticket/form reader files live in `ocr/` (Tesseract.js, Apache-2.0).
+After changing `index.html` or `ledger.js`, bump `APPV` in `index.html` so installed phones pick up the change. The ticket/form reader files live in `ocr/` (Tesseract.js, Apache-2.0).
+
+## Tests
+`npm install && npx playwright install chromium && npm test`. `test/ledger.test.js` checks the ledger on its own; `test/app.test.js` runs the real app in a headless browser through the same actions as the buttons and clicker (the Nov 23 day: piles 180 / 182 / 184 / 142 strokes on trucks 688, 651, 2129; typed-in-afterwards counts and corrections; truck switches, empties and a sent-back truck; a saved day from an earlier version). GitHub only publishes the app after every test passes.

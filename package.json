@@ -1,0 +1,11 @@
+{
+  "name": "grout-tracker",
+  "private": true,
+  "description": "Grout Tracker phone app. The app itself is index.html + ledger.js; this file only runs the tests.",
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "devDependencies": {
+    "playwright": "1.49.1"
+  }
+}

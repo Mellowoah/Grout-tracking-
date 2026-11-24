@@ -3,7 +3,7 @@
 // - The app page: newest from the network when there's signal (4 s limit), the saved copy when there isn't.
 // - Everything else (icons, fonts, Excel export, form pictures, ticket reader): saved copy first, refreshed in the background.
 const VERSION='grout-'+(new URL(self.location).searchParams.get('v')||'0');
-const SHELL=['./','index.html','manifest.webmanifest','icon-180.png','icon-192.png','icon-512.png'];
+const SHELL=['./','index.html','ledger.js','manifest.webmanifest','icon-180.png','icon-192.png','icon-512.png'];
 // Small helper files saved up front so Email/Text pictures and Excel work with no signal (best effort).
 // The big ticket-reader files (~7 MB) are saved the first time a ticket is scanned.
 const EXTRA=['ocr/html2canvas.min.js','ocr/tesseract.min.js','ocr/worker.min.js',

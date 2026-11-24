@@ -206,3 +206,21 @@ test('Forms, a whole day: carry forward pile to pile, new truck arrivals, last t
  assert.deepEqual(F['75'],{ARRIVED:'','CARRY OVER INTO':'8.508 from Truck 3 (ID 2218) from Pile 74',USED:'4.523','CARRY OVER OUT':'',WASTE:'3.986'});
  near(r.bal,0);assert.match(r.screen,/Truck 2218[\s\S]*Leftover wasted: 3\.986/);
  assert.deepEqual(page.errs,[]);assert.deepEqual(await page.appErrors(),[]);await page.context().close()});
+
+test('Pile numbers that skip (72, 73, 75, 76, 78), a phantom pile removed, 78 set to 17 ft',async()=>{
+ const page=await open('sim-pile-numbers');
+ const r=await page.evaluate(()=>{const fill=v=>{formGrid({},'');for(const k in v)$('fg-'+k).value=v[k];formApply(false);scanClose()};const ask=[];
+  window.prompt=(q,d)=>{ask.push(d);return answers.shift()};window.confirm=()=>true;S.fullTools=false;let answers=[];
+  const pileDay=(n,tr)=>fill({pdate:'2026-11-24',drillStart:'08:15',drillFinish:'08:18',groutFinish:'08:25',reinfStart:'08:25',total:n,...tr});
+  A.cfg('pile','72');render();pileDay('180',{'num-0':'624','arrived-0':'08:10','sampleNo-0':'S1'});
+  answers=['73'];nextPileAsk();pileDay('182',{'num-0':'624','num-1':'651','arrived-1':'08:55'});
+  answers=[''];nextPileAsk();const phantom=S.pile.id;            // Next pile tapped, number left as suggested: 74 (not a real pile)
+  render();[...document.querySelectorAll('#app button')].find(b=>/Remove pile 74/.test(b.textContent)).click();
+  answers=['75'];nextPileAsk();pileDay('184',{'num-0':'651','num-1':'2218','arrived-1':'09:40'});
+  answers=['76'];nextPileAsk();pileDay('142',{'num-0':'2218'});
+  answers=['78'];nextPileAsk();render();const len=document.querySelector('#app input[inputmode="decimal"]');len.value='17';len.dispatchEvent(new Event('change'));
+  pileDay('120',{'num-0':'2218'});
+  return{ask,phantom,piles:orderKeys().map(k=>pname(k)),len78:S.pile.len,marks78:S.pile.marks.join(','),bal:LG().totals.balance}});
+ assert.equal(r.phantom,'74');assert.equal(r.ask[0],'73','suggests the next number');
+ assert.deepEqual(r.piles,['72','73','75','76','78']);assert.equal(r.len78,17);assert.equal(r.marks78,'15,10,5,0');near(r.bal,0);
+ assert.deepEqual(page.errs,[]);assert.deepEqual(await page.appErrors(),[]);await page.context().close()});

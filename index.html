@@ -296,7 +296,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="ledger.js"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v185';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v186';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -439,9 +439,9 @@ const num=v=>v===undefined||v===null||v===''?null:(parseFloat(v)||0);
 // Piles in the order they were worked (you can reopen an older pile, so the current one isn't always last)
 const allPiles=()=>[...S.piles,S.pile].sort((a,b)=>(a.n??0)-(b.n??0));
 const orderKeys=()=>allPiles().filter(p=>!p.archived).map(p=>p.key);
-const maxN=()=>Math.max(...allPiles().map(p=>p.n??0));
+const maxN=()=>{const a=allPiles(),l=a.filter(p=>!p.archived);return Math.max(...(l.length?l:a).map(p=>p.n??0))};
 const isLatest=()=>(S.pile.n??0)>=maxN();
-const latestPile=()=>allPiles().slice(-1)[0];
+const latestPile=()=>{const a=allPiles(),l=a.filter(p=>!p.archived);return (l.length?l:a).slice(-1)[0]};
 const pileRec=pk=>pk===S.pile.key?{...S.pile,strokes:S.strokes}:(S.piles.find(p=>p.key===pk)||{});
 // pileRec copies the pile on screen. Writes have to hit the saved pile, or a correction on today's pile never lands.
 function pileLive(pk){return !pk||pk===S.pile.key?S.pile:(S.piles.find(p=>p.key===pk)||null)}
@@ -489,6 +489,13 @@ function syncFormFeed(pk){const L=LG(),P=L.piles[pk];if(!P)return;for(const id o
  if(pk===S.pile.key&&!S.pumping&&!tk(S.active)){const f=L.feeder&&tk(L.feeder);if(f&&!f.rejected){S.active=f.id;S.segStart=S.strokes;S.waitingForTruck=false}}}
 // Trucks that fed a pile, from the ledger: "688 3.267 · 651 2.530"
 function fedByH(pk=S.pile.key){const L=LG(),P=L.piles[pk];if(!P)return'';return P.feed.filter(id=>(P.alloc[id]||0)>1e-6&&tk(id)).map(id=>esc(tname(tk(id)))+' '+r1(P.alloc[id])).join(' · ')}
+// Field sheet: pile number and length typed straight on the screen. Pile numbers skip on site, so Next pile asks for the number.
+function pileIdSet(v){v=String(v||'').trim();if(!v||v===S.pile.id)return;const dup=allPiles().find(p=>!p.archived&&p.key!==S.pile.key&&p.id===v);if(dup){msg('Pile '+v+' already exists. Open it from the list instead.');render();return}
+ act(()=>{log('edit',{field:'pile #',from:S.pile.id,to:v});S.pile.id=v;resortPiles()})}
+function pileLenSet(v){const L=parseFloat(v);if(!(L>0)||L===Number(S.pile.len))return render();act(()=>{log('edit',{field:'pile length',from:S.pile.len,to:L});setLen(S.pile,L)})}
+function nextPileAsk(){const sug=nextId(S.pile.id)||'',v=prompt('Next pile number?',sug);if(v===null)return;const id=String(v).trim();
+ if(id&&allPiles().some(p=>!p.archived&&p.id===id)){msg('Pile '+id+' already exists. Open it from the list.');return}
+ if(!isLatest())A.openPile(latestPile().key);const before=S.pile.key;A.newPile();if(S.pile.key===before)return;if(id&&id!==S.pile.id)S.pile.id=id;resortPiles();save();render()}
 function simpleTrucksH(){const L=LG(),ids=L.order.filter(id=>{const t=tk(id);return t&&!t.archived});
  if(!ids.length)return '<div class="card"><b>Trucks</b><div><small>No trucks yet. Tap Truck arrived now, or fill a form and its trucks appear here.</small></div></div>';
  const f3=v=>v==null?'':r1(v),iv=(id,f,val,ph,mode)=>'<input value="'+esc(val??'')+'" placeholder="'+ph+'" '+(mode==='time'?'type="time"':'inputmode="'+mode+'"')+' style="width:100%;box-sizing:border-box;min-height:40px" onchange="'+(mode==='time'?"A.setTime('"+id+"','"+f+"',this.value)":"A.setT('"+id+"','"+f+"',this.value.trim())")+'">';
@@ -899,7 +906,7 @@ function boardArchivePile(key){const p=pileLive(key);if(!p||p.archived)return;if
  act(()=>{p.archived=true;log('edit',{field:'pile archived',pk:key,pile:p.id,to:'archived'});
   if(S.pile.key===key){const nxt=allPiles().find(x=>!x.archived&&x.key!==key);if(nxt&&nxt.key!==S.pile.key){/* stay until open */} }
   msg('Pile '+(p.id||'?')+' archived.')});
- if(S.pile.archived){const nxt=allPiles().find(x=>!x.archived);if(nxt)A.openPile(nxt.key);else{S.pile=blankPile();S.strokes=0;S.segStart=0;S.active=null;save();render()}}}
+ if(S.pile.archived){const live=allPiles().filter(x=>!x.archived),nxt=live[live.length-1];if(nxt)A.openPile(nxt.key);else{S.pile=blankPile();S.strokes=0;S.segStart=0;S.active=null;save();render()}}}
 function boardArchiveTruck(id){const t=tk(id);if(!t||t.archived)return;if(!confirm('Archive truck '+tname(t)+'? It leaves the totals. The history keeps the record.'))return;
  act(()=>{if(S.active===id){closeSeg();S.active=null}t.archived=true;t.pk0=null;log('edit',{truck:id,field:'truck archived',to:'archived'});msg('Truck '+tname(t)+' archived.')})}
 function boardArchiveSample(id){const e=S.ev.find(x=>x.id===id);if(!e)return;const t=tk(e.truck);if(!confirm('Archive this sample'+(t?' from truck '+tname(t):'')+'? Its yards go back on the truck. The history keeps it.'))return;
@@ -974,11 +981,13 @@ function render(){try{undoDot()}catch(e){}clearTimeout(rT);
    '<div class="card" style="border:2px solid var(--acc)"><b style="font-size:21px">Field sheet · Pile '+esc(S.pile.id||'?')+'</b>'+
    '<p style="margin:6px 0">Use the same fields as your paper form. Save each pile before moving on.</p>'+
    '<label><small>Open pile</small><select style="width:100%;min-height:48px" onchange="if(this.value!==S.pile.key)A.openPile(this.value)">'+opts+'</select></label>'+
+   '<div class="row" style="margin-top:8px"><label style="flex:1"><small>Pile #</small><input value="'+esc(S.pile.id||'')+'" style="width:100%;box-sizing:border-box;min-height:44px" onchange="pileIdSet(this.value)"></label><label style="flex:1"><small>Length ft</small><input inputmode="decimal" value="'+esc(S.pile.len||'')+'" style="width:100%;box-sizing:border-box;min-height:44px" onchange="pileLenSet(this.value)"></label></div>'+
    '<button style="width:100%;min-height:66px;margin-top:10px;font-size:20px" onclick="formGrid({},\'\',\'\')">Fill / edit paper form</button>'+
    '<div style="margin-top:12px"><b>Automatic truck feed</b><div>'+current+'</div></div>'+
    '<div class="row" style="margin-top:10px"><button class="sec" style="flex:1" onclick="A.arrive()">Truck arrived now</button><button class="sec" style="flex:1" onclick="remoteOpen()">Open clicker</button></div>'+
-   '<button style="width:100%;min-height:56px;margin-top:10px" onclick="A.newPile()">Save &amp; next pile</button>'+
+   '<button style="width:100%;min-height:56px;margin-top:10px" onclick="nextPileAsk()">Save &amp; next pile</button>'+
    '<button class="sec" style="width:100%;margin-top:10px" onclick="if(save()){S.fullTools=true;save();render()}">More tools / corrections</button>'+
+   (keys.length>1?'<button class="sec" style="width:100%;margin-top:10px;color:#b00020" onclick="boardArchivePile(\''+S.pile.key+'\')">Remove pile '+esc(S.pile.id||'?')+' (not a real pile)</button>':'')+
    '</div>'+simpleTrucksH();
   return;
  }

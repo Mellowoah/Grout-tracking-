@@ -63,6 +63,12 @@ Open it once with signal; after that it works with no connection. After an updat
 - Stops list on the pile (edit kind, cause, times, what was done), on the form, in the Excel export (**Problems_delays**) and at End day with total down minutes by cause.
 - **Send a truck back** (wrong mix, past the cutoff, failed QC, not needed): for a truck that hasn't pumped. The load comes off every pile's yardage and the sample count but stays on the day's record (**Sent back today**, Undo). The red cutoff bar is tappable to send that truck back. A truck that already pumped uses **Leftover is waste**.
 
+## Forgotten or late steps
+- Starting the pump with no Grout start recorded stamps Grout start at that moment; drill start / finish are then filled in (est) before it.
+- Reinforce start (or finish) stops the pump if Grout finish was never tapped; Grout finish is set to Reinforce start (est). Next pile also stops the pump.
+- A step tapped after a later step already has a time is not stamped (it would be out of order). Type its real time on the field sheet, or leave it and the form fills it in (est).
+- Pump strokes from a hand counter can be typed any time (after reinforce, or on an earlier pile later). Step times are not touched; only the yardage re-flows.
+
 ## Yardage rules
 - **One ledger works out every yardage number** (`ledger.js`): truck cards, the paper form's middle box, carry over, waste, End day and Excel all read the same calculation, so they can't disagree. It is rebuilt from the saved records every time something changes, so a stroke count typed or corrected later re-flows every later pile and truck.
 - Trucks feed in the order they arrived (then truck #). The truck on the pump at the end of a pile keeps feeding the next pile first. A truck that arrived after a pile's grout finish doesn't feed that pile.

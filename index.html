@@ -296,7 +296,7 @@ details{margin:10px 0}summary.sum{font:800 20px 'Barlow Condensed',system-ui,san
 <script src="ledger.js"></script>
 <script>
 const PROF=(new URLSearchParams(location.search).get('profile')||'').replace(/[^\w-]/g,'').slice(0,20);
-const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v180';
+const KEY='groutTracker.v1'+(PROF?':'+PROF:'');const APPV='grout-v181';
 // Problem reports go to this address (blank = the person picks who to send to)
 const REPORT_TO='';
 // Reports can also be opened as issues on the app's GitHub repo (GitHub emails the owner)
@@ -526,11 +526,12 @@ function seedDrill(p){const ps=allPiles(),i=ps.indexOf(ps.find(q=>q.key===p.key)
 function learnMin(a,b,fb){const today=new Date().toDateString(),v=allPiles().map(p=>p.st||{}).filter(st=>st[a]&&st[b]&&new Date(st[a]).toDateString()===today).map(st=>(st[b]-st[a])/60000).filter(x=>x>=0&&x<120);
  return v.length?Math.round(v.reduce((x,y)=>x+y,0)/v.length):(S[fb]||0)}
 function stages(p=S.pile){const st={...(p.st||{})},seed=(p.resetStages&&p.resetStages.drillStart)||Object.keys(st).some(k=>st[k])?null:seedDrill(p),D=learnMin('drillStart','drillFinish','drillMin')*60000,R=learnMin('reinfStart','reinfFinish','reinfMin')*60000,G=learnMin('groutStart','groutFinish','groutMin')*60000,o={};
+ const pumpOn=((S.ev||[]).find(e=>e.type==='pump_start'&&!e.undone&&e.pk===p.key)||{}).t||null;
  const set=(k,v)=>{if(o[k])return;if(st[k])o[k]={t:st[k],est:false};else if(v)o[k]={t:v,est:true}};
  for(const k in st)if(st[k])o[k]={t:st[k],est:false};if(seed)o.drillStart={t:seed,est:true};
  for(let i=0;i<3;i++){const g=k=>o[k]&&o[k].t;
-  set('drillFinish',g('groutStart')||(g('drillStart')&&g('drillStart')+D));set('drillStart',g('drillFinish')&&g('drillFinish')-D);set('groutStart',g('drillFinish'));
-  set('groutFinish',(G&&g('groutStart')&&g('groutStart')+G)||g('reinfStart')||(g('reinfFinish')&&g('reinfFinish')-R));set('reinfStart',g('groutFinish')||(g('reinfFinish')&&g('reinfFinish')-R));set('reinfFinish',g('reinfStart')&&g('reinfStart')+R)}
+  set('drillFinish',g('groutStart')||(g('drillStart')&&g('drillStart')+D));set('drillStart',g('drillFinish')&&g('drillFinish')-D);set('groutStart',g('drillFinish')||pumpOn||(G&&st.groutFinish&&st.groutFinish-G));
+  set('groutFinish',st.reinfStart||(G&&g('groutStart')&&g('groutStart')+G)||g('reinfStart')||(g('reinfFinish')&&g('reinfFinish')-R));set('reinfStart',g('groutFinish')||(g('reinfFinish')&&g('reinfFinish')-R));set('reinfFinish',g('reinfStart')&&g('reinfStart')+R)}
  return o}
 const hm=ms=>{if(!ms)return'';const d=new Date(ms);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')};
 // Truck must be used within S.limit minutes of its batch time
@@ -620,7 +621,7 @@ $('fold').onclick=()=>{$('tray').classList.toggle('min');setTimeout(undoDot,0);$
 const armed={};
 function twoTap(k,btnId,label){if(Date.now()-(armed[k]||0)>4000){armed[k]=Date.now();const b=$(btnId);if(b)b.textContent=label||'Tap again to confirm';setTimeout(render,4200);return false}armed[k]=0;return true}
 const A={
- newPile(want){if(!isLatest()){const L=latestPile();A.openPile(L.key);return}undoSnap=JSON.stringify(S);for(const t of S.trucks)if(onsiteUsed(t,S.pile.key))attach(t,S.pile.key);if(fc){clearInterval(fcT);fc=null}let done='';act(()=>{closeSeg();const ok=S.pile.key;done='Pile '+(S.pile.id||'?')+' done: '+(pileTrucks(ok).map(t=>'truck '+tname(t)+' '+(usedOn(t,ok)===null?'?':r1(usedOn(t,ok)))+' yd³').join(', ')||'no trucks')+'. ';const loose=[];const open=S.trucks.filter(t=>{if(t.emptied||t.rejected||t.leftWaste||t.archived||t.pend)return false;const here=pumpedHere(t,S.pile.key)||num(t.used[S.pile.key])>0.005;const prior=orderKeys().slice(0,orderKeys().indexOf(S.pile.key)).some(k=>pumpedHere(t,k)||num(t.used[k])>0.005);if(!here&&!prior)return false;const rem=calc(t).rem;return rem===null||rem>0.005}).map(t=>{const c=calc(t);return[t,c.rem!==null?c.rem:(c.q>=0&&usedAll(t)===0?c.q:null)]});
+ newPile(want){if(!isLatest()){const L=latestPile();A.openPile(L.key);return}undoSnap=JSON.stringify(S);if(S.pumping){closeSeg();S.pumping=false;log('pump_pause',{truck:S.active,source:'next pile'})}for(const t of S.trucks)if(onsiteUsed(t,S.pile.key))attach(t,S.pile.key);if(fc){clearInterval(fcT);fc=null}let done='';act(()=>{closeSeg();const ok=S.pile.key;done='Pile '+(S.pile.id||'?')+' done: '+(pileTrucks(ok).map(t=>'truck '+tname(t)+' '+(usedOn(t,ok)===null?'?':r1(usedOn(t,ok)))+' yd³').join(', ')||'no trucks')+'. ';const loose=[];const open=S.trucks.filter(t=>{if(t.emptied||t.rejected||t.leftWaste||t.archived||t.pend)return false;const here=pumpedHere(t,S.pile.key)||num(t.used[S.pile.key])>0.005;const prior=orderKeys().slice(0,orderKeys().indexOf(S.pile.key)).some(k=>pumpedHere(t,k)||num(t.used[k])>0.005);if(!here&&!prior)return false;const rem=calc(t).rem;return rem===null||rem>0.005}).map(t=>{const c=calc(t);return[t,c.rem!==null?c.rem:(c.q>=0&&usedAll(t)===0?c.q:null)]});
   // a truck the strokes say ran out here isn't carried on: it's flagged so you can confirm it empty (at this pile's grout finish)
   {const gf=stages().groutFinish;for(const [t,yd] of open.filter(([t,yd])=>yd!==null&&yd<=0.005&&usedOn(t,S.pile.key)>0)){t.pend={t:gf?gf.t:Date.now(),pk:S.pile.key};log('truck_maybe_empty',{truck:t.id})}}
   for(let i=open.length-1;i>=0;i--)if(open[i][0].pend&&!open[i][0].noPend)open.splice(i,1);
@@ -629,7 +630,9 @@ const A={
   /* Waiting trucks remain unassigned across pile changes until they feed the pump. */
   msg(done+'Pile '+(S.pile.id||'')+' started.'+(open.length?' '+open.map(([t,yd])=>'Truck '+tname(t)+': '+(yd==null?'?':r1(yd))+' yd³ left').join(', '):''))});showUndoPile()},
  undoPile(){if(!undoSnap)return;S=JSON.parse(undoSnap);undoSnap=null;$('undoNP').hidden=true;save();render();msg('Back on pile '+S.pile.id+'. Nothing was lost.')},
- pump(){act(()=>{if(!S.pumping&&!tk(S.active)){const nx=nextFeeder(null).ok;if(nx){S.active=nx.id;S.segStart=S.strokes;S.waitingForTruck=false;log('truck_switch',{truck:nx.id,auto:true,at:S.strokes})}else{S.waitingForTruck=true;return msg('No arrived truck available. Enter or mark the next truck arrived before pumping.')}}S.pumping=!S.pumping;log(S.pumping?'pump_start':'pump_pause',{truck:S.active})})},
+ pump(){act(()=>{if(!S.pumping&&!tk(S.active)){const nx=nextFeeder(null).ok;if(nx){S.active=nx.id;S.segStart=S.strokes;S.waitingForTruck=false;log('truck_switch',{truck:nx.id,auto:true,at:S.strokes})}else{S.waitingForTruck=true;return msg('No arrived truck available. Enter or mark the next truck arrived before pumping.')}}S.pumping=!S.pumping;log(S.pumping?'pump_start':'pump_pause',{truck:S.active});
+  // pumping grout into the pile is grout start: if that step was never tapped, the pump-on time fills it
+  if(S.pumping&&!S.pile.st.groutStart){S.pile.st.groutStart=Date.now();if(S.pile.missedStages)delete S.pile.missedStages.groutStart;log('stage',{name:'groutStart',source:'pump on'})}})},
  arrive(){act(()=>{const t={id:uid(),seq:S.trucks.length?Math.max(...S.trucks.map(x=>x.seq||0))+1:1,num:'',sampleNo:'',qty:S.defLoad?String(S.defLoad):'',batch:'',dispatch:'',arrived:Date.now(),emptied:null,strokes:0,samples:[],waste:'',tests:[],pk0:null,onsite:true,ps:{},used:{},carryIn:{},left:''};S.trucks.push(t);log('truck_onsite',{truck:t.id});if(S.waitingForTruck&&!S.active){S.active=t.id;S.segStart=S.strokes;S.waitingForTruck=false;log('truck_switch',{truck:t.id,auto:true,at:S.strokes});msg('Truck '+t.seq+' is now the active feeder.')}vib();if(sDue(t)>0)msg('Truck '+t.seq+' arrived. Sample due on this truck: report it Taken or Not taken on its card.')})},
  // Strokes come from the physical counter: type the reading; the difference goes to the feeding truck,
  // split at the point a truck's load runs out so the next truck gets the rest
@@ -673,12 +676,18 @@ const A={
  setT(id,f,v){const t=tk(id);t[f]=v;if(f==='waste'&&v&&!t.wastePk)t.wastePk=S.pile.key;if(f==='waste'&&t.leftWaste){const base=parseFloat(t.leftWaste.base)||0,n=parseFloat(v)||0;t.leftWaste.yd=String(+Math.max(0,n-base).toFixed(3))}log('edit',{truck:id,field:f,value:v});save();render()},
  setTest(id,i,f,v){tk(id).tests[i][f]=v;save()},
  setDepth(id,v){const e=S.ev.find(x=>x.id===id);e.depth=v===''?null:Number(v);e.source='entered later';e.entered=Date.now();save();render()},
- stage(k){act(()=>{const st=S.pile.st;st[k]=Date.now();if(S.pile.resetStages)delete S.pile.resetStages[k];log('stage',{name:k})});
+ stage(k){const ORD=['drillStart','drillFinish','groutStart','groutFinish','reinfStart','reinfFinish'],st0=S.pile.st||{},later=ORD.slice(ORD.indexOf(k)+1).find(x=>st0[x]&&!(k==='drillFinish'&&x==='groutStart'&&st0.groutStart===st0.drillFinish));
+  // a step tapped late (a later step already has a time) is not stamped "now": that would put it out of order on the form
+  if(ORD.includes(k)&&!st0[k]&&later){const L={drillStart:'Drill start',drillFinish:'Drill finish',groutStart:'Grout start',groutFinish:'Grout finish',reinfStart:'Reinforce start',reinfFinish:'Reinforce finish'};
+   return msg(L[k]+' was not stamped: '+L[later]+' is already recorded at '+hm(st0[later])+'. Type the real time on the field sheet, or leave it and the form fills it in (est).')}
+  act(()=>{const st=S.pile.st;st[k]=Date.now();if(S.pile.resetStages)delete S.pile.resetStages[k];log('stage',{name:k})});
   // Grout start = start pumping (and feed a truck if none is); Grout finish = stop pumping
   if(k==='drillFinish'&&!S.pile.st.groutStart){S.pile.st.groutStart=S.pile.st.drillFinish;k='groutStart'}
   if(k==='groutStart'){if(!tk(S.active)){msg('Grout started. Select Feed pump on the truck actually supplying grout; waiting trucks stay unassigned.')}
    if(!S.pumping)A.pump();if($('depv').style.display!=='block'&&!remOn())setTimeout(depthOpen,50);const t=tk(S.active);msg('Grout started: pumping'+(t?' from truck '+tname(t):'. No truck logged yet (that\'s fine, add one any time)')+'.')}
-  if(k==='groutFinish'&&S.pumping){A.pump();msg('Grout finished: pumping stopped.')}},
+  if(k==='groutFinish'&&S.pumping){A.pump();msg('Grout finished: pumping stopped.')}
+  // reinforcing means grouting is over: stop the pump if grout finish was never tapped (the form fills grout finish from reinforce start)
+  if((k==='reinfStart'||k==='reinfFinish')&&S.pumping){A.pump();msg((k==='reinfStart'?'Reinforce started':'Reinforce finished')+': pumping stopped.'+(S.pile.st.groutFinish?'':' Grout finish set to reinforce start (est).'))}},
  stageReset(k){if(k!=='drillStart')return;const prev=S.pile.st&&S.pile.st[k];if(!prev)return msg('No recorded drill start to reset.');if(!confirm('Clear the accidental Drill start time? You can tap Drill start again when drilling actually begins. The correction stays in the history.'))return;act(()=>{delete S.pile.st[k];S.pile.resetStages=S.pile.resetStages||{};S.pile.resetStages[k]=true;log('edit',{field:k,from:prev,to:'cleared accidental tap'});msg('Drill start cleared. Tap Drill start when work begins.')})},
  stageMiss(k){act(()=>{S.pile.missedStages=S.pile.missedStages||{};S.pile.missedStages[k]=Date.now();log('stage_missing',{name:k,enteredLater:false});msg('Marked '+k+' missed. Keep working; enter its time later if available.')})},
  stageSet(k,v){if(!v){delete S.pile.st[k]}else{const [h,m]=v.split(':').map(Number);const d=new Date(S.pile.st[k]||Date.now());d.setHours(h,m,0,0);S.pile.st[k]=d.getTime();if(S.pile.missedStages)delete S.pile.missedStages[k];if(S.pile.resetStages)delete S.pile.resetStages[k];log('stage',{name:k,edited:true})}save();render()},

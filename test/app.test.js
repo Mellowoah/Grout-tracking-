@@ -115,3 +115,44 @@ test('Small round Undo button undoes the last thing done',async()=>{
  assert.equal(await page.evaluate(()=>S.trucks.length),1,'second truck arrival undone');
  assert.equal(await page.evaluate(()=>S.trucks[0].num),'688','earlier work kept');
  assert.deepEqual(page.errs,[]);await page.context().close()});
+
+// Steps forgotten or tapped late, and pump strokes typed in from a hand counter after reinforcing starts.
+async function day(page,fn){return page.evaluate(fn=>{const clock={t:new Date(2026,10,24,8,0).getTime()};Date.now=()=>clock.t;const adv=m=>clock.t+=m*60000;
+ const arrive=num=>{A.arrive();const t=S.trucks[S.trucks.length-1];A.setT(t.id,'num',num);return t};
+ const times=k=>{const st=stages(pileRec(k)),o={};for(const x in st)o[x]=hm(st[x].t)+(st[x].est?' est':'');return o};
+ return (new Function('adv','arrive','times','return ('+fn+')()'))(adv,arrive,times)},String(fn))}
+
+test('Forgot drill start and finish: pump on is grout start, drill times filled in (est) in order',async()=>{
+ const page=await open('sim-forgot-drill');
+ const r=await day(page,()=>{A.cfg('pile','68');const t=arrive('688');A.sample(t.id);adv(5);A.pump();adv(7);A.stage('groutFinish');adv(1);A.stage('reinfStart');A.pset('opCount','180');return{times:times(S.pile.key),pumping:S.pumping}});
+ assert.deepEqual(r.times,{groutStart:'08:05',groutFinish:'08:12',reinfStart:'08:13',drillFinish:'08:05 est',drillStart:'08:02 est',reinfFinish:'08:28 est'});
+ assert.equal(r.pumping,false);assert.deepEqual(page.errs,[]);await page.context().close()});
+
+test('Forgot grout finish: reinforce start stops the pump and grout finish = reinforce start; next pile is not pumping',async()=>{
+ const page=await open('sim-forgot-gf');
+ const r=await day(page,()=>{A.cfg('pile','68');const t=arrive('688');A.sample(t.id);adv(5);A.stage('drillStart');adv(3);A.stage('drillFinish');adv(9);A.stage('reinfStart');
+  const a={times:times(S.pile.key),pumping:S.pumping};adv(15);A.stage('reinfFinish');A.pset('opCount','180');adv(3);A.newPile();return{...a,next:S.pumping}});
+ assert.equal(r.times.groutFinish,'08:17 est');assert.equal(r.times.reinfStart,'08:17');assert.equal(r.pumping,false);assert.equal(r.next,false);
+ assert.deepEqual(page.errs,[]);await page.context().close()});
+
+test('Step tapped late is not stamped out of order',async()=>{
+ const page=await open('sim-late-tap');
+ const r=await day(page,()=>{A.cfg('pile','68');arrive('688');adv(5);A.pump();adv(7);A.stage('groutFinish');adv(2);A.stage('drillStart');return{real:S.pile.st.drillStart||null,times:times(S.pile.key),msg:$('msg').textContent}});
+ assert.equal(r.real,null);assert.equal(r.times.drillStart,'08:02 est');assert.match(r.msg,/not stamped/);
+ assert.deepEqual(page.errs,[]);await page.context().close()});
+
+test('Hand-counter strokes typed after reinforce start, fixed after the next pile started: times untouched, yardage re-flows',async()=>{
+ const page=await open('sim-hand-counter');
+ const r=await day(page,()=>{const out={};A.cfg('pile','68');const t1=arrive('688');A.sample(t1.id);
+  const pileDay=(id,n)=>{A.cfg('pile',id);adv(2);A.stage('drillStart');adv(3);A.stage('drillFinish');adv(7);A.stage('groutFinish');A.stage('reinfStart');adv(2);A.pset('opCount',n);adv(13);A.stage('reinfFinish')};
+  pileDay('68','180');adv(2);A.newPile();arrive('651');pileDay('69','182');const k68=orderKeys()[0];out.before=times(k68);
+  adv(5);A.newPile();A.cfg('pile','70');A.oldSet(k68,'opCount','178');out.after=times(k68);
+  const L=LG();out.u68=L.trucks[t1.id].used[k68];out.bal=L.totals.balance;out.pumping=S.pumping;out.warn=L.warnings.length;return out});
+ assert.deepEqual(r.after,r.before,'stage times not changed by typing strokes');near(r.u68,178*CAL,'688 on 68 after fix');near(r.bal,0);
+ assert.equal(r.pumping,false);assert.equal(r.warn,0);assert.deepEqual(page.errs,[]);await page.context().close()});
+
+test('Some clicker taps, then the hand-counter total typed in: the typed total wins, no double count',async()=>{
+ const page=await open('sim-mixed');
+ const r=await day(page,()=>{A.cfg('pile','68');const t=arrive('688');A.stage('drillStart');adv(3);A.stage('drillFinish');for(let i=0;i<40;i++)stroke(1);adv(7);A.stage('groutFinish');A.stage('reinfStart');A.pset('myCount','180');
+  return{n:confStrokes(S.pile.key).n,used:LG().trucks[t.id].used[S.pile.key]}});
+ assert.equal(r.n,180);near(r.used,180*CAL);assert.deepEqual(page.errs,[]);await page.context().close()});

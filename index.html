@@ -1909,7 +1909,7 @@ function formHTML(pk,pair){
  // A truck column is a truck that pumped grout into this pile. Arriving, waiting, or a zero-stroke switch does not.
  const svForTruck=stages(P),gs=svForTruck.groutStart&&svForTruck.groutStart.t,gf=svForTruck.groutFinish&&svForTruck.groutFinish.t;
  const used=S.trucks.filter(t=>supplies(t,P.key)).sort((a,b)=>(a.arrived||truckTimes(a).arrived.t||0)-(b.arrived||truckTimes(b).arrived.t||0)||(a.seq||0)-(b.seq||0));
- const emptyHere=t=>!t.blank&&usedOn(t,P.key)>0&&(pev(null,P.key).some(e=>!e.undone&&e.truck===t.id&&(e.type==='truck_empty'||e.type==='truck_waste'))||!!(t.emptied&&gs&&gf&&t.emptied>=gs&&t.emptied<=gf));
+ const emptyHere=t=>!t.blank&&usedOn(t,P.key)>0&&(pev(null,P.key).some(e=>!e.undone&&e.truck===t.id&&(e.type==='truck_empty'))||!!(t.emptied&&gs&&gf&&t.emptied>=gs&&t.emptied<=gf));
  const ts=[...used];while(ts.length<2)ts.push({seq:'',num:'',tests:[],blank:true});
  const CL={y:'#ffe600',g:'#d3d6da',t:'#f2c27a',b:'#a9b9d3',u:'#cfe8d4'};
  const TW=truckPumpWindows(P,used);
@@ -1975,17 +1975,18 @@ function carryOut(pk){
   if(order.slice(0,idx).some(k=>emptyOn(t,k)||t.wastePk===k))continue;
   rows.push({t,yd:leftAfter(t,pk),fromPk:pk})}
  return rows}
+const carryFloor=v=>(Math.floor((Math.max(0,v)+1e-10)*1000)/1000).toFixed(3);
 function carryCell(rows,prep){
  const known=rows.filter(r=>r.yd!=null&&ydShows(r.yd)),unknown=rows.some(r=>r.yd==null);
  if(!known.length)return unknown?'?':'';
  // One truck: the big number is that truck's yards ("5.000 on 202").
  // More than one: name every truck with its own yards, or the middle truck reads as "on 7.000".
  const describe=r=>{const truck='Truck '+esc(String(r.t.seq||'?'))+(r.t.num?' (ID '+esc(String(r.t.num))+')':'');const from=r.fromPk?' from Pile '+esc(pname(r.fromPk)):'';return truck+from};
- const note=known.length===1&&!unknown?esc(prep)+' '+describe(known[0]):known.map(r=>esc(r1(r.yd))+' '+esc(prep)+' '+describe(r)).join(' + ')+(unknown?' + ?':'');
+ const note=known.length===1&&!unknown?esc(prep)+' '+describe(known[0]):known.map(r=>esc(carryFloor(r.yd))+' '+esc(prep)+' '+describe(r)).join(' + ')+(unknown?' + ?':'');
  const sum=known.reduce((a,r)=>a+r.yd,0);
- return {html:(unknown?'? (known '+esc(r1(sum))+')':esc(r1(sum)))+` <small style="font-size:12px;color:#555">${note}</small>`}}
-function carryNum(rows){if(rows.some(r=>r.yd==null))return '?';const sum=rows.reduce((a,r)=>a+(r.yd!=null&&ydShows(r.yd)?r.yd:0),0);return ydShows(sum)?+r1(sum):0}
-function carryWho(rows,prep){const known=rows.filter(r=>r.yd!=null&&ydShows(r.yd)).map(r=>r1(r.yd)+' '+prep+' '+tname(r.t)).join(' + ');return known+(rows.some(r=>r.yd==null)?(known?' + ?':'?'):'')}
+ return {html:(unknown?'? (known '+esc(carryFloor(sum))+')':esc(carryFloor(sum)))+` <small style="font-size:12px;color:#555">${note}</small>`}}
+function carryNum(rows){if(rows.some(r=>r.yd==null))return '?';const sum=rows.reduce((a,r)=>a+(r.yd!=null&&ydShows(r.yd)?r.yd:0),0);return ydShows(sum)?+carryFloor(sum):0}
+function carryWho(rows,prep){const known=rows.filter(r=>r.yd!=null&&ydShows(r.yd)).map(r=>carryFloor(r.yd)+' '+prep+' '+tname(r.t)).join(' + ');return known+(rows.some(r=>r.yd==null)?(known?' + ?':'?'):'')}
 function midVals(pk){const P=pileRec(pk),L=ledger(pk),f=v=>v===null?'?':r1(v),order=orderKeys(),idx=order.indexOf(pk);
  // November 17 verified field reconciliation: only the paper form's center
  // yardage box. Preserve the inspector's original count and all raw records.

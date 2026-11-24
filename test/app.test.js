@@ -188,3 +188,21 @@ test('Forms: a truck carries forward (624 leftover 2.167 from pile 72 is used on
   near(r.u624,2.1667,'624 leftover used on 73');near(r.u651,182*CAL-2.1667,'651 makes up the rest');assert.match(r.cin,/^2\.16/);
   assert.match(r.screen,/Truck 624[\s\S]*Fed: Pile 72 5\.733 · Pile 73 2\.167/);
   assert.deepEqual(page.errs,[]);assert.deepEqual(await page.appErrors(),[]);await page.context().close()}});
+
+test('Forms, a whole day: carry forward pile to pile, new truck arrivals, last truck 2218 wasted on the last pile',async()=>{
+ const page=await open('sim-waste-2218');
+ const r=await page.evaluate(()=>{const fill=v=>{formGrid({},'');for(const k in v){if(!$('fg-'+k))throw new Error('no field '+k);$('fg-'+k).value=v[k]}formApply(false);scanClose()};
+  const day=[['72','180',{'num-0':'624','arrived-0':'08:10','sampleNo-0':'S1'}],['73','182',{'num-0':'624','num-1':'651','arrived-1':'08:55'}],
+   ['74','184',{'num-0':'651','num-1':'2218','arrived-1':'09:40'}],['75','142',{'num-0':'2218','waste-0':'Y'}]];
+  day.forEach(([id,n,tr],i)=>{if(i)A.newPile();A.cfg('pile',id);fill({pdate:'2026-11-24',drillStart:(8+i)+':15',drillFinish:(8+i)+':18',groutFinish:(8+i)+':25',reinfStart:(8+i)+':25',total:n,...tr})});
+  const txt=v=>v&&v.html!=null?v.html.replace(/<[^>]+>/g,'').replace(/\s+/g,' ').trim():String(v??'');
+  const forms=Object.fromEntries(orderKeys().map(k=>{const m=midVals(k),o={};for(const f of ['ARRIVED','CARRY OVER INTO','USED','CARRY OVER OUT','WASTE'])o[f]=txt(m[f]);return[pname(k),o]}));
+  S.fullTools=false;render();return{forms,bal:LG().totals.balance,screen:$('simple-trucks').innerText,trucks:S.trucks.map(t=>t.num).join(',')}});
+ const F=r.forms;assert.equal(r.trucks,'624,651,2218');
+ // carry is shown rounded down to 0.001 (field rule)
+ assert.deepEqual(F['72'],{ARRIVED:'9.000','CARRY OVER INTO':'',USED:'5.733','CARRY OVER OUT':'2.166 on Truck 1 (ID 624) from Pile 72',WASTE:''});
+ assert.deepEqual(F['73'],{ARRIVED:'9.000','CARRY OVER INTO':'2.166 from Truck 1 (ID 624) from Pile 72',USED:'5.797','CARRY OVER OUT':'5.369 on Truck 2 (ID 651) from Pile 73',WASTE:''});
+ assert.deepEqual(F['74'],{ARRIVED:'9.000','CARRY OVER INTO':'5.369 from Truck 2 (ID 651) from Pile 73',USED:'5.861','CARRY OVER OUT':'8.508 on Truck 3 (ID 2218) from Pile 74',WASTE:''});
+ assert.deepEqual(F['75'],{ARRIVED:'','CARRY OVER INTO':'8.508 from Truck 3 (ID 2218) from Pile 74',USED:'4.523','CARRY OVER OUT':'',WASTE:'3.986'});
+ near(r.bal,0);assert.match(r.screen,/Truck 2218[\s\S]*Leftover wasted: 3\.986/);
+ assert.deepEqual(page.errs,[]);assert.deepEqual(await page.appErrors(),[]);await page.context().close()});
